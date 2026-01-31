@@ -1,0 +1,38 @@
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useUser } from '@/hooks/useUser'
+import Dashboard from '@/components/Dashboard'
+import Projects from '@/components/Projects'
+import ProjectDetails from '@/components/ProjectDetails'
+import Analytics from '@/components/Analytics'
+import WebsiteBuilder from '@/components/WebsiteBuilder'
+import Loading from '@/components/Loading'
+
+function App() {
+  const { user, loading } = useUser()
+
+  if (loading) {
+    return <Loading />
+  }
+
+  if (!user) {
+    // Redirect to login if not authenticated
+    window.location.href = '/users/sign_in'
+    return <Loading />
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/projects" element={<Projects />} />
+        <Route path="/dashboard/projects/:projectId" element={<ProjectDetails />} />
+        <Route path="/dashboard/projects/:projectId/analytics" element={<Analytics />} />
+        <Route path="/dashboard/projects/:projectId/website" element={<WebsiteBuilder />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </div>
+  )
+}
+
+export default App

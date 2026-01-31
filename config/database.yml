@@ -1,0 +1,38 @@
+# PostgreSQL - Connect to existing Supabase database
+#
+# IMPORTANT: This app connects to an EXISTING Supabase PostgreSQL database.
+# All tables already exist - Rails models map directly to them.
+# Only new tables (api_tokens) require migrations.
+#
+# Get connection string from: Supabase Dashboard → Project Settings → Database
+# Use the "Transaction pooler" connection for better performance
+
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  url: <%= ENV['SUPABASE_DATABASE_URL'] %>
+
+test:
+  <<: *default
+  database: aicw_app_rails_test
+
+production:
+  primary: &primary_production
+    <<: *default
+    url: <%= ENV['SUPABASE_DATABASE_URL'] %>
+  cache:
+    <<: *primary_production
+    database: aicw_app_rails_production_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_production
+    database: aicw_app_rails_production_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_production
+    database: aicw_app_rails_production_cable
+    migrations_paths: db/cable_migrate
