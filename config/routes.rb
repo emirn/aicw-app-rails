@@ -58,6 +58,7 @@ Rails.application.routes.draw do
 
   # Dashboard (serves React frontend via Vite)
   get "dashboard", to: "dashboard#index"
+  get "dashboard/manifest", to: "dashboard#manifest"
   get "dashboard/*path", to: "dashboard#index"
 
   # Root route

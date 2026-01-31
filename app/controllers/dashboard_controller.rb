@@ -11,6 +11,13 @@ class DashboardController < ApplicationController
     # The actual React app is mounted via the layout
   end
 
+  def manifest
+    render json: {
+      appVersion: Rails.application.version.to_s,
+      appRevision: Rails.application.version.revision
+    }
+  end
+
   private
 
   def set_api_token
