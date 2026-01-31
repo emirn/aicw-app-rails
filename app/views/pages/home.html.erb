@@ -1,0 +1,37 @@
+<div class="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div class="text-center">
+      <h1 class="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
+        AI Chat Watch
+      </h1>
+      <p class="mt-4 text-xl text-gray-600 max-w-2xl mx-auto">
+        Monitor your brand's visibility in AI chatbot responses. Track mentions, analyze trends, and optimize your AI presence.
+      </p>
+      <div class="mt-8 flex justify-center gap-4">
+        <%= link_to "Sign In", new_user_session_path, class: "px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition" %>
+        <%= link_to "Sign Up", new_user_registration_path, class: "px-6 py-3 bg-white text-blue-600 border border-blue-600 rounded-lg font-medium hover:bg-blue-50 transition" %>
+      </div>
+    </div>
+
+    <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900">Analytics Dashboard</h3>
+        <p class="mt-2 text-gray-600">
+          Track AI bot traffic to your website in real-time. See which AI assistants mention your brand.
+        </p>
+      </div>
+      <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900">AI Visibility Score</h3>
+        <p class="mt-2 text-gray-600">
+          Measure how visible your brand is across different AI models and chatbots.
+        </p>
+      </div>
+      <div class="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-900">Website Builder</h3>
+        <p class="mt-2 text-gray-600">
+          Create AI-optimized blog content and deploy to Cloudflare Pages instantly.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
