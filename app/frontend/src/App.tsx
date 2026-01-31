@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useUser } from '@/hooks/useUser'
+import { getAppConfig } from '@/config/api'
 import Dashboard from '@/components/Dashboard'
 import Projects from '@/components/Projects'
 import ProjectDetails from '@/components/ProjectDetails'
@@ -10,6 +11,15 @@ import Loading from '@/components/Loading'
 
 function App() {
   const { user, loading } = useUser()
+  const [appVersion, setAppVersion] = useState<string>('')
+  const [appRevision, setAppRevision] = useState<string>('')
+
+  useEffect(() => {
+    getAppConfig().then(config => {
+      setAppVersion(config.appVersion || '')
+      setAppRevision(config.appRevision || '')
+    }).catch(() => {})
+  }, [])
 
   if (loading) {
     return <Loading />
@@ -31,6 +41,15 @@ function App() {
         <Route path="/dashboard/projects/:projectId/website" element={<WebsiteBuilder />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+
+      {/* Version Footer */}
+      {appVersion && (
+        <footer className="fixed bottom-4 left-4 z-40">
+          <span className="text-xs text-gray-400">
+            v{appVersion}{appRevision && `.${appRevision}`}
+          </span>
+        </footer>
+      )}
     </div>
   )
 }
