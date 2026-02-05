@@ -1,0 +1,44 @@
+DESCRIPTION >
+    Breakdown of crawler traffic by type
+    Shows AI crawlers vs generic bots
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+      ref_bot,
+      CASE
+        WHEN ref_bot IN (
+          'gptbot', 'oai_searchbot', 'claudebot', 'claude_web', 'claude_searchbot',
+          'anthropic_ai', 'perplexitybot', 'google_extended', 'googleother',
+          'google_notebooklm', 'meta_externalagent', 'facebookbot', 'facebookexternalhit',
+          'bingbot', 'bingpreview', 'msnbot', 'deepseekbot', 'youbot', 'ccbot',
+          'cohere_crawler', 'bytespider', 'grokbot'
+        ) THEN 'AI Crawler'
+        ELSE 'Generic Bot'
+      END as crawler_category,
+      count() as visit_count,
+      uniq(session_hash) as unique_sessions,
+      countIf(ref_source != '') as visits_with_referrer
+    FROM page_views_events
+    WHERE
+      project_id = {{String(project_id, required=True)}}
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+      AND ref_bot != ''
+    GROUP BY ref_bot, crawler_category
+    ORDER BY visit_count DESC
+
+TYPE endpoint

@@ -1,0 +1,40 @@
+DESCRIPTION >
+    Time series data for charts (daily/weekly/monthly buckets).
+    Returns temporal trends of total visits vs AI visits.
+
+    Parameters:
+    - interval: 'day' (default), 'week', or 'month'
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        {% if defined(interval) and interval == 'week' %}
+        toStartOfWeek(created_at) as date_bucket,
+        {% elif defined(interval) and interval == 'month' %}
+        toStartOfMonth(created_at) as date_bucket,
+        {% else %}
+        toDate(created_at) as date_bucket,
+        {% end %}
+        count() as total_pageviews,
+        uniqExact(session_hash) as total_visitors,
+        countIf(ref_source != '') as ai_pageviews,
+        uniqExact(if(ref_source != '', session_hash, null)) as ai_visitors,
+        round((ai_visitors / total_visitors) * 100, 2) as ai_percentage
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+    GROUP BY date_bucket
+    ORDER BY date_bucket ASC
+
+TYPE endpoint

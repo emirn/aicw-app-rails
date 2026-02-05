@@ -1,0 +1,56 @@
+DESCRIPTION >
+    Overview of summarize events by AI service.
+    Returns click counts, unique sessions, opens count, and click-through rate.
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    WITH
+    opens AS (
+        SELECT count() as total_opens
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          AND event_type = 'summarize_opened'
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+    ),
+    clicks AS (
+        SELECT count() as total_clicks
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          AND event_type = 'summarize_click'
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+    )
+    SELECT
+        ref_source as ai_service,
+        count() as click_count,
+        uniqExact(session_hash) as unique_sessions,
+        round((click_count / nullIf((SELECT total_clicks FROM clicks), 0)) * 100, 2) as percentage,
+        (SELECT total_opens FROM opens) as total_opens,
+        (SELECT total_clicks FROM clicks) as total_clicks,
+        round(if((SELECT total_opens FROM opens) > 0,
+              (SELECT total_clicks FROM clicks) / (SELECT total_opens FROM opens) * 100, 0), 2) as click_through_rate
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'summarize_click'
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+    GROUP BY ai_service
+    ORDER BY click_count DESC
+
+TYPE endpoint

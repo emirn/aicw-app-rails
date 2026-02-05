@@ -1,0 +1,265 @@
+[
+  {
+    "name": "OpenAI ChatGPT",
+    "url": "chatgpt.com",
+    "category": "ai",
+    "referrers": ["chat.openai.com", "chatgpt.com", "openai", "chat-gpt", "gpt", "chat.openai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Anthropic Claude",
+    "url": "claude.ai",
+    "category": "ai",
+    "referrers": ["claude.ai", "anthropic", "claude-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Perplexity.AI",
+    "url": "perplexity.ai",
+    "category": "ai",
+    "referrers": ["perplexity.ai", "perplexity-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Google Gemini",
+    "url": "gemini.google.com",
+    "category": "ai",
+    "referrers": ["gemini.google.com", "gemini", "bard", "google-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Google AI/Featured",
+    "url": "google.com",
+    "category": "ai",
+    "referrers": ["google.com"],
+    "require_text_fragment": true
+  },
+  {
+    "name": "Microsoft Copilot",
+    "url": "copilot.microsoft.com",
+    "category": "ai",
+    "referrers": ["copilot.microsoft.com", "copilot", "bing-ai", "bing-chat", "bing-copilot"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Alibaba Qwen",
+    "url": "chat.qwen.ai",
+    "category": "ai",
+    "referrers": ["chat.qwen.ai", "qwen", "tongyi", "qianwen", "alibaba-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "DeepSeek",
+    "url": "chat.deepseek.com",
+    "category": "ai",
+    "referrers": ["chat.deepseek.com", "deepseek", "deepseek-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Meta AI",
+    "url": "meta.ai",
+    "category": "ai",
+    "referrers": ["meta.ai", "meta", "meta-ai", "llama"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "You.com",
+    "url": "you.com",
+    "category": "ai",
+    "referrers": ["you.com", "you-com", "youchat"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Mistral Le Chat",
+    "url": "mistral.ai",
+    "category": "ai",
+    "referrers": ["mistral.ai", "mistral", "le-chat", "mistral-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Grok",
+    "url": "grok.com",
+    "category": "ai",
+    "referrers": ["grok.com", "grok", "xai", "x-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Phind",
+    "url": "phind.com",
+    "category": "ai",
+    "referrers": ["phind.com", "phind-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "HuggingChat",
+    "url": "huggingface.co",
+    "category": "ai",
+    "referrers": ["huggingface.co", "huggingchat", "hf"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Blackbox AI",
+    "url": "blackbox.ai",
+    "category": "ai",
+    "referrers": ["blackbox.ai", "blackbox-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Andi",
+    "url": "andisearch.com",
+    "category": "ai",
+    "referrers": ["andisearch.com", "andi"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Felo",
+    "url": "felo.ai",
+    "category": "ai",
+    "referrers": ["felo.ai", "felo-ai"],
+    "check_utm_source_for_referral": true
+  },
+  {
+    "name": "Google",
+    "url": "google.com",
+    "category": "search",
+    "referrers": ["google.com"]
+  },
+  {
+    "name": "Bing",
+    "url": "bing.com",
+    "category": "search",
+    "referrers": ["bing.com"]
+  },
+  {
+    "name": "Brave",
+    "url": "brave.com",
+    "category": "search",
+    "referrers": ["brave.com"]
+  },
+  {
+    "name": "DuckDuckGo",
+    "url": "duckduckgo.com",
+    "category": "search",
+    "referrers": ["duckduckgo.com"]
+  },
+  {
+    "name": "Yahoo",
+    "url": "yahoo.com",
+    "category": "search",
+    "referrers": ["yahoo.com"]
+  },
+  {
+    "name": "Yandex",
+    "url": "yandex.ru",
+    "category": "search",
+    "referrers": ["yandex.ru", "yandex.com"]
+  },
+  {
+    "name": "Baidu",
+    "url": "baidu.com",
+    "category": "search",
+    "referrers": ["baidu.com"]
+  },
+  {
+    "name": "Ecosia",
+    "url": "ecosia.org",
+    "category": "search",
+    "referrers": ["ecosia.org"]
+  },
+  {
+    "name": "Startpage",
+    "url": "startpage.com",
+    "category": "search",
+    "referrers": ["startpage.com"]
+  },
+  {
+    "name": "Qwant",
+    "url": "qwant.com",
+    "category": "search",
+    "referrers": ["qwant.com"]
+  },
+  {
+    "name": "Naver",
+    "url": "naver.com",
+    "category": "search",
+    "referrers": ["naver.com"]
+  },
+  {
+    "name": "Seznam",
+    "url": "seznam.cz",
+    "category": "search",
+    "referrers": ["seznam.cz"]
+  },
+  {
+    "name": "Ask",
+    "url": "ask.com",
+    "category": "search",
+    "referrers": ["ask.com"]
+  },
+  {
+    "name": "AOL",
+    "url": "search.aol.com",
+    "category": "search",
+    "referrers": ["search.aol.com", "aol.com"]
+  },
+  {
+    "name": "Swisscows",
+    "url": "swisscows.com",
+    "category": "search",
+    "referrers": ["swisscows.com"]
+  },
+  {
+    "name": "Reddit",
+    "url": "reddit.com",
+    "category": "social",
+    "referrers": ["reddit.com"]
+  },
+  {
+    "name": "X",
+    "url": "x.com",
+    "category": "social",
+    "referrers": ["x.com"]
+  },
+  {
+    "name": "Facebook",
+    "url": "facebook.com",
+    "category": "social",
+    "referrers": ["facebook.com", "fb.com", "fb.me", "m.facebook.com", "messenger.com", "fbcdn.net", "facebook.net", "fb.gg", "fb.watch", "business.facebook.com", "developers.facebook.com", "l.facebook.com", "web.facebook.com"]
+  },
+  {
+    "name": "Instagram",
+    "url": "instagram.com",
+    "category": "social",
+    "referrers": ["instagram.com", "instagr.am", "ig.me", "cdninstagram.com", "business.instagram.com", "help.instagram.com"]
+  },
+  {
+    "name": "LinkedIn",
+    "url": "linkedin.com",
+    "category": "social",
+    "referrers": ["linkedin.com", "lnkd.in", "linkedin.cn", "linkedin-china.cn"]
+  },
+  {
+    "name": "Mastodon",
+    "url": "mastodon.social",
+    "category": "social",
+    "referrers": ["mastodon.social", "mastodon.online", "mastodon.world", "mstdn.social", "fosstodon.org", "mas.to", "joinmastodon.org", "mastodon.cloud", "toot.community", "mastodon.technology", "social.vivaldi.net", "masto.host", "hostux.social"]
+  },
+  {
+    "name": "Bluesky",
+    "url": "bsky.app",
+    "category": "social",
+    "referrers": ["bsky.app", "blueskyweb.xyz", "bsky.social", "at.bsky.app", "staging.bsky.app", "bsky.network"]
+  },
+  {
+    "name": "TikTok",
+    "url": "tiktok.com",
+    "category": "video",
+    "referrers": ["tiktok.com"]
+  },
+  {
+    "name": "YouTube",
+    "url": "youtube.com",
+    "category": "video",
+    "referrers": ["youtube.com"]
+  }
+]

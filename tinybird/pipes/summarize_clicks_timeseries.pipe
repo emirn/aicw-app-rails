@@ -1,0 +1,35 @@
+DESCRIPTION >
+    Time series data for summarize click events.
+    Returns daily/weekly/monthly click counts for trend charts.
+
+    Parameters:
+    - interval: 'day' (default), 'week', or 'month'
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        {% if defined(interval) and interval == 'week' %}
+        toStartOfWeek(created_at) as date_bucket,
+        {% elif defined(interval) and interval == 'month' %}
+        toStartOfMonth(created_at) as date_bucket,
+        {% else %}
+        toDate(created_at) as date_bucket,
+        {% end %}
+        count() as clicks,
+        uniqExact(session_hash) as unique_sessions
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'summarize_click'
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+    GROUP BY date_bucket
+    ORDER BY date_bucket ASC
+
+TYPE endpoint

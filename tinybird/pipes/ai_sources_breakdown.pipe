@@ -1,0 +1,51 @@
+DESCRIPTION >
+    Breakdown of visits by AI source with percentages.
+    Shows only AI sources (ref_source_category = 'ai') with visit counts and unique sessions.
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    WITH total AS (
+        SELECT uniqExact(session_hash) as total_visitors
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+          {% if defined(page_path) %}
+          AND page_path = {{String(page_path)}}
+          {% end %}
+          {% if defined(country_code) %}
+          AND geo_country_code = {{String(country_code)}}
+          {% end %}
+          AND ref_source_category = 'ai'
+    )
+    SELECT
+        ref_source,
+        count() as pageviews,
+        uniqExact(session_hash) as visitors,
+        round((visitors / (SELECT total_visitors FROM total)) * 100, 2) as percentage
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+      AND ref_source_category = 'ai'
+    GROUP BY ref_source
+    ORDER BY visitors DESC
+
+TYPE endpoint

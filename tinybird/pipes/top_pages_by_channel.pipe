@@ -1,0 +1,78 @@
+DESCRIPTION >
+    Top pages with channel breakdown (Direct, Search, AI Chats).
+    Shows content performance by traffic source.
+
+    Focuses on simplicity - which pages get traffic from which channels.
+
+    Parameters:
+    - channels (optional): Comma-separated traffic channels ('ai,search,direct,other')
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    WITH events_with_channel AS (
+        SELECT
+            *,
+            CASE
+                WHEN ref_source_category = 'ai' THEN 'ai'
+                WHEN ref_source_category = 'search' THEN 'search'
+                WHEN referrer = '' OR referrer IS NULL THEN 'direct'
+                ELSE 'other'
+            END as channel
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          AND page_path != ''
+          AND ref_bot = ''
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+          {% if defined(page_path) %}
+          AND page_path = {{String(page_path)}}
+          {% end %}
+          {% if defined(country_code) %}
+          AND geo_country_code = {{String(country_code)}}
+          {% end %}
+          {% if defined(channels) and channels != '' %}
+          AND (
+            (position({{String(channels)}}, 'ai') > 0 AND ref_source_category = 'ai')
+            OR (position({{String(channels)}}, 'search') > 0 AND ref_source_category = 'search')
+            OR (position({{String(channels)}}, 'direct') > 0 AND (referrer = '' OR referrer IS NULL) AND ref_source_category = '')
+            OR (position({{String(channels)}}, 'other') > 0 AND ref_source_category NOT IN ('ai', 'search') AND referrer != '' AND referrer IS NOT NULL)
+          )
+          {% end %}
+    )
+    SELECT
+        page_path,
+        any(page_title) as page_title,
+        -- Direct traffic
+        countIf(channel = 'direct') as direct_pageviews,
+        uniqExact(if(channel = 'direct', session_hash, null)) as direct_visitors,
+        -- Search traffic
+        countIf(channel = 'search') as search_pageviews,
+        uniqExact(if(channel = 'search', session_hash, null)) as search_visitors,
+        -- AI Chats traffic
+        countIf(channel = 'ai') as ai_pageviews,
+        uniqExact(if(channel = 'ai', session_hash, null)) as ai_visitors,
+        -- Other traffic
+        countIf(channel = 'other') as other_pageviews,
+        uniqExact(if(channel = 'other', session_hash, null)) as other_visitors,
+        -- Totals
+        count() as total_pageviews,
+        uniqExact(session_hash) as total_visitors,
+        -- Top 5 AI sources for this page (comma-separated)
+        arrayStringConcat(arrayFilter(x -> x != '', topK(5)(if(ref_source_category = 'ai', ref_source, ''))), ',') as top_ai_sources,
+        -- Top 5 Search sources for this page
+        arrayStringConcat(arrayFilter(x -> x != '', topK(5)(if(ref_source_category = 'search', ref_source, ''))), ',') as top_search_sources,
+        -- Top 5 Other referrers for this page (using ref_source or domain from referrer)
+        arrayStringConcat(arrayFilter(x -> x != '', topK(5)(if(ref_source_category NOT IN ('ai', 'search') AND referrer != '' AND referrer IS NOT NULL, coalesce(nullIf(ref_source, ''), domain(referrer)), ''))), ',') as top_other_sources
+    FROM events_with_channel
+    GROUP BY page_path
+    ORDER BY total_visitors DESC
+    LIMIT {{Int32(limit, 20)}}
+
+TYPE endpoint

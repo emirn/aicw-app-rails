@@ -1,0 +1,92 @@
+DESCRIPTION >
+    Time series data for traffic chart by individual source.
+    Returns temporal trends broken down by specific sources (top 12).
+    Used for detailed breakdown view in StackedTrafficChart.
+
+TOKEN "analytics_read" READ
+
+NODE top_sources
+SQL >
+    %
+    SELECT
+        CASE
+            WHEN (referrer = '' OR referrer IS NULL) AND ref_source_category = '' THEN 'Direct'
+            WHEN ref_source_category = 'ai' THEN ref_source
+            WHEN ref_source_category = 'search' THEN ref_source
+            ELSE referrer_domain
+        END as source_key,
+        CASE
+            WHEN (referrer = '' OR referrer IS NULL) AND ref_source_category = '' THEN 'direct'
+            WHEN ref_source_category = 'ai' THEN 'ai'
+            WHEN ref_source_category = 'search' THEN 'search'
+            ELSE 'other'
+        END as channel,
+        uniqExact(session_hash) as total_visitors
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'pageview'
+      AND ref_bot = ''
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+    GROUP BY source_key, channel
+    ORDER BY total_visitors DESC
+    LIMIT {{Int32(limit, 12)}}
+
+NODE endpoint
+SQL >
+    %
+    WITH top AS (SELECT source_key, channel FROM top_sources)
+    SELECT
+        toDate(created_at) as date_bucket,
+        CASE
+            WHEN (referrer = '' OR referrer IS NULL) AND ref_source_category = '' THEN 'Direct'
+            WHEN ref_source_category = 'ai' THEN ref_source
+            WHEN ref_source_category = 'search' THEN ref_source
+            ELSE referrer_domain
+        END as source_key,
+        CASE
+            WHEN (referrer = '' OR referrer IS NULL) AND ref_source_category = '' THEN 'direct'
+            WHEN ref_source_category = 'ai' THEN 'ai'
+            WHEN ref_source_category = 'search' THEN 'search'
+            ELSE 'other'
+        END as channel,
+        count() as pageviews,
+        uniqExact(session_hash) as visitors
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'pageview'
+      AND ref_bot = ''
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+      AND (
+          CASE
+              WHEN (referrer = '' OR referrer IS NULL) AND ref_source_category = '' THEN 'Direct'
+              WHEN ref_source_category = 'ai' THEN ref_source
+              WHEN ref_source_category = 'search' THEN ref_source
+              ELSE referrer_domain
+          END
+      ) IN (SELECT source_key FROM top)
+    GROUP BY date_bucket, source_key, channel
+    ORDER BY date_bucket ASC, visitors DESC
+
+TYPE endpoint
