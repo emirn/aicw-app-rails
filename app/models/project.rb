@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class Project < ApplicationRecord
-  # Connect to existing Supabase projects table
-  self.table_name = "projects"
-  self.primary_key = "id"
-
   has_prefix_id :project
 
   # Multi-tenancy: automatically scope queries to current account
@@ -29,9 +25,19 @@ class Project < ApplicationRecord
   # It's automatically generated in Supabase via default
   before_validation :generate_tracking_id, on: :create
 
+  # Sync to Supabase after create/update for edge function validation
+  after_commit :schedule_supabase_sync, on: [ :create, :update ]
+
   private
 
   def generate_tracking_id
     self.tracking_id ||= SecureRandom.uuid
+  end
+
+  def schedule_supabase_sync
+    # Only sync if relevant fields changed or it's a new record
+    return unless saved_change_to_domain? || saved_change_to_tracking_id? || previously_new_record?
+
+    SupabaseSyncJob.perform_later(id) if SupabaseProjectSync.configured?
   end
 end

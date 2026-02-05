@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class VisibilityCheck < ApplicationRecord
-  # Connect to existing Supabase visibility_checks table
-  self.table_name = "visibility_checks"
-  self.primary_key = "id"
-
   has_prefix_id :visibility
 
   # Associations

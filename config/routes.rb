@@ -38,7 +38,12 @@ Rails.application.routes.draw do
 
       # Websites and articles
       resources :websites, only: [] do
-        resources :articles, controller: "website_articles"
+        resources :articles, controller: "website_articles" do
+          collection do
+            post :import
+            post :import_plan
+          end
+        end
         resources :deployments, controller: "website_deployments", only: [:index, :show] do
           get :latest, on: :collection
         end

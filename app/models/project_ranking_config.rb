@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class ProjectRankingConfig < ApplicationRecord
-  # Connect to existing Supabase project_ranking_config table
-  self.table_name = "project_ranking_config"
-  self.primary_key = "id"
-
   has_prefix_id :ranking_config
 
   # Associations
@@ -13,10 +9,15 @@ class ProjectRankingConfig < ApplicationRecord
   # Validations
   validates :project_id, uniqueness: true
 
-  # Serialize array columns (PostgreSQL text[])
+  # JSON array columns (stored as JSON in SQLite)
   # These are used to match brand/domain names in ranking reports
-  attribute :brand_synonyms, :string, array: true, default: []
-  attribute :domain_synonyms, :string, array: true, default: []
+  def brand_synonyms
+    (super || []).map(&:to_s)
+  end
+
+  def domain_synonyms
+    (super || []).map(&:to_s)
+  end
 
   # Helper to check if a brand name matches this project
   def matches_brand?(brand_name)

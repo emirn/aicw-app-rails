@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class ProjectWebsite < ApplicationRecord
-  # Connect to existing Supabase project_websites table
-  self.table_name = "project_websites"
-  self.primary_key = "id"
-
   has_prefix_id :website
 
   # Associations

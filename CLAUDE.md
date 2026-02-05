@@ -4,16 +4,18 @@ This is the Rails 8 version of the AI Chat Watch dashboard application.
 
 ## Overview
 
-This app connects directly to the **existing Supabase PostgreSQL database** used by aicw-app. It provides:
-- **Analytics Dashboard**: Proxies requests to Tinybird for traffic analytics
+This app is a **standalone service** using SQLite for local data storage. It provides:
+- **User Authentication**: Devise + Google OAuth
+- **Project Management**: Create and manage projects with tracking IDs
 - **Website Builder**: Create and deploy blog websites to Cloudflare Pages
+- **Analytics Proxy**: Proxies requests to Tinybird for traffic analytics
 
 ## Architecture
 
 | Component | Technology |
 |-----------|------------|
 | Backend | Rails 8 |
-| Database | Supabase PostgreSQL (existing) |
+| Database | SQLite (local) |
 | Auth | Devise + OmniAuth Google |
 | Frontend | React 19 via Vite Ruby |
 | Analytics Data | Tinybird |
@@ -31,10 +33,13 @@ npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your Supabase DATABASE_URL and other secrets
+# Edit .env with your secrets
 
-# Run migrations (only adds Devise columns and api_tokens table)
-bin/rails db:migrate
+# Create database and run migrations
+bin/rails db:create db:migrate
+
+# Seed subscription plans
+bin/rails db:seed
 
 # Start development server
 bin/dev
@@ -43,11 +48,13 @@ bin/dev
 ### Environment Variables
 
 Required:
-- `SUPABASE_DATABASE_URL` - PostgreSQL connection string from Supabase
 - `TINYBIRD_API_KEY` - Tinybird API token
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
 - `WEBSITE_BUILDER_URL` - URL to aicw-website-builder API
 - `WEBSITE_BUILDER_API_KEY` - API key for website builder
+
+Optional (production):
+- `DATABASE_PATH` - Custom path for production database (default: storage/production.sqlite3)
 
 ### Key URLs
 
@@ -57,13 +64,24 @@ Required:
 
 ## Database
 
-**Important**: This app connects to the EXISTING Supabase database. Most tables already exist:
-- `users`, `projects`, `subscriptions`, `subscription_plans`
-- `visibility_checks`, `project_ranking_config`
-- `project_websites`, `website_articles`, `website_deployments`
+This app uses **SQLite** with all tables created via Rails migrations:
+- `users` - User accounts with Devise authentication
+- `accounts` - Multi-tenancy accounts
+- `account_users` - Account membership (join table)
+- `projects` - Projects with tracking_id, domain
+- `subscriptions`, `subscription_plans` - Subscription management
+- `project_websites`, `website_articles`, `website_deployments` - Website builder
+- `visibility_checks`, `project_ranking_configs` - Analytics features
+- `api_tokens` - API authentication tokens
 
-Only new tables:
-- `api_tokens` - Rails API authentication tokens
+Database files are stored in `storage/` directory.
+
+## Data Sync with Supabase
+
+For analytics, project data can be manually synced to Supabase:
+1. Export projects from Rails: `Project.all.as_json`
+2. Import to Supabase via dashboard or REST API
+3. Fields to sync: `domain`, `name`, `tracking_id`, `enable_public_page`
 
 ## API Endpoints
 
@@ -87,11 +105,14 @@ Only new tables:
 - `PATCH /api/v1/projects/:project_id/website` - Update website
 - `POST /api/v1/projects/:project_id/website/deploy` - Deploy website
 
-### Articles
+### Articles (IArticle interface from blogpostgen)
 - `GET /api/v1/websites/:website_id/articles` - List articles
 - `POST /api/v1/websites/:website_id/articles` - Create article
+- `POST /api/v1/websites/:website_id/articles/import` - Import article with assets (base64 encoded)
 - `PATCH /api/v1/websites/:website_id/articles/:id` - Update article
 - `DELETE /api/v1/websites/:website_id/articles/:id` - Delete article
+
+Article fields match IArticle interface: title, description, keywords[], content, last_pipeline, applied_actions[], image_hero, image_og, faq, jsonld, internal_links[], published_at, slug
 
 ## File Structure
 
@@ -134,9 +155,10 @@ app/
     └── website_deployment_service.rb
 ```
 
-## Parallel Operation
+## SQLite Configuration
 
-This Rails app can run alongside the existing React aicw-app:
-- Both connect to the same Supabase database
-- Users can access features via either app
-- Tracking script (Supabase Edge Function) remains unchanged
+SQLite is configured for optimal performance in `config/initializers/sqlite_config.rb`:
+- WAL journal mode for concurrency
+- Foreign keys enforced
+- 20MB cache with memory-mapped I/O
+- 5 second busy timeout

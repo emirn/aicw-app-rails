@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class WebsiteDeployment < ApplicationRecord
-  # Connect to existing Supabase website_deployments table
-  self.table_name = "website_deployments"
-  self.primary_key = "id"
-
   has_prefix_id :deployment
 
   # Associations
