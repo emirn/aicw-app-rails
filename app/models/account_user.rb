@@ -10,9 +10,9 @@ class AccountUser < ApplicationRecord
   # Validations
   validates :user_id, uniqueness: { scope: :account_id, message: "is already a member of this account" }
 
-  # Scopes
-  scope :admins, -> { where("roles @> ?", { admin: true }.to_json) }
-  scope :members, -> { where("roles @> ?", { member: true }.to_json) }
+  # Scopes (SQLite JSON syntax)
+  scope :admins, -> { where("json_extract(roles, '$.admin') = ?", true) }
+  scope :members, -> { where("json_extract(roles, '$.member') = ?", true) }
 
   # Role methods - dynamically define admin? and member?
   ROLES.each do |role|

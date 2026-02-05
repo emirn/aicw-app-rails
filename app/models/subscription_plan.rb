@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class SubscriptionPlan < ApplicationRecord
-  # Connect to existing Supabase subscription_plans table
-  self.table_name = "subscription_plans"
-  self.primary_key = "id"
-
   has_prefix_id :plan
 
   # Associations

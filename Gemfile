@@ -5,8 +5,8 @@ gem "rails", "~> 8.1.2"
 gem "rails_app_version"  # Version tracking and display
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
-# Use postgresql as the database for Active Record
-gem "pg", "~> 1.1"
+# Use SQLite as the database for Active Record
+gem "sqlite3", "~> 2.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 # Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
@@ -34,7 +34,10 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-# gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 1.2"
+
+# MIME type detection for ActiveStorage uploads
+gem "marcel", "~> 1.0"
 
 # ============================================
 # Authentication & Authorization

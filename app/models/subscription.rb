@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class Subscription < ApplicationRecord
-  # Connect to existing Supabase subscriptions table
-  self.table_name = "subscriptions"
-  self.primary_key = "id"
-
   has_prefix_id :subscription
 
   # Associations
@@ -36,5 +32,20 @@ class Subscription < ApplicationRecord
     return 0 if trial_expired?
 
     ((trial_ends_at - Time.current) / 1.day).ceil
+  end
+
+  # Sync all user's projects to Supabase when subscription status changes
+  after_commit :sync_user_projects_to_supabase, on: [ :create, :update ]
+
+  private
+
+  def sync_user_projects_to_supabase
+    return unless saved_change_to_status? || saved_change_to_trial_ends_at?
+    return unless SupabaseProjectSync.configured?
+
+    # Sync all projects for this user with updated active status
+    user.projects.find_each do |project|
+      SupabaseSyncJob.perform_later(project.id)
+    end
   end
 end

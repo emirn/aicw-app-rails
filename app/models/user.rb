@@ -1,12 +1,6 @@
 # frozen_string_literal: true
 
 class User < ApplicationRecord
-  # Connect to existing Supabase public.users table
-  # Note: Supabase uses auth.users for authentication, but we have
-  # a public.users table that syncs via triggers
-  self.table_name = "users"
-  self.primary_key = "id"
-
   # Devise modules
   # Note: :database_authenticatable requires encrypted_password column
   # which will be added via migration for Rails-based auth

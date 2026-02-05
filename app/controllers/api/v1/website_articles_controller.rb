@@ -8,9 +8,11 @@ class Api::V1::WebsiteArticlesController < Api::BaseController
   def index
     articles = @website.articles.ordered
 
-    # Optional status filter
-    if params[:status].present?
-      articles = articles.where(status: params[:status])
+    # Optional filter by published status
+    if params[:published] == "true"
+      articles = articles.published
+    elsif params[:published] == "false"
+      articles = articles.drafts
     end
 
     render_api_success(
@@ -39,6 +41,25 @@ class Api::V1::WebsiteArticlesController < Api::BaseController
     end
   end
 
+  # POST /api/v1/websites/:website_id/articles/import
+  # Import or update an article with assets (matching IArticle interface from blogpostgen)
+  # If article_id is provided, updates existing article; otherwise creates new
+  def import
+    result = ArticleImportService.call(
+      website: @website,
+      article_data: import_article_params,
+      assets: import_params[:assets],
+      article_id: params[:article_id]
+    )
+
+    if result.success?
+      status = result.article.previously_new_record? ? :created : :ok
+      render_api_success(article: article_json(result.article, include_content: true, include_assets: true), status: status)
+    else
+      render json: { errors: result.errors }, status: :unprocessable_entity
+    end
+  end
+
   # PATCH /api/v1/websites/:website_id/articles/:id
   def update
     if @article.update(article_params)
@@ -52,6 +73,58 @@ class Api::V1::WebsiteArticlesController < Api::BaseController
   def destroy
     @article.destroy
     render_api_no_content
+  end
+
+  # POST /api/v1/websites/:website_id/articles/import_plan
+  # Import multiple articles from simple text plan format
+  def import_plan
+    parse_result = PlanParserService.call(params[:plan] || '')
+
+    if parse_result.items.empty? && parse_result.warnings.any?
+      return render json: {
+        error: "No valid articles found",
+        warnings: parse_result.warnings
+      }, status: :unprocessable_entity
+    end
+
+    if parse_result.items.empty?
+      return render json: {
+        error: "No articles found in plan",
+        warnings: []
+      }, status: :unprocessable_entity
+    end
+
+    results = []
+    parse_result.items.each do |item|
+      result = ArticleImportService.call(
+        website: @website,
+        article_data: {
+          title: item.title,
+          slug: item.slug,
+          description: item.description,
+          keywords: item.keywords,
+          published_at: item.published_at
+        },
+        assets: []
+      )
+
+      results << {
+        title: item.title,
+        slug: item.slug,
+        success: result.success?,
+        article_id: result.success? ? result.article.prefix_id : nil,
+        errors: result.errors
+      }
+    end
+
+    render json: {
+      parsed: parse_result.parsed,
+      skipped: parse_result.skipped,
+      warnings: parse_result.warnings,
+      results: results,
+      created: results.count { |r| r[:success] },
+      failed: results.count { |r| !r[:success] }
+    }, status: :ok
   end
 
   private
@@ -74,43 +147,55 @@ class Api::V1::WebsiteArticlesController < Api::BaseController
     params.require(:article).permit(
       :title,
       :slug,
-      :content_markdown,
-      :excerpt,
-      :featured_image_url,
-      :meta_description,
-      :og_title,
-      :og_description,
-      :og_image_url,
-      :twitter_title,
-      :twitter_description,
-      :image_social,
-      :breadcrumbs,
-      :author_name,
-      :author_avatar_url,
-      :status,
+      :description,
+      :content,
+      :image_hero,
+      :image_og,
+      :faq,
+      :jsonld,
+      :last_pipeline,
       :published_at,
-      :sort_order,
       keywords: [],
-      categories: [],
-      tags: []
+      applied_actions: [],
+      internal_links: [:slug, :anchor]
     )
   end
 
-  def article_json(article, include_content: false)
+  def import_article_params
+    params.require(:article).permit(
+      :title,
+      :slug,
+      :description,
+      :content,
+      :image_hero,
+      :image_og,
+      :faq,
+      :jsonld,
+      :last_pipeline,
+      :published_at,
+      keywords: [],
+      applied_actions: [],
+      internal_links: [:slug, :anchor]
+    )
+  end
+
+  def import_params
+    params.permit(assets: [:path, :base64])
+  end
+
+  def article_json(article, include_content: false, include_assets: false)
     data = {
       id: article.prefix_id,
       website_id: @website.prefix_id,
       title: article.title,
       slug: article.slug,
-      excerpt: article.excerpt,
-      featured_image_url: article.featured_image_url,
-      status: article.status,
+      description: article.description,
+      keywords: article.keywords,
+      image_hero: article.image_hero,
+      image_og: article.image_og,
+      last_pipeline: article.last_pipeline,
+      applied_actions: article.applied_actions,
       published_at: article.published_at,
-      sort_order: article.sort_order,
-      reading_time: article.reading_time,
-      categories: article.categories,
-      tags: article.tags,
-      author_name: article.author_name,
       created_at: article.created_at,
       updated_at: article.updated_at,
       path: article.path
@@ -118,18 +203,20 @@ class Api::V1::WebsiteArticlesController < Api::BaseController
 
     if include_content
       data.merge!(
-        content_markdown: article.content_markdown,
-        meta_description: article.meta_description,
-        keywords: article.keywords,
-        og_title: article.og_title,
-        og_description: article.og_description,
-        og_image_url: article.og_image_url,
-        twitter_title: article.twitter_title,
-        twitter_description: article.twitter_description,
-        image_social: article.image_social,
-        breadcrumbs: article.breadcrumbs,
-        author_avatar_url: article.author_avatar_url
+        content: article.content,
+        faq: article.faq,
+        jsonld: article.jsonld,
+        internal_links: article.internal_links
       )
+    end
+
+    if include_assets && article.assets.attached?
+      data[:assets] = article.assets.map do |asset|
+        {
+          path: asset.filename.to_s,
+          url: Rails.application.routes.url_helpers.rails_blob_url(asset, only_path: true)
+        }
+      end
     end
 
     data

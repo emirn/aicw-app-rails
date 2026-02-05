@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 class ApiToken < ApplicationRecord
-  # This is a NEW table (not in Supabase) for Rails API authentication
-  self.table_name = "api_tokens"
-  self.primary_key = "id"
-
   has_prefix_id :token
 
   # Associations
