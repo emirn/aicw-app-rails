@@ -5,6 +5,7 @@ class WebsiteArticle < ApplicationRecord
 
   # Associations
   belongs_to :website, class_name: "ProjectWebsite"
+  has_many :pipeline_runs, class_name: "PipelineRun", foreign_key: :article_id, dependent: :destroy
 
   # ActiveStorage for assets (images, etc.)
   has_many_attached :assets
