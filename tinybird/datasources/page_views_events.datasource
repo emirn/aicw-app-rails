@@ -1,0 +1,87 @@
+DESCRIPTION >
+    Page view events for AI Chat Watch analytics.
+    Privacy-first tracking with daily session hash rotation.
+
+    Data is ingested via Data Source API (NDJSON format) from Supabase Edge Function.
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `project_id` String `json:$.project_id`,
+    `session_hash` FixedString(64) `json:$.session_hash`,
+    `page_host` String `json:$.page_host`,
+    `page_path` String `json:$.page_path`,
+    `page_title` String `json:$.page_title`,
+    `referrer` String `json:$.referrer`,
+    `referrer_domain` String `json:$.referrer_domain`,
+    `text_fragment` String `json:$.text_fragment`,
+    `browser_name` LowCardinality(String) `json:$.browser_name`,
+    `os_name` LowCardinality(String) `json:$.os_name`,
+    `device_type` LowCardinality(String) `json:$.device_type`,
+    `geo_country_code` FixedString(2) `json:$.geo_country_code`,
+    `geo_region_code` String `json:$.geo_region_code`,
+    `geo_region_name` String `json:$.geo_region_name`,
+    `geo_city_name` String `json:$.geo_city_name`,
+    `utm_source` String `json:$.utm_source`,
+    `utm_medium` String `json:$.utm_medium`,
+    `utm_campaign` String `json:$.utm_campaign`,
+    `utm_content` String `json:$.utm_content`,
+    `utm_term` String `json:$.utm_term`,
+    `utm_id` String `json:$.utm_id`,
+    `utm_source_platform` String `json:$.utm_source_platform`,
+    `utm_creative_format` String `json:$.utm_creative_format`,
+    `utm_marketing_tactic` String `json:$.utm_marketing_tactic`,
+    `ref_source` LowCardinality(String) `json:$.ref_source`,
+    `ref_source_category` LowCardinality(String) `json:$.ref_source_category`,
+    `ref_bot` LowCardinality(String) `json:$.ref_bot`,
+    `ref_bot_parent_name` LowCardinality(String) `json:$.ref_bot_parent_name`,
+    `ref_bot_category` LowCardinality(String) `json:$.ref_bot_category`,
+    `ref_bot_user_agent` String `json:$.bot_user_agent` DEFAULT '',
+    `event_type` LowCardinality(String) `json:$.event_type` DEFAULT 'pageview',
+    `engagement_time_ms` UInt32 `json:$.engagement_time_ms` DEFAULT 0,
+    `scroll_depth_percent` UInt8 `json:$.scroll_depth_percent` DEFAULT 0,
+    `created_at` DateTime64(3) `json:$.created_at`
+
+FORWARD_QUERY >
+  SELECT
+    id,
+    project_id,
+    session_hash,
+    page_host,
+    page_path,
+    page_title,
+    referrer,
+    referrer_domain,
+    text_fragment,
+    browser_name,
+    os_name,
+    device_type,
+    geo_country_code,
+    geo_region_code,
+    geo_region_name,
+    geo_city_name,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
+    utm_term,
+    utm_id,
+    utm_source_platform,
+    utm_creative_format,
+    utm_marketing_tactic,
+    ref_source,
+    ref_source_category,
+    ref_bot,
+    ref_bot_parent_name,
+    ref_bot_category,
+    ref_bot_user_agent,
+    event_type,
+    engagement_time_ms,
+    scroll_depth_percent,
+    created_at
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(created_at)"
+ENGINE_SORTING_KEY "project_id, created_at, ref_source, ref_bot"
+ENGINE_TTL "toDateTime(created_at) + toIntervalMonth(13)"
+
+TOKEN "ingest" APPEND

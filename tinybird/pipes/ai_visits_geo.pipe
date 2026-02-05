@@ -1,0 +1,54 @@
+DESCRIPTION >
+    Geographic distribution of visits with optional AI source filter.
+    Returns country-level aggregations with visit counts and percentages.
+
+    Parameters:
+    - ref_source_filter (optional): Filter by specific AI source
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    WITH project_total AS (
+        SELECT uniqExact(session_hash) as total_visitors
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+          {% if defined(ref_source_filter) %}
+          AND ref_source = {{String(ref_source_filter)}}
+          {% end %}
+          {% if defined(page_path) %}
+          AND page_path = {{String(page_path)}}
+          {% end %}
+    )
+    SELECT
+        geo_country_code as country_code,
+        count() as pageviews,
+        uniqExact(session_hash) as visitors,
+        round((visitors / (SELECT total_visitors FROM project_total)) * 100, 2) as percentage
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      AND geo_country_code != 'ZZ'
+      {% if defined(ref_source_filter) %}
+      AND ref_source = {{String(ref_source_filter)}}
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+    GROUP BY country_code
+    ORDER BY visitors DESC
+    LIMIT {{Int32(limit, 100)}}
+
+TYPE endpoint

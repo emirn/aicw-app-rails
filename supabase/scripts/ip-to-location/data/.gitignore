@@ -1,0 +1,4 @@
+unpacked/*
+.temp/*
+.env.local
+*.csv.gz

@@ -1,0 +1,13 @@
+{
+  "name": "aicw-tracking-script",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.cjs",
+    "validate": "node validate.cjs",
+    "deploy": "npm run build && bash deploy-cdn.sh"
+  },
+  "devDependencies": {
+    "terser": "^5.37.0"
+  }
+}

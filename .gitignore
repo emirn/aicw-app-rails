@@ -40,3 +40,9 @@ node_modules
 # https://vitejs.dev/guide/env-and-mode.html#env-files
 *.local
 
+# Supabase scripts - ignore downloaded data
+#/supabase/scripts/ip-to-location/data/*.csv
+#/supabase/scripts/ip-to-location/data/*.gz
+#!/supabase/scripts/ip-to-location/data/countries-with-codes.csv
+#/supabase/scripts/ip-to-bot/data/
+

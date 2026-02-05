@@ -1,0 +1,32 @@
+DESCRIPTION >
+    Top pages ranked by AI traffic.
+    Returns pages with highest AI visit counts, along with total visits and percentages.
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        page_path,
+        any(page_title) as page_title,
+        count() as total_pageviews,
+        uniqExact(session_hash) as total_visitors,
+        countIf(ref_source != '') as ai_pageviews,
+        uniqExact(if(ref_source != '', session_hash, null)) as ai_visitors,
+        round((ai_visitors / total_visitors) * 100, 2) as ai_percentage,
+        topK(1)(if(ref_source != '', ref_source, ''))[1] as top_ai_source
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND page_path != ''
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+    GROUP BY page_path
+    ORDER BY ai_visitors DESC
+    LIMIT {{Int32(limit, 20)}}
+
+TYPE endpoint

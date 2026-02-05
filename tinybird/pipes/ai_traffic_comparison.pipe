@@ -1,0 +1,57 @@
+DESCRIPTION >
+    Compare user referrals vs crawler traffic by AI service
+
+NODE traffic_comparison
+SQL >
+    %
+    SELECT
+      CASE
+        WHEN ref_source = 'chatgpt' OR ref_bot IN ('gptbot', 'oai_searchbot')
+          THEN 'chatgpt'
+        WHEN ref_source = 'claude' OR ref_bot IN ('claudebot', 'claude_web', 'claude_searchbot', 'anthropic_ai')
+          THEN 'claude'
+        WHEN ref_source = 'perplexity' OR ref_bot = 'perplexitybot'
+          THEN 'perplexity'
+        WHEN ref_source = 'gemini' OR ref_bot IN ('google_extended', 'googleother', 'google_notebooklm')
+          THEN 'gemini'
+        WHEN ref_source = 'meta_ai' OR ref_bot IN ('meta_externalagent', 'facebookbot', 'facebookexternalhit')
+          THEN 'meta_ai'
+        WHEN ref_source = 'mistral' THEN 'mistral'
+        WHEN ref_source = 'copilot' OR ref_bot IN ('bingbot', 'bingpreview', 'msnbot')
+          THEN 'copilot'
+        WHEN ref_source = 'you' OR ref_bot = 'youbot'
+          THEN 'you'
+        WHEN ref_bot = 'ccbot' THEN 'commoncrawl'
+        WHEN ref_bot = 'deepseekbot' THEN 'deepseek'
+        WHEN ref_bot = 'cohere_crawler' THEN 'cohere'
+        WHEN ref_bot = 'bytespider' THEN 'bytedance'
+        WHEN ref_bot = 'grokbot' THEN 'grok'
+        ELSE 'other'
+      END as ai_service,
+
+      countIf(ref_source != '') as user_visits,
+      countIf(ref_bot != '' AND ref_bot IN (
+        'gptbot', 'oai_searchbot', 'claudebot', 'claude_web', 'claude_searchbot',
+        'anthropic_ai', 'perplexitybot', 'google_extended', 'googleother',
+        'google_notebooklm', 'meta_externalagent', 'facebookbot', 'facebookexternalhit',
+        'bingbot', 'bingpreview', 'msnbot', 'deepseekbot', 'youbot', 'ccbot',
+        'cohere_crawler', 'bytespider', 'grokbot'
+      )) as crawler_visits,
+      countIf(ref_source != '' AND ref_bot != '') as both_detected
+      
+    FROM page_views_events
+    WHERE
+      project_id = {{String(project_id, required=True)}}
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      AND (ref_source != '' OR ref_bot != '')
+    GROUP BY ai_service
+    HAVING ai_service != 'other' OR (user_visits > 0 OR crawler_visits > 0)
+    ORDER BY user_visits + crawler_visits DESC

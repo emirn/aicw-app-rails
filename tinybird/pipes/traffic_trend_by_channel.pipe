@@ -1,0 +1,61 @@
+DESCRIPTION >
+    Time series data for stacked traffic chart by channel.
+    Returns temporal trends of traffic broken down by AI, Search, Direct, Other.
+
+    Parameters:
+    - interval: 'day' (default), 'week', or 'month'
+    - channels (optional): Comma-separated traffic channels ('ai,search,direct,other')
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        {% if defined(interval) and interval == 'week' %}
+        toStartOfWeek(created_at) as date_bucket,
+        {% elif defined(interval) and interval == 'month' %}
+        toStartOfMonth(created_at) as date_bucket,
+        {% else %}
+        toDate(created_at) as date_bucket,
+        {% end %}
+        -- Channel breakdown (excluding bots)
+        countIf(ref_source_category = 'ai' AND ref_bot = '') as ai_pageviews,
+        uniqExact(if(ref_source_category = 'ai' AND ref_bot = '', session_hash, null)) as ai_visitors,
+        countIf(ref_source_category = 'search' AND ref_bot = '') as search_pageviews,
+        uniqExact(if(ref_source_category = 'search' AND ref_bot = '', session_hash, null)) as search_visitors,
+        countIf((referrer = '' OR referrer IS NULL) AND ref_source_category = '' AND ref_bot = '') as direct_pageviews,
+        uniqExact(if((referrer = '' OR referrer IS NULL) AND ref_source_category = '' AND ref_bot = '', session_hash, null)) as direct_visitors,
+        countIf(ref_source_category NOT IN ('ai', 'search') AND referrer != '' AND referrer IS NOT NULL AND ref_bot = '') as other_pageviews,
+        uniqExact(if(ref_source_category NOT IN ('ai', 'search') AND referrer != '' AND referrer IS NOT NULL AND ref_bot = '', session_hash, null)) as other_visitors,
+        -- Totals (excluding bots)
+        countIf(ref_bot = '') as total_pageviews,
+        uniqExact(if(ref_bot = '', session_hash, null)) as total_visitors
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'pageview'
+      AND ref_bot = ''
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+      {% if defined(channels) and channels != '' %}
+      AND (
+        (position({{String(channels)}}, 'ai') > 0 AND ref_source_category = 'ai')
+        OR (position({{String(channels)}}, 'search') > 0 AND ref_source_category = 'search')
+        OR (position({{String(channels)}}, 'direct') > 0 AND (referrer = '' OR referrer IS NULL) AND ref_source_category = '')
+        OR (position({{String(channels)}}, 'other') > 0 AND ref_source_category NOT IN ('ai', 'search') AND referrer != '' AND referrer IS NOT NULL)
+      )
+      {% end %}
+    GROUP BY date_bucket
+    ORDER BY date_bucket ASC
+
+TYPE endpoint

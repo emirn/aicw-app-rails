@@ -1,0 +1,58 @@
+DESCRIPTION >
+    Breakdown of visits by "other" referrer domains.
+    Returns top referrer domains not categorized as AI or Search.
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    WITH total AS (
+        SELECT uniqExact(session_hash) as total_visitors
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          AND ref_source_category NOT IN ('ai', 'search')
+          AND referrer != ''
+          AND referrer IS NOT NULL
+          AND ref_bot = ''
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+          {% if defined(page_path) %}
+          AND page_path = {{String(page_path)}}
+          {% end %}
+          {% if defined(country_code) %}
+          AND geo_country_code = {{String(country_code)}}
+          {% end %}
+    )
+    SELECT
+        referrer_domain as ref_source,
+        count() as pageviews,
+        uniqExact(session_hash) as visitors,
+        round((visitors / nullIf((SELECT total_visitors FROM total), 0)) * 100, 2) as percentage
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND ref_source_category NOT IN ('ai', 'search')
+      AND referrer != ''
+      AND referrer IS NOT NULL
+      AND ref_bot = ''
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+    GROUP BY referrer_domain
+    ORDER BY visitors DESC
+    LIMIT {{Int32(limit, 13)}}
+
+TYPE endpoint

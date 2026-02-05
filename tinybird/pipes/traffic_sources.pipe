@@ -1,0 +1,48 @@
+DESCRIPTION >
+    Traffic source categorization: AI, Search, Direct, Other.
+    Categorizes all traffic into major source types with counts and percentages.
+
+TOKEN "analytics_read" READ
+
+NODE categorized
+SQL >
+    %
+    SELECT
+        CASE
+            WHEN ref_source_category = 'ai' THEN 'AI'
+            WHEN ref_source_category = 'search' THEN 'Search'
+            WHEN referrer = '' OR referrer IS NULL THEN 'direct'
+            ELSE 'other'
+        END as source_category,
+        count() as pageviews,
+        uniqExact(session_hash) as visitors,
+        uniqExact(page_path) as unique_pages
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+      {% if defined(page_path) %}
+      AND page_path = {{String(page_path)}}
+      {% end %}
+      {% if defined(country_code) %}
+      AND geo_country_code = {{String(country_code)}}
+      {% end %}
+    GROUP BY source_category
+
+NODE endpoint
+SQL >
+    SELECT
+        source_category,
+        pageviews,
+        visitors,
+        unique_pages,
+        round((visitors / (SELECT sum(visitors) FROM categorized)) * 100, 2) as percentage,
+        round((unique_pages / (SELECT sum(unique_pages) FROM categorized)) * 100, 2) as page_percentage
+    FROM categorized
+    ORDER BY visitors DESC
+
+TYPE endpoint

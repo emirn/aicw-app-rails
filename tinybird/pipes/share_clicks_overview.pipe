@@ -1,0 +1,41 @@
+DESCRIPTION >
+    Overview of share click events by service.
+    Returns click counts, unique sessions, and percentage breakdown.
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    WITH
+    total AS (
+        SELECT count() as total_clicks
+        FROM page_views_events
+        WHERE project_id = {{String(project_id, required=True)}}
+          AND event_type = 'share_click'
+          {% if defined(start_date) %}
+          AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+          {% end %}
+          {% if defined(end_date) %}
+          AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+          {% end %}
+    )
+    SELECT
+        ref_source as share_service,
+        count() as click_count,
+        uniqExact(session_hash) as unique_sessions,
+        round((click_count / nullIf((SELECT total_clicks FROM total), 0)) * 100, 2) as percentage,
+        (SELECT total_clicks FROM total) as total_clicks
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'share_click'
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+    GROUP BY share_service
+    ORDER BY click_count DESC
+
+TYPE endpoint

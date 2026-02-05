@@ -1,0 +1,29 @@
+DESCRIPTION >
+    Summarize click events grouped by page and AI service.
+    Returns which pages generate the most AI summarization clicks.
+
+TOKEN "analytics_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        page_path,
+        ref_source as ai_service,
+        count() as click_count,
+        uniqExact(session_hash) as unique_sessions
+    FROM page_views_events
+    WHERE project_id = {{String(project_id, required=True)}}
+      AND event_type = 'summarize_click'
+      AND page_path != ''
+      {% if defined(start_date) %}
+      AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+      {% end %}
+      {% if defined(end_date) %}
+      AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+      {% end %}
+    GROUP BY page_path, ai_service
+    ORDER BY click_count DESC
+    LIMIT {{Int32(limit, 50)}}
+
+TYPE endpoint

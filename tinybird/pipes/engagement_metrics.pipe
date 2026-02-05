@@ -1,0 +1,78 @@
+DESCRIPTION >
+    Calculate engagement metrics per traffic source (Plausible-style).
+
+    Links pageview events with their corresponding engagement events via session_hash.
+
+    Definitions:
+    - Bounce: Session with engagement_time < 10 seconds (GA4 convention)
+    - Engaged session: Session with engagement_time >= 10 seconds OR multiple pageviews
+    - Average engagement: Mean engagement time across all sessions
+    - Scroll depth: Maximum scroll percentage reached
+
+TOKEN "read" READ
+
+NODE sessions_with_engagement
+DESCRIPTION >
+    Aggregate events by session, pulling source from pageview and time/scroll from engagement
+SQL >
+    %
+    SELECT
+        session_hash,
+        -- Get traffic source from pageview events
+        argMaxIf(ref_source, created_at, event_type = 'pageview') AS ref_source,
+        argMaxIf(ref_source_category, created_at, event_type = 'pageview') AS ref_source_category,
+        -- Count pageviews
+        countIf(event_type = 'pageview') AS pageview_count,
+        -- Get engagement time (take max in case of multiple engagement events)
+        maxIf(engagement_time_ms, event_type = 'engagement') AS engagement_ms,
+        -- Get max scroll depth (0-100%)
+        maxIf(scroll_depth_percent, event_type = 'engagement') AS scroll_depth,
+        -- Determine if session bounced
+        -- Bounce = engagement < 10s AND single pageview
+        CASE
+            WHEN maxIf(engagement_time_ms, event_type = 'engagement') >= 10000 THEN 0
+            WHEN countIf(event_type = 'pageview') > 1 THEN 0
+            ELSE 1
+        END AS is_bounce
+    FROM page_views_events
+    WHERE
+        project_id = {{String(project_id, required=True)}}
+        {% if defined(start_date) %}
+        AND created_at >= parseDateTimeBestEffort({{String(start_date)}})
+        {% end %}
+        {% if defined(end_date) %}
+        AND created_at <= parseDateTimeBestEffort({{String(end_date)}})
+        {% end %}
+        {% if defined(page_path) %}
+        AND page_path = {{String(page_path)}}
+        {% end %}
+    GROUP BY session_hash
+
+NODE endpoint
+DESCRIPTION >
+    Aggregate sessions by traffic source category and individual source
+SQL >
+    SELECT
+        ref_source_category,
+        ref_source,
+        -- Session counts
+        count() AS total_sessions,
+        sum(is_bounce) AS bounced_sessions,
+        count() - sum(is_bounce) AS engaged_sessions,
+        -- Rates
+        round(sum(is_bounce) * 100.0 / count(), 1) AS bounce_rate,
+        round((count() - sum(is_bounce)) * 100.0 / count(), 1) AS engagement_rate,
+        -- Averages
+        round(avg(pageview_count), 2) AS avg_pages_per_session,
+        round(avg(engagement_ms) / 1000.0, 1) AS avg_engagement_sec,
+        round(avg(scroll_depth), 1) AS avg_scroll_depth_percent,
+        -- Totals
+        sum(pageview_count) AS total_pageviews
+    FROM sessions_with_engagement
+    WHERE
+        ref_source_category != ''
+        AND ref_source_category IS NOT NULL
+    GROUP BY ref_source_category, ref_source
+    ORDER BY total_sessions DESC
+
+TYPE endpoint
