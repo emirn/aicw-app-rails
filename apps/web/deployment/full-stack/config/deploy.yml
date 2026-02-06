@@ -32,6 +32,7 @@ servers:
       - <%= ENV["AICW_RAILS_SERVER_IP"] %>
     options:
       add-host: "host.docker.internal:host-gateway"
+      memory: 700m
 
 # SSH configuration
 ssh:
@@ -127,8 +128,10 @@ accessories:
         - CLOUDFLARE_ACCOUNT_ID
         - CLOUDFLARE_AICW_ZONE_ID
     directories:
-      - aicw_wb_data:/data/aicw_wb_data
+      - /data/aicw_wb_data:/data/aicw_wb_data
     options:
+      memory: 384m
+      cpus: 0.5
       health-cmd: "curl -f http://localhost:4002/health || exit 1"
       health-interval: "10s"
       health-timeout: "5s"
@@ -147,6 +150,8 @@ accessories:
       secret:
         - OPENROUTER_API_KEY
     options:
+      memory: 512m
+      cpus: 0.5
       health-cmd: "curl -f http://localhost:3001/health || exit 1"
       health-interval: "10s"
       health-timeout: "5s"
