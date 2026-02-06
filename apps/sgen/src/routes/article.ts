@@ -193,7 +193,7 @@ export default async function articleRoutes(app: FastifyInstance) {
       'add_external_links',
       'add_diagrams',
       'add_faq',
-      'add_jsonld',
+      'add_content_jsonld',
       'fact_check',
       'humanize_text',
       'improve_seo',

@@ -7,9 +7,10 @@ Organization Name: {{organization_name}}
 Include the following schemas where applicable:
 - WebPage
 - Article (use the article title, description, organization name for author/publisher, headline under 110 chars)
-- FAQPage (if FAQs exist in the content)
 - BreadcrumbList (use website URL and article slug for URLs)
 - Organization reference in Article
+
+Do NOT include FAQPage schema - that is handled separately.
 
 IMPORTANT - URL Requirements:
 - Use the actual website URL provided above, NOT placeholder URLs

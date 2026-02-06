@@ -778,6 +778,8 @@ export async function buildPublished(
       version: article.meta.version,
       last_pipeline: article.meta.last_pipeline || undefined,
       faq: article.meta.faq,
+      content_jsonld: article.meta.content_jsonld,
+      faq_jsonld: article.meta.faq_jsonld,
     };
 
     const rendered = await renderer.render(content, metadata);

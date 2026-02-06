@@ -116,11 +116,17 @@ export const buildUpdatePrompt = (
       vars.replacements = context.replacements;
     }
   }
-  if (mode === 'add_jsonld') {
+  if (mode === 'add_content_jsonld') {
     const websiteInfo = context?.website_info as IWebsiteInfo | undefined;
     vars.website_url = websiteInfo?.url || '';
     vars.article_slug = article.slug || '';
     vars.organization_name = websiteInfo?.title || 'Organization';
+  }
+  if (mode === 'add_faq_jsonld') {
+    const websiteInfo = context?.website_info as IWebsiteInfo | undefined;
+    vars.website_url = websiteInfo?.url || '';
+    vars.article_slug = article.slug || '';
+    vars.faq_content = context?.faq_content || '';
   }
 
   // Use prompt_path if available, otherwise fall back to renderTemplateFile
