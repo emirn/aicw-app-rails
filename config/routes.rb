@@ -36,6 +36,18 @@ Rails.application.routes.draw do
       # Public analytics (no auth required for public projects)
       post "analytics/public", to: "analytics#public_query"
 
+      # Pipelines (from sgen service)
+      resources :pipelines, only: [:index] do
+        get :actions, on: :collection
+      end
+
+      # Article pipeline runs
+      resources :articles, only: [] do
+        resources :pipeline_runs, only: [:index, :show, :create] do
+          post :cancel, on: :member
+        end
+      end
+
       # Websites and articles
       resources :websites, only: [] do
         resources :articles, controller: "website_articles" do
