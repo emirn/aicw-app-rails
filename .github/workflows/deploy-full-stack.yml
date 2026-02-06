@@ -35,6 +35,8 @@ jobs:
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -64,6 +66,35 @@ jobs:
             service=aicw-app-rails
           cache-from: type=gha,scope=aicw-app-rails
           cache-to: type=gha,mode=max,scope=aicw-app-rails
+
+      - name: Build and push sgen image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/sgen/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/sgen:latest
+            ghcr.io/${{ github.repository_owner }}/sgen:${{ github.ref_name }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha,scope=sgen
+          cache-to: type=gha,mode=max,scope=sgen
+
+      - name: Build and push website-builder image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/wbuilder
+          file: apps/wbuilder/api-server/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/aicw-website-builder:latest
+            ghcr.io/${{ github.repository_owner }}/aicw-website-builder:${{ github.ref_name }}
+          build-args: |
+            BUILD_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=aicw-website-builder
+          cache-to: type=gha,mode=max,scope=aicw-website-builder
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -130,9 +161,11 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           cd apps/web/deployment/full-stack
-          # Boot accessories first (must be running before web app starts)
-          kamal accessory boot website-builder -c config/deploy.yml || true
-          kamal accessory boot sgen -c config/deploy.yml || true
+          # Reboot accessories (update to latest image), or boot if first time
+          kamal accessory reboot website-builder -c config/deploy.yml 2>/dev/null \
+            || kamal accessory boot website-builder -c config/deploy.yml
+          kamal accessory reboot sgen -c config/deploy.yml 2>/dev/null \
+            || kamal accessory boot sgen -c config/deploy.yml
           # Deploy web app
           kamal deploy -c config/deploy.yml --version=${{ github.ref_name }} --skip-push
 
@@ -152,4 +185,4 @@ jobs:
             sleep 5
           done
           echo "::warning::Health check failed after 3 attempts"
-          exit 0
+          exit 1
