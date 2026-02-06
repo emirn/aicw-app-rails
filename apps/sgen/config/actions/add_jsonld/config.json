@@ -1,0 +1,6 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "openai/gpt-4o-mini",
+  "output_mode": "insert_content_bottom",
+  "description": "Insert JSON-LD schema.org blocks (WebPage, Article, FAQPage, and other relevant schemas)"
+}

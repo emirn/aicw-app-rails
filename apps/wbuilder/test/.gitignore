@@ -1,0 +1,6 @@
+# Build outputs
+*/build/
+*/.astro-work/
+
+# Dependencies
+*/node_modules/

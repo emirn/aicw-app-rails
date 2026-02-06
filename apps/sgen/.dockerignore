@@ -1,0 +1,38 @@
+# Dependencies (installed fresh in container)
+node_modules/
+
+# Build outputs (built fresh in container)
+dist/
+
+# Development files
+*.log
+.server_pid
+server.log
+server.run.log
+.env
+.env.*
+!.env.example
+
+# Test files
+test/
+*.test.ts
+*.spec.ts
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in production)
+*.md
+!README.md

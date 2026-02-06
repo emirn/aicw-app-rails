@@ -1,0 +1,45 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getConfig } from '../lib/config';
+import Hero from '../components/Hero.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import Pagination from '../components/Pagination.astro';
+
+const config = getConfig();
+
+// Get all articles sorted by date
+const articles = (await getCollection('articles'))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// Pagination
+const postsPerPage = config.blog.postsPerPage || 9;
+const totalPages = Math.ceil(articles.length / postsPerPage);
+const paginatedArticles = articles.slice(0, postsPerPage);
+---
+
+<BaseLayout>
+  <Hero config={config} />
+
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    {config.blog.sectionTitle && (
+      <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
+        {config.blog.sectionTitle}
+      </h2>
+    )}
+
+    {paginatedArticles.length > 0 ? (
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {paginatedArticles.map((article) => (
+          <ArticleCard article={article} config={config} />
+        ))}
+      </div>
+    ) : (
+      <p class="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] py-12">
+        No articles published yet.
+      </p>
+    )}
+
+    <Pagination currentPage={1} totalPages={totalPages} />
+  </section>
+</BaseLayout>

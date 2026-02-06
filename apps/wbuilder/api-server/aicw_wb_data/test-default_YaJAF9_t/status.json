@@ -1,0 +1,13 @@
+{
+  "status": "completed",
+  "message": "Build successful",
+  "updatedAt": "2026-01-26T12:32:03.061Z",
+  "createdAt": "2026-01-26T12:23:29.612Z",
+  "duration": 84343,
+  "buildDir": "/Users/mine/projects/ai-chat-watch/aicw-website-builder/api-server/aicw_wb_data/test-default_YaJAF9_t/build",
+  "url": "https://test-default-template.sites.aicw.io",
+  "deploymentId": "49c812fc",
+  "articlesCount": 3,
+  "pagesCount": 10,
+  "filesUploaded": 15
+}

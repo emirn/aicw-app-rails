@@ -1,0 +1,7 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "anthropic/claude-4.5-sonnet",
+  "output_mode": "insert_content",
+  "description": "Insert Mermaid diagrams at key sections",
+  "supports_custom_config": false
+}

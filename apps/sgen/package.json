@@ -1,0 +1,32 @@
+{
+  "name": "sgen",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "tsc --noEmit",
+    "test:pipeline": "ts-node test/test-pipeline.ts",
+    "test:plan": "node test/plan-test.js",
+    "start:mock": "HOST=127.0.0.1 MOCK_AI=true MOCK_SCRAPER=true node dist/index.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5",
+    "@blogpostgen/types": "*",
+    "@resvg/resvg-js": "^2.6.2",
+    "dotenv": "^16.3.1",
+    "fastify": "^4.25.2",
+    "minimatch": "^10.1.1",
+    "node-fetch": "^3.3.2",
+    "pino": "^10.1.0",
+    "puppeteer": "^21.0.0",
+    "satori": "^0.18.3",
+    "satori-html": "^0.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,64 @@
+---
+import type { SiteConfig } from '../lib/config';
+
+interface Props {
+  config: SiteConfig;
+}
+
+const { config } = Astro.props;
+---
+
+{config.branding.dark_mode.enabled && (
+  <button
+    type="button"
+    id="theme-toggle"
+    class="fixed bottom-6 right-6 p-3 rounded-full bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)] shadow-lg hover:shadow-xl text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-all z-50"
+    aria-label="Toggle theme"
+  >
+    <!-- Sun icon (shown in dark mode) -->
+    <svg class="w-5 h-5 sun-icon hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+
+    <!-- Moon icon (shown in light mode) -->
+    <svg class="w-5 h-5 moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
+  </button>
+)}
+
+<script>
+  const themeToggle = document.getElementById('theme-toggle');
+  const sunIcon = themeToggle?.querySelector('.sun-icon');
+  const moonIcon = themeToggle?.querySelector('.moon-icon');
+
+  function updateIcons(theme: string) {
+    if (!sunIcon || !moonIcon) return;
+
+    if (theme === 'dark') {
+      sunIcon.classList.remove('hidden');
+      moonIcon.classList.add('hidden');
+    } else {
+      sunIcon.classList.add('hidden');
+      moonIcon.classList.remove('hidden');
+    }
+  }
+
+  function getTheme(): string {
+    return document.documentElement.getAttribute('data-theme') || 'light';
+  }
+
+  function toggleTheme() {
+    const currentTheme = getTheme();
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateIcons(newTheme);
+  }
+
+  // Initialize icons based on current theme
+  updateIcons(getTheme());
+
+  themeToggle?.addEventListener('click', toggleTheme);
+</script>

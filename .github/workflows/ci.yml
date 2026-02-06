@@ -16,11 +16,13 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: apps/web/.ruby-version
           bundler-cache: true
+          working-directory: apps/web
 
       - name: Scan for common Rails security vulnerabilities using static analysis
         run: bin/brakeman --no-pager
+        working-directory: apps/web
 
   scan_js:
     runs-on: ubuntu-latest
@@ -32,11 +34,13 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: apps/web/.ruby-version
           bundler-cache: true
+          working-directory: apps/web
 
       - name: Scan for security vulnerabilities in JavaScript dependencies
         run: bin/importmap audit
+        working-directory: apps/web
 
   lint:
     runs-on: ubuntu-latest
@@ -47,9 +51,10 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: apps/web/.ruby-version
           bundler-cache: true
+          working-directory: apps/web
 
       - name: Lint code for consistent style
         run: bin/rubocop -f github
-
+        working-directory: apps/web

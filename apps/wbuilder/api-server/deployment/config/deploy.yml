@@ -1,0 +1,93 @@
+# Kamal 2.0 deployment configuration for AICW Website Builder API
+# Deploy with: kamal deploy -c config/deploy.yml
+# Setup server: kamal setup -c config/deploy.yml (first time only)
+#
+# MULTI-SERVICE SAFETY: This config uses unique service names, data paths,
+# and domains to avoid conflicts with other services on the same server.
+
+service: aicw-website-builder
+
+# Docker image name (Kamal automatically prepends registry server)
+# Will become: ghcr.io/{github-username}/aicw-website-builder
+image: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-website-builder
+
+# GitHub Container Registry (ghcr.io)
+registry:
+  server: ghcr.io
+  username: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>
+  password: <%= ENV['KAMAL_REGISTRY_PASSWORD'] %>
+
+# Skip building locally - use remote build by GitHub Actions
+# To skip building use --skip-push, see https://kamal-deploy.org/docs/commands/deploy/
+builder:
+  arch: amd64
+  context: ..
+  dockerfile: ../Dockerfile
+
+# Servers to deploy to with resource limits
+servers:
+  web:
+    hosts:
+      - <%= ENV["AICW_WB_SERVER_IP"] %>
+    options:
+      memory: 384m    # Prevent runaway memory usage
+      cpus: 0.5       # Share CPU fairly with other services
+
+# SSH configuration for AWS Lightsail
+ssh:
+  user: <%= ENV['AICW_WB_DEPLOY_USERNAME'] || 'ubuntu' %>
+  <% if ENV['AICW_WB_DEPLOY_SSH_PRIVATE_KEY'] %>
+  # GitHub Actions: use key from environment variable (via ssh-agent)
+  <% elsif ENV['SSH_KEY_PATH'] %>
+  # Local deployment: use key file path
+  keys:
+    - <%= ENV['SSH_KEY_PATH'] %>
+  <% else %>
+  # Fallback: use default SSH key
+  keys:
+    - ~/.ssh/id_rsa
+  keys_only: true
+  <% end %>
+
+# Environment variables for the container
+env:
+  clear:
+    PORT: 4002
+    NODE_ENV: production
+  secret:
+    - AICW_WEBSITE_BUILD_API_KEY
+    - CLOUDFLARE_API_TOKEN
+    - CLOUDFLARE_ACCOUNT_ID
+    - CLOUDFLARE_AICW_ZONE_ID
+
+# Persistent storage for job data
+volumes:
+  - /data/aicw_wb_data:/data/aicw_wb_data
+
+# Keep last 3 containers for rollback
+retain_containers: 3
+
+# Deploy timeout for app to become healthy
+deploy_timeout: 60
+# Drain timeout when stopping old containers
+drain_timeout: 30
+
+# Proxy configuration (Kamal Proxy - replaces Traefik in Kamal 2)
+proxy:
+  ssl: true
+  host: <%= ENV['AICW_WB_DOMAIN'] %>
+  app_port: 4002
+  # Healthcheck configuration
+  healthcheck:
+    path: /health
+    interval: 10
+    timeout: 5
+  # Forward headers to the application
+  forward_headers: true
+
+# Logging configuration
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"

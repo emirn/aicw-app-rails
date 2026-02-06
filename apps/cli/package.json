@@ -1,0 +1,51 @@
+{
+  "name": "@blogpostgen/cli",
+  "version": "1.0.0",
+  "description": "CLI for BlogPostGen AI-powered article generation",
+  "bin": {
+    "blogpostgen": "./bin/blogpostgen"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && cp -r templates dist/",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "seo",
+    "content",
+    "ai",
+    "cli",
+    "articles",
+    "blog"
+  ],
+  "author": "BlogPostGen",
+  "license": "MIT",
+  "dependencies": {
+    "@blogpostgen/types": "*",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "clipboardy": "^4.0.0",
+    "commander": "^12.0.0",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0",
+    "marked": "^12.0.0",
+    "minimatch": "^9.0.3",
+    "node-fetch": "^3.3.2",
+    "pdf-to-image-generator": "^1.0.5",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/marked": "^6.0.0",
+    "@types/minimatch": "^5.1.2",
+    "@types/node": "^20.11.30",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,47 @@
+{
+    "title": "{{name}}",
+    "created_at": "{{date}}",
+    "updated_at": "{{date}}",
+    "branding": {
+        "badge": "BLOG",
+        "brand_name": "",
+        "site": {
+            "name": "",
+            "tagline": "",
+            "description": "",
+            "url": "",
+            "language": "en"
+        },
+        "logo": {
+            "type": "text",
+            "text": "",
+            "image_url": "",
+            "show_border": true
+        },
+        "colors": {
+            "primary": "#1E40AF",
+            "primary_text": "#ffffff",
+            "secondary": "#3B82F6",
+            "accent": "#1F2937",
+            "background": "#FFFFFF",
+            "background_secondary": "#F8FAFC",
+            "text_primary": "#0F172A",
+            "text_secondary": "#475569",
+            "text_muted": "#9CA3AF",
+            "border": "#E2E8F0"
+        },
+        "dark_mode": {
+            "enabled": true,
+            "default": "dark",
+            "toggle_position": "footer",
+            "colors": {
+                "text_primary": "#FFFFFF",
+                "text_secondary": "#D1D5DB",
+                "text_muted": "#9CA3AF",
+                "background": "#111827",
+                "background_secondary": "#1F2937",
+                "border": "#374151"
+            }
+        }
+    }
+}

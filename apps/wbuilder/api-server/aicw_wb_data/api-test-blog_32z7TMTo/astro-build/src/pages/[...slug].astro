@@ -1,0 +1,46 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import ArticleLayout from '../layouts/ArticleLayout.astro';
+import { getConfig } from '../lib/config';
+
+const config = getConfig();
+
+export const getStaticPaths = (async () => {
+  const articles = await getCollection('articles');
+
+  return articles.map((article) => ({
+    params: { slug: article.slug },
+    props: { article },
+  }));
+}) satisfies GetStaticPaths;
+
+const { article } = Astro.props;
+const { Content, headings } = await article.render();
+
+// Find related articles based on shared keywords, categories, or tags
+const allArticles = await getCollection('articles');
+const relatedArticles = allArticles
+  .filter((a) => a.slug !== article.slug)
+  .filter((a) => {
+    const currentKeywords = article.data.keywords || [];
+    const currentCategories = article.data.categories || [];
+    const currentTags = article.data.tags || [];
+
+    const otherKeywords = a.data.keywords || [];
+    const otherCategories = a.data.categories || [];
+    const otherTags = a.data.tags || [];
+
+    const sharedKeywords = currentKeywords.some((k) => otherKeywords.includes(k));
+    const sharedCategories = currentCategories.some((c) => otherCategories.includes(c));
+    const sharedTags = currentTags.some((t) => otherTags.includes(t));
+
+    return sharedKeywords || sharedCategories || sharedTags;
+  })
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 3);
+---
+
+<ArticleLayout article={article} headings={headings} relatedArticles={relatedArticles}>
+  <Content />
+</ArticleLayout>

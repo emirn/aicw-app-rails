@@ -1,0 +1,194 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from './BaseLayout.astro';
+import { getConfig, getDefaultAuthor } from '../lib/config';
+import TableOfContents from '../components/TableOfContents.astro';
+import MobileToc from '../components/MobileToc.astro';
+import SocialShare from '../components/SocialShare.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import CategoryBadge from '../components/CategoryBadge.astro';
+import { generateBlogPosting, generateArticleBreadcrumbs } from '../lib/jsonld';
+import ImageLightbox from '../components/ImageLightbox.astro';
+
+interface Props {
+  article: CollectionEntry<'articles'>;
+  headings?: Array<{ depth: number; slug: string; text: string }>;
+  relatedArticles?: CollectionEntry<'articles'>[];
+}
+
+const config = getConfig();
+const { article, headings = [], relatedArticles = [] } = Astro.props;
+const { data } = article;
+
+// Calculate reading time
+const wordCount = article.body?.split(/\s+/).length || 0;
+const readingTime = Math.ceil(wordCount / 200);
+
+// Format date
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+// Extract first image from markdown content for hero fallback
+function extractFirstImage(body: string | undefined): string | null {
+  if (!body) return null;
+  const mdMatch = body.match(/!\[.*?\]\(([^)]+)\)/);
+  if (mdMatch) return mdMatch[1];
+  const htmlMatch = body.match(/<img[^>]+src=["']([^"']+)["']/);
+  if (htmlMatch) return htmlMatch[1];
+  return null;
+}
+
+const heroImage = data.image_hero || extractFirstImage(article.body);
+
+const canonicalUrl = `${config.branding.site.url}/${article.slug}/`;
+
+// Categories
+const categories = data.categories || [];
+const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
+---
+
+<BaseLayout
+  title={data.title}
+  description={data.description}
+  canonical={canonicalUrl}
+  image={data.image_og}
+  type="article"
+  publishedTime={data.date}
+  modifiedTime={data.date_updated_at}
+  author={data.author || getDefaultAuthor(config)}
+  keywords={data.keywords?.join(', ')}
+>
+  <!-- Article-specific JSON-LD (BlogPosting + Breadcrumbs) -->
+  {config.seo.enableJsonLd && (
+    <Fragment slot="head">
+      <script type="application/ld+json" set:html={JSON.stringify(generateBlogPosting(config, article, canonicalUrl))} />
+      <script type="application/ld+json" set:html={JSON.stringify(generateArticleBreadcrumbs(config, article))} />
+    </Fragment>
+  )}
+
+  <article class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-pagefind-body>
+    <div class="lg:grid lg:grid-cols-[1fr_280px] lg:gap-12">
+      <!-- Main Content -->
+      <div class="min-w-0">
+        <!-- Article Header -->
+        <header class="mb-8">
+          {heroImage && (
+            <img
+              src={heroImage}
+              alt={data.title}
+              class="w-full h-64 sm:h-80 lg:h-96 object-cover rounded-xl mb-8"
+            />
+          )}
+
+          <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] leading-tight mb-4">
+            {data.title}
+          </h1>
+
+          <div class="flex flex-wrap items-center gap-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
+            {config.blog.showDate && data.date && (
+              <time datetime={data.date.toISOString()}>
+                {formatDate(data.date)}
+              </time>
+            )}
+
+            {config.blog.showAuthor && (data.author || getDefaultAuthor(config)) && (
+              <span>by {data.author || getDefaultAuthor(config)}</span>
+            )}
+
+            {config.blog.showReadingTime && (
+              <span>{readingTime} min read</span>
+            )}
+          </div>
+
+          {showCategories && (
+            <div class="flex flex-wrap gap-2 mt-4">
+              {categories.map((cat) => (
+                <CategoryBadge category={cat} config={config} size="md" />
+              ))}
+            </div>
+          )}
+
+          {data.keywords && data.keywords.length > 0 && config.article.showTags && (
+            <div class="flex flex-wrap gap-2 mt-4">
+              {data.keywords.map((keyword) => (
+                <span class="px-3 py-1 text-xs font-medium rounded-full bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          )}
+        </header>
+
+        <!-- Mobile Table of Contents -->
+        {config.blog.showTableOfContents && headings.length > 0 && (
+          <MobileToc headings={headings} />
+        )}
+
+        <!-- Article Content -->
+        <div class="prose prose-lg max-w-none dark:prose-invert prose-headings:font-bold prose-headings:text-[var(--color-text-primary)] dark:prose-headings:text-[var(--color-dark-text-primary)] prose-p:text-[var(--color-text-secondary)] dark:prose-p:text-[var(--color-dark-text-secondary)] prose-a:text-[var(--color-primary)] prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl">
+          <slot />
+        </div>
+
+        <!-- Social Share -->
+        {config.article.showSocialShare && (
+          <div class="mt-12 pt-8 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
+            <SocialShare
+              url={canonicalUrl}
+              title={data.title}
+              description={data.description}
+              buttons={config.article.socialShareButtons || ['twitter', 'facebook', 'linkedin', 'copy']}
+            />
+          </div>
+        )}
+
+        <!-- Related Articles -->
+        {config.blog.showRelatedPosts && relatedArticles.length > 0 && (
+          <section class="mt-16">
+            <h2 class="text-2xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-8">
+              Related Articles
+            </h2>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {relatedArticles.slice(0, 3).map((related) => (
+                <ArticleCard article={related} config={config} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+
+      <!-- Desktop Sidebar with ToC -->
+      {config.blog.showTableOfContents && headings.length > 0 && (
+        <aside class="hidden lg:block">
+          <TableOfContents headings={headings} />
+        </aside>
+      )}
+    </div>
+  </article>
+  <ImageLightbox />
+</BaseLayout>
+
+<style>
+  /* Dark mode styles */
+  :global([data-theme="dark"]) .prose {
+    --tw-prose-body: var(--color-dark-text-secondary);
+    --tw-prose-headings: var(--color-dark-text-primary);
+    --tw-prose-links: var(--color-primary);
+    --tw-prose-bold: var(--color-dark-text-primary);
+    --tw-prose-counters: var(--color-dark-text-secondary);
+    --tw-prose-bullets: var(--color-dark-text-muted);
+    --tw-prose-hr: var(--color-dark-border);
+    --tw-prose-quotes: var(--color-dark-text-primary);
+    --tw-prose-quote-borders: var(--color-primary);
+    --tw-prose-captions: var(--color-dark-text-muted);
+    --tw-prose-code: var(--color-dark-text-primary);
+    --tw-prose-pre-code: var(--color-dark-text-secondary);
+    --tw-prose-pre-bg: var(--color-dark-bg-secondary);
+    --tw-prose-th-borders: var(--color-dark-border);
+    --tw-prose-td-borders: var(--color-dark-border);
+  }
+</style>

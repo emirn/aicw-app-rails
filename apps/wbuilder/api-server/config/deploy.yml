@@ -1,0 +1,129 @@
+# Kamal 2.0 deployment configuration for AICW Website Builder API
+# Deploy with: kamal deploy
+# Setup server: kamal setup (first time only)
+# Note: Requires Kamal 2.8+ for local registry support
+#
+# MULTI-SERVICE SAFETY: This config uses unique service names, data paths,
+# and domains to avoid conflicts with other services on the same server.
+
+service: aicw-website-builder
+
+# Docker image name (Kamal automatically prepends registry server)
+# Will become: ghcr.io/{github-username}/aicw-website-builder
+image: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-website-builder
+
+# GitHub Container Registry (ghcr.io)
+registry:
+  server: ghcr.io
+  username: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>
+  password: <%= ENV['KAMAL_REGISTRY_PASSWORD'] %>
+
+# Skip building locally - use remote build by GitHub Actions
+# To skip building use --skip-push, see https://kamal-deploy.org/docs/commands/deploy/
+builder:
+  arch: amd64
+  args:
+    BUILD_COMMIT: <%= `git rev-parse --short HEAD`.strip rescue 'unknown' %>
+
+# Servers to deploy to
+servers:
+  web:
+    hosts:
+      - <%= ENV["AICW_WB_SERVER_IP"] %>
+
+# SSH configuration for AWS Lightsail
+ssh:
+  user: <%= ENV['AICW_WB_DEPLOY_USERNAME'] || 'ubuntu' %>
+  <% if ENV['AICW_WB_DEPLOY_SSH_PRIVATE_KEY'] %>
+  # GitHub Actions: use key from environment variable (via ssh-agent)
+  <% elsif ENV['SSH_KEY_PATH'] %>
+  # Local deployment: use key file path
+  keys:
+    - <%= ENV['SSH_KEY_PATH'] %>
+  <% else %>
+  # Fallback: use default SSH key
+  keys:
+    - ~/.ssh/id_rsa
+  keys_only: true
+  <% end %>
+
+# Environment variables for the container
+env:
+  clear:
+    PORT: 4002
+    NODE_ENV: production
+  secret:
+    - AICW_WEBSITE_BUILD_API_KEY
+    - CLOUDFLARE_API_TOKEN
+    - CLOUDFLARE_ACCOUNT_ID
+
+# Persistent storage for job data
+volumes:
+  - /data/aicw_wb_data:/data/aicw_wb_data
+
+# Keep last 3 containers for rollback
+retain_containers: 3
+
+# Deploy timeout for app to become healthy
+deploy_timeout: 60
+# Drain timeout when stopping old containers
+drain_timeout: 30
+
+# Proxy configuration (Kamal Proxy - replaces Traefik in Kamal 2)
+proxy:
+  ssl: true
+  host: <%= ENV['AICW_WB_DOMAIN'] %>
+  app_port: 4002
+  # Healthcheck configuration
+  healthcheck:
+    path: /health
+    interval: 10
+    timeout: 5
+  # Forward headers to the application
+  forward_headers: true
+
+# Logging configuration
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# =============================================================================
+# DEPLOYMENT INSTRUCTIONS
+# =============================================================================
+#
+# Required environment variables (set in .env or CI/CD):
+#   - KAMAL_REGISTRY_USERNAME: GitHub username
+#   - KAMAL_REGISTRY_PASSWORD: GitHub PAT with packages:write
+#   - AICW_WB_SERVER_IP: Lightsail instance IP
+#   - AICW_WB_DOMAIN: Domain for the API (e.g., builder.yourdomain.com)
+#   - AICW_WEBSITE_BUILD_API_KEY: API authentication key
+#   - CLOUDFLARE_API_TOKEN: Cloudflare API token
+#   - CLOUDFLARE_ACCOUNT_ID: Cloudflare account ID
+#
+# Optional:
+#   - AICW_WB_DEPLOY_USERNAME: SSH user (default: ubuntu)
+#   - SSH_KEY_PATH: Path to SSH key for local deployment
+#   - GITHUB_TOKEN: For private template repos
+#
+# First-time setup:
+#   1. kamal setup
+#   2. kamal env push
+#   3. kamal deploy
+#
+# Subsequent deployments:
+#   kamal deploy
+#
+# =============================================================================
+# MULTI-SERVICE NOTES
+# =============================================================================
+#
+# This service uses:
+#   - Unique service name: aicw-website-builder
+#   - Unique data path: /data/aicw_wb_data/
+#   - Unique domain: configured via AICW_WB_DOMAIN
+#   - Unique port: 4002
+#
+# Multiple services can coexist on the same server with different domains.
+# =============================================================================

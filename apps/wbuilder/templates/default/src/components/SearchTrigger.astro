@@ -1,0 +1,46 @@
+---
+interface Props {
+  class?: string;
+  showShortcut?: boolean;
+}
+
+const { class: className = '', showShortcut = true } = Astro.props;
+---
+
+<button
+  type="button"
+  class:list={[
+    'search-trigger flex items-center gap-2 px-3 py-1.5 rounded-lg',
+    'text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]',
+    'hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)]',
+    'hover:bg-[var(--color-bg-secondary)] dark:hover:bg-[var(--color-dark-bg-secondary)]',
+    'border border-[var(--color-border)] dark:border-[var(--color-dark-border)]',
+    'transition-colors',
+    className,
+  ]}
+  aria-label="Search (Cmd+K)"
+>
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+  <span class="text-sm hidden sm:inline">Search</span>
+  {showShortcut && (
+    <kbd class="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs rounded bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
+      <span class="text-[10px]">&#8984;</span>K
+    </kbd>
+  )}
+</button>
+
+<script>
+  // Attach click handler to all search triggers
+  function initSearchTriggers() {
+    document.querySelectorAll('.search-trigger').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('open-search'));
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initSearchTriggers);
+  document.addEventListener('astro:page-load', initSearchTriggers);
+</script>

@@ -1,0 +1,9 @@
+{
+  "branding": {
+    "site": {
+      "name": "Test Blog",
+      "url": "http://localhost:4321",
+      "description": "A test blog for local development"
+    }
+  }
+}

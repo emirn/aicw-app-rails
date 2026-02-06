@@ -1,0 +1,61 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getConfig } from '../../lib/config';
+import { getPublishedArticles } from '../../lib/articles';
+import ArticleCard from '../../components/ArticleCard.astro';
+import Pagination from '../../components/Pagination.astro';
+
+export const getStaticPaths = (async () => {
+  const siteConfig = getConfig();
+  const articles = await getPublishedArticles();
+  const postsPerPage = siteConfig.blog.postsPerPage || 9;
+  const totalPages = Math.ceil(articles.length / postsPerPage);
+
+  // Generate paths for page 2 onwards (page 1 is index.astro)
+  // If no articles or only 1 page, return empty array
+  if (totalPages <= 1) {
+    return [];
+  }
+
+  return Array.from({ length: totalPages - 1 }, (_, i) => ({
+    params: { page: String(i + 2) },
+  }));
+}) satisfies GetStaticPaths;
+
+const config = getConfig();
+
+const { page } = Astro.params;
+const currentPage = parseInt(page);
+
+// Get all published articles sorted by date
+const articles = (await getPublishedArticles())
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// Pagination
+const postsPerPage = config.blog.postsPerPage || 9;
+const totalPages = Math.ceil(articles.length / postsPerPage);
+const startIndex = (currentPage - 1) * postsPerPage;
+const paginatedArticles = articles.slice(startIndex, startIndex + postsPerPage);
+---
+
+<BaseLayout
+  title={`Page ${currentPage}`}
+  canonical={`${config.branding.site.url}/page/${currentPage}/`}
+>
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    {config.blog.sectionTitle && (
+      <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
+        {config.blog.sectionTitle}
+      </h2>
+    )}
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {paginatedArticles.map((article) => (
+        <ArticleCard article={article} config={config} />
+      ))}
+    </div>
+
+    <Pagination currentPage={currentPage} totalPages={totalPages} />
+  </section>
+</BaseLayout>

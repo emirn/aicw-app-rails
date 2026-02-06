@@ -1,0 +1,13 @@
+{
+  "slug": "getting-started-with-ai",
+  "meta": {
+    "title": "Getting Started with AI: A Beginner's Guide",
+    "description": "Learn the fundamentals of artificial intelligence and how to start your journey into the world of AI development.",
+    "date": "2025-01-15T10:00:00Z",
+    "author": "Jane Developer",
+    "categories": ["Technology", "AI"],
+    "keywords": ["AI", "machine learning", "getting started", "beginner guide"],
+    "image_hero": "https://picsum.photos/seed/ai-guide/1200/630"
+  },
+  "content": "# Getting Started with AI\n\nArtificial Intelligence (AI) is transforming how we build and interact with software. In this guide, we'll explore the fundamentals of AI and help you take your first steps into this exciting field.\n\n## What is AI?\n\nAI refers to the simulation of human intelligence in machines that are programmed to think and learn like humans. This includes:\n\n- **Machine Learning**: Algorithms that improve through experience\n- **Natural Language Processing**: Understanding and generating human language\n- **Computer Vision**: Teaching machines to interpret visual information\n\n## Getting Started\n\n### 1. Learn Python\n\nPython is the most popular language for AI development. Its simple syntax and rich ecosystem of libraries make it ideal for beginners.\n\n```python\n# Simple AI prediction example\nimport numpy as np\n\ndef simple_prediction(data):\n    return np.mean(data) * 1.1\n```\n\n### 2. Understand the Math\n\nLinear algebra, calculus, and statistics form the foundation of AI. Focus on:\n\n- Vectors and matrices\n- Derivatives and gradients\n- Probability distributions\n\n### 3. Build Projects\n\nStart with simple projects like:\n\n1. Sentiment analysis\n2. Image classification\n3. Chatbot development\n\n## Conclusion\n\nAI is accessible to anyone willing to learn. Start small, be consistent, and you'll be building intelligent systems before you know it!"
+}

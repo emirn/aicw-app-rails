@@ -1,0 +1,50 @@
+---
+interface Props {
+  headings: Array<{ depth: number; slug: string; text: string }>;
+}
+
+const { headings } = Astro.props;
+
+// Filter to only h2 and h3 headings
+const filteredHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{filteredHeadings.length > 0 && (
+  <div class="lg:hidden mb-8">
+    <details class="group bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] rounded-xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
+      <summary class="flex items-center justify-between p-4 cursor-pointer list-none">
+        <span class="text-sm font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)]">
+          Table of Contents
+        </span>
+        <svg
+          class="w-5 h-5 text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] transition-transform group-open:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+
+      <div class="px-4 pb-4">
+        <ul class="space-y-2 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)] pt-4">
+          {filteredHeadings.map((heading) => (
+            <li>
+              <a
+                href={`#${heading.slug}`}
+                class:list={[
+                  'block text-sm py-1 transition-colors',
+                  'text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]',
+                  'hover:text-[var(--color-primary)]',
+                  heading.depth === 3 && 'pl-4',
+                ]}
+              >
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </details>
+  </div>
+)}

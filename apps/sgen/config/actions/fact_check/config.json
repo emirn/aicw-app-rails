@@ -1,0 +1,6 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "perplexity/sonar",
+  "output_mode": "text_replace",
+  "description": "Verify facts using Perplexity Sonar with built-in web search and citations"
+}

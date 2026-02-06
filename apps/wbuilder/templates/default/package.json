@@ -1,0 +1,29 @@
+{
+  "name": "astro-blog-template",
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && npx pagefind --site dist",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.3.13",
+    "@astrojs/rss": "^4.0.14",
+    "@astrojs/sitemap": "^3.6.0",
+    "@pagefind/default-ui": "^1.3.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@tailwindcss/typography": "^0.5.15",
+    "astro": "^5.16.6",
+    "astro-pagefind": "^1.6.0",
+    "png-to-ico": "^3.0.1",
+    "satori": "^0.18.3",
+    "sharp": "^0.33.5",
+    "tailwindcss": "^3.4.17"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49"
+  }
+}
