@@ -23,12 +23,14 @@ export interface User {
   } | null
 }
 
-export function useUser() {
+export function useUser(skip = false) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!skip)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (skip) return
+
     const fetchUser = async () => {
       try {
         const data = await apiClient.get<{ user: User }>('/api/v1/me')
@@ -42,7 +44,7 @@ export function useUser() {
     }
 
     fetchUser()
-  }, [])
+  }, [skip])
 
   return { user, loading, error }
 }

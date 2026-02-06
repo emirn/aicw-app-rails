@@ -64,6 +64,11 @@ Rails.application.routes.draw do
     end
   end
 
+  # Public analytics pages (no auth, served by React)
+  # Allow dots in domain (e.g., aicw.io) by overriding the default constraint
+  get "public/:domain", to: "public_pages#show", constraints: { domain: /[^\/]+/ }
+  get "public/:domain/*path", to: "public_pages#show", constraints: { domain: /[^\/]+/ }
+
   # Dashboard (serves React frontend via Vite)
   get "dashboard", to: "dashboard#index"
   get "dashboard/manifest", to: "dashboard#manifest"

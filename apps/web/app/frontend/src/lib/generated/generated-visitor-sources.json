@@ -1,0 +1,207 @@
+[
+  {
+    "name": "OpenAI ChatGPT",
+    "url": "chatgpt.com",
+    "category": "ai"
+  },
+  {
+    "name": "Anthropic Claude",
+    "url": "claude.ai",
+    "category": "ai"
+  },
+  {
+    "name": "Perplexity.AI",
+    "url": "perplexity.ai",
+    "category": "ai"
+  },
+  {
+    "name": "Google Gemini",
+    "url": "gemini.google.com",
+    "category": "ai"
+  },
+  {
+    "name": "Google AI/Featured",
+    "url": "google.com",
+    "category": "ai"
+  },
+  {
+    "name": "Microsoft Copilot",
+    "url": "copilot.microsoft.com",
+    "category": "ai"
+  },
+  {
+    "name": "Alibaba Qwen",
+    "url": "chat.qwen.ai",
+    "category": "ai"
+  },
+  {
+    "name": "DeepSeek",
+    "url": "chat.deepseek.com",
+    "category": "ai"
+  },
+  {
+    "name": "Meta AI",
+    "url": "meta.ai",
+    "category": "ai"
+  },
+  {
+    "name": "You.com",
+    "url": "you.com",
+    "category": "ai"
+  },
+  {
+    "name": "Mistral Le Chat",
+    "url": "mistral.ai",
+    "category": "ai"
+  },
+  {
+    "name": "Grok",
+    "url": "grok.com",
+    "category": "ai"
+  },
+  {
+    "name": "Phind",
+    "url": "phind.com",
+    "category": "ai"
+  },
+  {
+    "name": "HuggingChat",
+    "url": "huggingface.co",
+    "category": "ai"
+  },
+  {
+    "name": "Blackbox AI",
+    "url": "blackbox.ai",
+    "category": "ai"
+  },
+  {
+    "name": "Andi",
+    "url": "andisearch.com",
+    "category": "ai"
+  },
+  {
+    "name": "Felo",
+    "url": "felo.ai",
+    "category": "ai"
+  },
+  {
+    "name": "Google",
+    "url": "google.com",
+    "category": "search"
+  },
+  {
+    "name": "Bing",
+    "url": "bing.com",
+    "category": "search"
+  },
+  {
+    "name": "Brave",
+    "url": "brave.com",
+    "category": "search"
+  },
+  {
+    "name": "DuckDuckGo",
+    "url": "duckduckgo.com",
+    "category": "search"
+  },
+  {
+    "name": "Yahoo",
+    "url": "yahoo.com",
+    "category": "search"
+  },
+  {
+    "name": "Yandex",
+    "url": "yandex.ru",
+    "category": "search"
+  },
+  {
+    "name": "Baidu",
+    "url": "baidu.com",
+    "category": "search"
+  },
+  {
+    "name": "Ecosia",
+    "url": "ecosia.org",
+    "category": "search"
+  },
+  {
+    "name": "Startpage",
+    "url": "startpage.com",
+    "category": "search"
+  },
+  {
+    "name": "Qwant",
+    "url": "qwant.com",
+    "category": "search"
+  },
+  {
+    "name": "Naver",
+    "url": "naver.com",
+    "category": "search"
+  },
+  {
+    "name": "Seznam",
+    "url": "seznam.cz",
+    "category": "search"
+  },
+  {
+    "name": "Ask",
+    "url": "ask.com",
+    "category": "search"
+  },
+  {
+    "name": "AOL",
+    "url": "search.aol.com",
+    "category": "search"
+  },
+  {
+    "name": "Swisscows",
+    "url": "swisscows.com",
+    "category": "search"
+  },
+  {
+    "name": "Reddit",
+    "url": "reddit.com",
+    "category": "social"
+  },
+  {
+    "name": "X",
+    "url": "x.com",
+    "category": "social"
+  },
+  {
+    "name": "Facebook",
+    "url": "facebook.com",
+    "category": "social"
+  },
+  {
+    "name": "Instagram",
+    "url": "instagram.com",
+    "category": "social"
+  },
+  {
+    "name": "LinkedIn",
+    "url": "linkedin.com",
+    "category": "social"
+  },
+  {
+    "name": "Mastodon",
+    "url": "mastodon.social",
+    "category": "social"
+  },
+  {
+    "name": "Bluesky",
+    "url": "bsky.app",
+    "category": "social"
+  },
+  {
+    "name": "TikTok",
+    "url": "tiktok.com",
+    "category": "video"
+  },
+  {
+    "name": "YouTube",
+    "url": "youtube.com",
+    "category": "video"
+  }
+]

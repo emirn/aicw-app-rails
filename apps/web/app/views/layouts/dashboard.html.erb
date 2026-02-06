@@ -18,7 +18,16 @@
     </script>
 
     <%= vite_client_tag %>
-    <%= vite_typescript_tag 'application', type: 'module' %>
+    <% if Rails.env.development? %>
+      <script type="module">
+        import RefreshRuntime from '/vite-dev/@react-refresh'
+        RefreshRuntime.injectIntoGlobalHook(window)
+        window.$RefreshReg$ = () => {}
+        window.$RefreshSig$ = () => (type) => type
+        window.__vite_plugin_react_preamble_installed__ = true
+      </script>
+    <% end %>
+    <%= vite_javascript_tag 'application.tsx', type: 'module' %>
   </head>
 
   <body class="bg-background text-foreground">

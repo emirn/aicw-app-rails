@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useUser } from '@/hooks/useUser'
 import { getAppConfig } from '@/config/api'
 import { ThemeProvider } from '@/context/ThemeContext'
@@ -10,10 +10,13 @@ import Projects from '@/components/Projects'
 import ProjectDetails from '@/components/ProjectDetails'
 import Analytics from '@/components/Analytics'
 import WebsiteBuilder from '@/components/WebsiteBuilder'
+import PublicAnalytics from '@/components/PublicAnalytics'
 import Loading from '@/components/Loading'
 
 function AppContent() {
-  const { user, loading } = useUser()
+  const location = useLocation()
+  const isPublicRoute = location.pathname.startsWith('/public/')
+  const { user, loading } = useUser(isPublicRoute)
   const [appVersion, setAppVersion] = useState<string>('')
   const [appRevision, setAppRevision] = useState<string>('')
 
@@ -23,6 +26,15 @@ function AppContent() {
       setAppRevision(config.appRevision || '')
     }).catch(() => {})
   }, [])
+
+  // Public routes don't need auth
+  if (isPublicRoute) {
+    return (
+      <Routes>
+        <Route path="/public/:domain" element={<PublicAnalytics />} />
+      </Routes>
+    )
+  }
 
   if (loading) {
     return <Loading />

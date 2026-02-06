@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_05_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
   create_table "account_users", force: :cascade do |t|
     t.integer "account_id", null: false
     t.datetime "created_at", null: false
@@ -65,10 +65,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_130000) do
     t.json "metadata", default: {}
     t.string "name", null: false
     t.string "token", null: false
+    t.string "token_type", default: "session", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["token"], name: "index_api_tokens_on_token", unique: true
     t.index ["user_id", "expires_at"], name: "index_api_tokens_on_user_id_and_expires_at"
+    t.index ["user_id", "token_type", "expires_at"], name: "index_api_tokens_on_user_token_type_expires"
     t.index ["user_id"], name: "index_api_tokens_on_user_id"
   end
 
@@ -86,6 +88,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_05_130000) do
     t.datetime "created_at", null: false
     t.string "custom_domain"
     t.text "description"
+    t.datetime "last_deployed_at"
     t.string "name", null: false
     t.integer "project_id", null: false
     t.string "slug", null: false

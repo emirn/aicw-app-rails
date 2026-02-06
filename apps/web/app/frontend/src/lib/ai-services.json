@@ -1,0 +1,18 @@
+{
+  "chatgpt": { "name": "ChatGPT", "url": "https://chatgpt.com" },
+  "claude": { "name": "Claude", "url": "https://claude.ai" },
+  "perplexity": { "name": "Perplexity", "url": "https://perplexity.ai" },
+  "gemini": { "name": "Gemini", "url": "https://gemini.google.com" },
+  "grok": { "name": "Grok", "url": "https://x.ai" },
+  "google_ai": { "name": "Google AI", "url": "https://google.com" },
+  "google": { "name": "Google", "url": "https://google.com" },
+  "meta_ai": { "name": "Meta AI", "url": "https://ai.meta.com" },
+  "deepseek": { "name": "DeepSeek", "url": "https://deepseek.com" },
+  "duckduckgo": { "name": "DuckDuckGo", "url": "https://duckduckgo.com" },
+  "brave": { "name": "Brave Search", "url": "https://search.brave.com" },
+  "bing": { "name": "Bing", "url": "https://bing.com" },
+  "mistral": { "name": "Mistral", "url": "https://mistral.ai" },
+  "llama": { "name": "Llama", "url": "https://llama.meta.com" },
+  "cohere": { "name": "Cohere", "url": "https://cohere.ai" },
+  "qwen": { "name": "Qwen", "url": "https://qwen.ai" }
+}
