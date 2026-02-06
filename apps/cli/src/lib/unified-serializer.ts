@@ -177,7 +177,7 @@ export class UnifiedSerializer<T extends Record<string, any>> {
    *
    * Algorithm:
    * 1. Write full data to index.json (always)
-   * 2. Auto-create/sync override files for SERIALIZED_FIELDS (content, faq, jsonld)
+   * 2. Auto-create/sync override files for SERIALIZED_FIELDS (content, faq, content_jsonld, faq_jsonld)
    * 3. Sync any OTHER existing override files (for extensibility)
    */
   async write(data: T): Promise<void> {

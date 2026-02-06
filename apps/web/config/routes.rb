@@ -5,9 +5,8 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   # Devise authentication routes
-  # Skip registration and password routes (Google OAuth only for now)
-  # Can re-enable later by removing skip: [...] when email setup is needed
-  devise_for :users, skip: [:registrations, :passwords], controllers: {
+  # Skip password routes (Google OAuth only for now)
+  devise_for :users, skip: [:passwords], controllers: {
     omniauth_callbacks: "users/omniauth_callbacks"
   }
 

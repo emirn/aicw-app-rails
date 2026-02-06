@@ -184,7 +184,7 @@ export interface IInternalLink {
  * All fields are stored flat at the root level of index.json.
  *
  * Note: Despite the previous name "IArticleMeta", this represents the full article
- * including content-related fields like faq and jsonld.
+ * including content-related fields like faq, content_jsonld, and faq_jsonld.
  */
 export interface IArticle {
   /** Article title */
@@ -235,8 +235,11 @@ export interface IArticle {
   /** FAQ section HTML content (extracted from content, stored separately) */
   faq?: string;
 
-  /** JSON-LD script blocks (all <script type="application/ld+json"> elements) */
-  jsonld?: string;
+  /** JSON-LD script blocks for article content (Article, WebPage, BreadcrumbList, Organization schemas) */
+  content_jsonld?: string;
+
+  /** JSON-LD script block for FAQ section (FAQPage schema) */
+  faq_jsonld?: string;
 
   /** Article content (markdown) - unified object pattern */
   content?: string;

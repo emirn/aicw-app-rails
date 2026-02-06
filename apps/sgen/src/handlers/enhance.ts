@@ -136,7 +136,7 @@ export async function handleEnhance(
   }
 
   // Actions that require website URL in project config
-  const ACTIONS_REQUIRING_URL = ['add_jsonld'];
+  const ACTIONS_REQUIRING_URL = ['add_content_jsonld', 'add_faq_jsonld'];
 
   if (ACTIONS_REQUIRING_URL.includes(mode) && !context.projectConfig?.url) {
     throw new Error(
@@ -592,6 +592,12 @@ export async function handleEnhance(
     }
     // ============== END LOCAL TOC GENERATION ==============
 
+    // For add_faq_jsonld: skip if no FAQ content exists
+    if (mode === 'add_faq_jsonld' && (!normalizedMeta.faq || !normalizedMeta.faq.trim())) {
+      log.info({ path: context.articlePath, mode }, 'add_faq_jsonld:skipped (no faq content)');
+      return { success: true, message: 'Skipped add_faq_jsonld (no FAQ content)', skipped: true, operations: [] };
+    }
+
     // Build context with required variables
     const contextForPrompt: Record<string, unknown> = {
       website_info: websiteInfo,
@@ -613,6 +619,11 @@ export async function handleEnhance(
       const { parseSitemapForPrompt } = await import('../utils/sitemap-parser');
       const links = parseSitemapForPrompt(sitemapXml, websiteInfo.url || '');
       contextForPrompt.sitemap_links = links;
+    }
+
+    // For add_faq_jsonld: pass FAQ content for prompt
+    if (mode === 'add_faq_jsonld') {
+      contextForPrompt.faq_content = normalizedMeta.faq || '';
     }
 
     // For add_diagrams: merge server config variables with custom variables from CLI
@@ -694,7 +705,7 @@ export async function handleEnhance(
     } else if (outMode === 'insert_content_bottom') {
       const text = extractContentText(content, rawContent);
 
-      // Special handling for add_faq and add_jsonld: store in meta instead of content
+      // Special handling for add_faq, add_content_jsonld, add_faq_jsonld: store in meta instead of content
       if (mode === 'add_faq') {
         // Store FAQ HTML in article.faq (unified object)
         const updatedArticleObj = updateArticle(normalizedMeta, {
@@ -722,10 +733,10 @@ export async function handleEnhance(
         };
       }
 
-      if (mode === 'add_jsonld') {
-        // Store JSON-LD in article.jsonld (unified object)
+      if (mode === 'add_content_jsonld') {
+        // Store content JSON-LD in article.content_jsonld (unified object)
         const updatedArticleObj = updateArticle(normalizedMeta, {
-          jsonld: text,
+          content_jsonld: text,
         });
 
         const wordCount = article.content.split(/\s+/).length;
@@ -736,11 +747,38 @@ export async function handleEnhance(
           tokens,
           cost_usd: usageStats.cost_usd,
           words: wordCount,
-        }, 'enhance:done (jsonld stored in meta)');
+        }, 'enhance:done (content_jsonld stored in meta)');
 
         return {
           success: true,
-          message: `Added JSON-LD schema (stored separately, ${wordCount} words in article)`,
+          message: `Added content JSON-LD schema (stored separately, ${wordCount} words in article)`,
+          tokensUsed: tokens,
+          costUsd: usageStats.cost_usd,
+          prompt,
+          rawResponse: flags.debug ? rawContent : undefined,
+          operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+        };
+      }
+
+      if (mode === 'add_faq_jsonld') {
+        // Store FAQ JSON-LD in article.faq_jsonld (unified object)
+        const updatedArticleObj = updateArticle(normalizedMeta, {
+          faq_jsonld: text,
+        });
+
+        const wordCount = article.content.split(/\s+/).length;
+
+        log.info({
+          path: context.articlePath,
+          mode,
+          tokens,
+          cost_usd: usageStats.cost_usd,
+          words: wordCount,
+        }, 'enhance:done (faq_jsonld stored in meta)');
+
+        return {
+          success: true,
+          message: `Added FAQ JSON-LD schema (stored separately, ${wordCount} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
           prompt,

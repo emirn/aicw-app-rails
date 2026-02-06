@@ -42,6 +42,10 @@ export interface PublishedMetadata {
   last_pipeline?: string;
   /** FAQ content in HTML/markdown format */
   faq?: string;
+  /** JSON-LD script blocks for article content */
+  content_jsonld?: string;
+  /** JSON-LD script block for FAQ section */
+  faq_jsonld?: string;
 }
 
 /**
@@ -96,8 +100,8 @@ export class PublishedRenderer {
       '{{META_PUBLISHED_AT}}': publishedAt,
       '{{META_VERSION}}': String(metadata.version || 1),
       '{{META_LAST_PIPELINE}}': metadata.last_pipeline || '',
-      '{{CONTENT_MD}}': content,
-      '{{FAQ_MD}}': metadata.faq || ''
+      '{{CONTENT_MD}}': [metadata.content_jsonld, content].filter(Boolean).join('\r\n\r\n'),
+      '{{FAQ_MD}}': [metadata.faq_jsonld, metadata.faq].filter(Boolean).join('\r\n\r\n')
     };
 
     return this.replaceMacrosInTemplate(this.template, macros);

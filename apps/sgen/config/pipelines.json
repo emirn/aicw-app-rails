@@ -56,7 +56,10 @@
           "action": "create_meta"
         },
         {
-          "action": "add_jsonld"
+          "action": "add_content_jsonld"
+        },
+        {
+          "action": "add_faq_jsonld"
         }
       ]
     },

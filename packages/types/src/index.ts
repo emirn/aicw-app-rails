@@ -89,8 +89,11 @@ export {
   ARTICLE_FILE,
   INDEX_FILE,
   CONTENT_OVERRIDE_FILE,
+  CONTENT_JSONLD_OVERRIDE_FILE,
+  FAQ_JSONLD_OVERRIDE_FILE,
+  JSONLD_CONTENT_FIELDS,
   HISTORY_DIR,
   SERIALIZED_FIELDS,
   SERIALIZED_FIELD_FILES,
 } from './constants';
-export type { SerializedField } from './constants';
+export type { SerializedField, JsonldContentField } from './constants';
