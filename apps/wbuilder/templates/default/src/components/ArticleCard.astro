@@ -1,0 +1,114 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { SiteConfig } from '../lib/config';
+import { getDefaultAuthor } from '../lib/config';
+import CategoryBadge from './CategoryBadge.astro';
+
+interface Props {
+  article: CollectionEntry<'articles'>;
+  config: SiteConfig;
+}
+
+const { article, config } = Astro.props;
+const { data, slug } = article;
+const categories = data.categories || [];
+const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
+
+// Format date
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+// Calculate reading time from body content
+const wordCount = article.body?.split(/\s+/).length || 0;
+const readingTime = Math.ceil(wordCount / 200);
+
+// Extract first image from markdown content for hero fallback
+function extractFirstImage(body: string | undefined): string | null {
+  if (!body) return null;
+  const mdMatch = body.match(/!\[.*?\]\(([^)]+)\)/);
+  if (mdMatch) return mdMatch[1];
+  const htmlMatch = body.match(/<img[^>]+src=["']([^"']+)["']/);
+  if (htmlMatch) return htmlMatch[1];
+  return null;
+}
+
+const heroImage = data.image_hero || extractFirstImage(article.body);
+---
+
+<article class="group bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] rounded-xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)] overflow-hidden hover:border-[var(--color-primary)] hover:shadow-lg transition-all duration-300">
+  <a href={`/${slug}/`} class="block">
+    {heroImage && (
+      <div class="aspect-[16/9] overflow-hidden">
+        <img
+          src={heroImage}
+          alt={data.title}
+          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
+        />
+      </div>
+    )}
+
+    <div class="p-6">
+      {showCategories && (
+        <div class="flex flex-wrap gap-1.5 mb-2" onclick="event.stopPropagation();">
+          {categories.slice(0, 2).map((cat) => (
+            <CategoryBadge category={cat} config={config} size="sm" />
+          ))}
+        </div>
+      )}
+
+      <h2 class="text-lg font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] group-hover:text-[var(--color-primary)] transition-colors line-clamp-2 mb-2">
+        {data.title}
+      </h2>
+
+      {config.blog.showExcerpt && data.description && (
+        <p class="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] line-clamp-3 mb-4">
+          {data.description}
+        </p>
+      )}
+
+      <div class="flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
+        {config.blog.showDate && data.date && (
+          <time datetime={data.date.toISOString()}>
+            {formatDate(data.date)}
+          </time>
+        )}
+
+        {config.blog.showAuthor && (data.author || getDefaultAuthor(config)) && (
+          <>
+            <span class="w-1 h-1 rounded-full bg-current"></span>
+            <span>{data.author || getDefaultAuthor(config)}</span>
+          </>
+        )}
+
+        {config.blog.showReadingTime && (
+          <>
+            <span class="w-1 h-1 rounded-full bg-current"></span>
+            <span>{readingTime} min read</span>
+          </>
+        )}
+      </div>
+    </div>
+  </a>
+</article>
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

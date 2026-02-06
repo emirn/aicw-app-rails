@@ -1,0 +1,6 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "openai/gpt-4o-mini",
+  "output_mode": "text_replace_all",
+  "description": "Humanize tone by replacing AI-ish words with friendlier terms"
+}

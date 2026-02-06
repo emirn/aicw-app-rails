@@ -1,0 +1,7 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "anthropic/claude-opus-4.5",
+  "output_mode": "text_replace_all",
+  "description": "Generate SEO content plan with keyword clusters and internal linking strategy",
+  "forcible": false
+}

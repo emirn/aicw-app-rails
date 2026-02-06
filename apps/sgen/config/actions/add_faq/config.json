@@ -1,0 +1,6 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "openai/gpt-4o-mini",
+  "output_mode": "insert_content_bottom",
+  "description": "Append a Frequently Asked Questions section with up to 7 Q&A based on the article"
+}

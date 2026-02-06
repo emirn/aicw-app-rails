@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>AI Chat Watch - Dashboard</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="color-scheme" content="light dark">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%# Prevent flash of wrong theme %>
+    <script>
+      (function() {
+        var theme = localStorage.getItem('aicw-theme') || 'system';
+        var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
+
+    <%= vite_client_tag %>
+    <%= vite_typescript_tag 'application', type: 'module' %>
+  </head>
+
+  <body class="bg-background text-foreground">
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,134 @@
+{
+  "site": {
+    "name": "My Blog",
+    "tagline": "Insights and updates",
+    "description": "A blog about...",
+    "url": "https://blog.example.com",
+    "language": "en",
+    "faviconUrl": ""
+  },
+  "logo": {
+    "type": "text",
+    "text": "BRAND",
+    "imageUrl": "",
+    "showBorder": true,
+    "borderColor": "#3B82F6"
+  },
+  "hero": {
+    "enabled": true,
+    "title": "The Blog Title",
+    "subtitle": "Your compelling tagline goes here.",
+    "showOnAllPages": false
+  },
+  "colors": {
+    "primary": "#3B82F6",
+    "primaryHover": "#2563EB",
+    "accent": "#f5576c",
+    "textPrimary": "#0F172A",
+    "textSecondary": "#475569",
+    "textMuted": "#9CA3AF",
+    "background": "#FFFFFF",
+    "backgroundSecondary": "#F8FAFC",
+    "border": "#E2E8F0"
+  },
+  "darkMode": {
+    "enabled": true,
+    "default": "dark",
+    "togglePosition": "footer",
+    "colors": {
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "#D1D5DB",
+      "textMuted": "#9CA3AF",
+      "background": "#111827",
+      "backgroundSecondary": "#1F2937",
+      "border": "#374151"
+    }
+  },
+  "typography": {
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "headingFontFamily": "Inter, system-ui, sans-serif",
+    "googleFonts": ["Inter:wght@400;500;600;700"]
+  },
+  "header": {
+    "style": "pill",
+    "showSearch": false,
+    "navLinks": [
+      { "label": "Home", "url": "/" },
+      { "label": "Contacts", "url": "/contacts/" }
+    ],
+    "ctaButton": {
+      "enabled": true,
+      "label": "Request a demo",
+      "url": "https://example.com/demo",
+      "style": "primary"
+    }
+  },
+  "footer": {
+    "showLogo": true,
+    "showTagline": true,
+    "columns": [
+      {
+        "title": "Navigation",
+        "links": [
+          { "label": "Home", "url": "/" },
+          { "label": "Contacts", "url": "/contacts/" }
+        ]
+      },
+      {
+        "title": "Legal",
+        "links": [
+          { "label": "Privacy", "url": "/privacy/" },
+          { "label": "Terms", "url": "/terms/" }
+        ]
+      }
+    ],
+    "socialLinks": {
+      "twitter": "",
+      "linkedin": "",
+      "facebook": "",
+      "rss": true
+    },
+    "copyrightText": "{{YEAR}} {{SITE_NAME}}",
+    "poweredByText": "Published with AICW.io",
+    "showPoweredBy": true
+  },
+  "blog": {
+    "sectionTitle": "LATEST",
+    "postsPerPage": 9,
+    "showCategories": false,
+    "showDate": true,
+    "showAuthor": true,
+    "showExcerpt": true,
+    "showReadingTime": false,
+    "showTableOfContents": true,
+    "showRelatedPosts": true,
+    "paginationStyle": "pages",
+    "dateFormat": "MMM d, yyyy"
+  },
+  "article": {
+    "showSocialShare": true,
+    "socialShareButtons": ["facebook", "linkedin", "twitter", "copy"],
+    "showAuthorBio": false,
+    "showTags": false
+  },
+  "seo": {
+    "titleSeparator": " | ",
+    "defaultOgImage": "",
+    "twitterHandle": "",
+    "enableJsonLd": true,
+    "canonicalDomain": "",
+    "robotsNoIndex": false,
+    "showPreviewBanner": true,
+    "previewBannerText": "Preview Mode - This site is not indexed by search engines"
+  },
+  "tracking": {
+    "widgetCode": "",
+    "customHeadCode": "",
+    "customBodyCode": ""
+  },
+  "aicw": {
+    "enabled": false,
+    "trackingId": "",
+    "domain": ""
+  }
+}

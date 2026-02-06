@@ -1,0 +1,115 @@
+{
+  "site": {
+    "name": "Test Blog",
+    "tagline": "Testing the default template features",
+    "description": "A test site to verify categories, search, llms.txt, and JSON-LD features work correctly.",
+    "url": "https://test-default.sites.pgndr.com",
+    "language": "en"
+  },
+  "logo": {
+    "type": "text",
+    "text": "TestBlog",
+    "showBorder": true,
+    "borderColor": "#10B981"
+  },
+  "hero": {
+    "enabled": true,
+    "title": "Welcome to the Test Blog",
+    "subtitle": "Testing categories, search, llms.txt, and JSON-LD features",
+    "showOnAllPages": false
+  },
+  "colors": {
+    "primary": "#10B981",
+    "primaryHover": "#059669",
+    "accent": "#F59E0B",
+    "textPrimary": "#0F172A",
+    "textSecondary": "#475569",
+    "textMuted": "#9CA3AF",
+    "background": "#FFFFFF",
+    "backgroundSecondary": "#F8FAFC",
+    "border": "#E2E8F0"
+  },
+  "darkMode": {
+    "enabled": true,
+    "default": "dark",
+    "togglePosition": "footer",
+    "colors": {
+      "textPrimary": "#FFFFFF",
+      "textSecondary": "#D1D5DB",
+      "textMuted": "#9CA3AF",
+      "background": "#111827",
+      "backgroundSecondary": "#1F2937",
+      "border": "#374151"
+    }
+  },
+  "typography": {
+    "fontFamily": "Inter, system-ui, sans-serif",
+    "headingFontFamily": "Inter, system-ui, sans-serif",
+    "googleFonts": ["Inter:wght@400;500;600;700"]
+  },
+  "header": {
+    "style": "pill",
+    "showSearch": true,
+    "navLinks": [
+      { "label": "Home", "url": "/" },
+      { "label": "Categories", "url": "/categories/" }
+    ]
+  },
+  "footer": {
+    "showLogo": true,
+    "showTagline": true,
+    "columns": [],
+    "socialLinks": { "rss": true },
+    "copyrightText": "{{YEAR}} {{SITE_NAME}}",
+    "poweredByText": "Built with AICW Website Builder",
+    "showPoweredBy": true
+  },
+  "blog": {
+    "sectionTitle": "LATEST POSTS",
+    "postsPerPage": 9,
+    "showCategories": true,
+    "showDate": true,
+    "showAuthor": true,
+    "showExcerpt": true,
+    "showReadingTime": true,
+    "showTableOfContents": true,
+    "showRelatedPosts": true,
+    "paginationStyle": "pages",
+    "dateFormat": "MMM d, yyyy"
+  },
+  "article": {
+    "showSocialShare": true,
+    "socialShareButtons": ["twitter", "facebook", "linkedin", "copy"],
+    "showAuthorBio": false,
+    "showTags": true
+  },
+  "seo": {
+    "titleSeparator": " | ",
+    "enableJsonLd": true,
+    "robotsNoIndex": false,
+    "jsonLd": {
+      "organizationName": "Test Blog Inc.",
+      "organizationLogo": "/logo.png"
+    }
+  },
+  "categories": {
+    "enabled": true,
+    "showIndex": true,
+    "urlPrefix": "category"
+  },
+  "search": {
+    "enabled": true,
+    "placeholder": "Search articles...",
+    "showInHeader": true
+  },
+  "llmsTxt": {
+    "enabled": true,
+    "includeArticles": true,
+    "maxArticles": 50,
+    "includeCategories": true
+  },
+  "tracking": {},
+  "aicw": {
+    "enabled": false
+  }
+}

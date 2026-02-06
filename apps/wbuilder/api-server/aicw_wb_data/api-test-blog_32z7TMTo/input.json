@@ -1,0 +1,11 @@
+{
+  "template": "default",
+  "siteId": "api-test-blog",
+  "publishTarget": "folder",
+  "config": {
+    "site": {
+      "name": "API Test Blog",
+      "url": "http://localhost:4321"
+    }
+  }
+}

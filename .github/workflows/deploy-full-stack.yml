@@ -1,0 +1,155 @@
+# Full Stack Deployment Workflow
+# Deploys aicw-app-rails + website-builder + sgen accessories to AWS Lightsail
+#
+# Trigger: Push to tags matching 'full-v*' (e.g., full-v1.0.0)
+#
+# Required secrets:
+#   - GHCR_PAT: GitHub Container Registry Personal Access Token
+#   - AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: SSH private key for server access
+#   - AICW_RAILS_SERVER_IP: Lightsail server IP
+#   - AICW_RAILS_DOMAIN: Domain name for SSL
+#   - AICW_RAILS_DEPLOY_USERNAME: SSH username (default: ubuntu)
+#   - RAILS_MASTER_KEY: Rails master key
+#   - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: Google OAuth
+#   - TINYBIRD_API_KEY: Tinybird analytics
+#   - WEBSITE_BUILDER_API_KEY: Shared API key for website-builder
+#   - CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_AICW_ZONE_ID: Cloudflare
+#   - OPENROUTER_API_KEY: OpenRouter for sgen
+#   - SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY: Supabase project sync
+
+name: Deploy Full Stack to AWS
+
+on:
+  push:
+    tags:
+      - 'full-v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/aicw-app-rails
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Build and push Rails image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/web
+          file: apps/web/deployment/full-stack/Dockerfile.web
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/aicw-app-rails:latest
+            ghcr.io/${{ github.repository_owner }}/aicw-app-rails:${{ github.ref_name }}
+          build-args: |
+            GIT_COMMIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+          labels: |
+            service=aicw-app-rails
+          cache-from: type=gha,scope=aicw-app-rails
+          cache-to: type=gha,mode=max,scope=aicw-app-rails
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: ssh-keyscan ${{ secrets.AICW_RAILS_SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Cache Kamal gems
+        uses: actions/cache@v4
+        with:
+          path: $HOME/.local/kamal-gems
+          key: rubygems-kamal-${{ runner.os }}-v1
+          restore-keys: |
+            rubygems-kamal-${{ runner.os }}-
+
+      - name: Install Kamal
+        run: |
+          mkdir -p $HOME/.local/kamal-gems
+          gem install kamal --install-dir $HOME/.local/kamal-gems
+          echo "$HOME/.local/kamal-gems/bin" >> $GITHUB_PATH
+          echo "GEM_PATH=$HOME/.local/kamal-gems" >> $GITHUB_ENV
+
+      - name: Prepare Kamal secrets
+        run: |
+          mkdir -p apps/web/deployment/full-stack/.kamal
+          cat > apps/web/deployment/full-stack/.kamal/secrets <<EOF
+          KAMAL_REGISTRY_USERNAME=${{ github.repository_owner }}
+          KAMAL_REGISTRY_PASSWORD=${{ secrets.GHCR_PAT }}
+          RAILS_MASTER_KEY=${{ secrets.RAILS_MASTER_KEY }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TINYBIRD_API_KEY=${{ secrets.TINYBIRD_API_KEY }}
+          WEBSITE_BUILDER_API_KEY=${{ secrets.WEBSITE_BUILDER_API_KEY }}
+          AICW_WEBSITE_BUILD_API_KEY=${{ secrets.WEBSITE_BUILDER_API_KEY }}
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AICW_ZONE_ID=${{ secrets.CLOUDFLARE_AICW_ZONE_ID }}
+          OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
+          EOF
+
+      - name: Deploy with Kamal
+        env:
+          AICW_RAILS_SERVER_IP: ${{ secrets.AICW_RAILS_SERVER_IP }}
+          AICW_RAILS_DOMAIN: ${{ secrets.AICW_RAILS_DOMAIN }}
+          AICW_RAILS_DEPLOY_USERNAME: ${{ secrets.AICW_RAILS_DEPLOY_USERNAME }}
+          AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: "true"
+          KAMAL_REGISTRY_USERNAME: ${{ github.repository_owner }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TINYBIRD_API_KEY: ${{ secrets.TINYBIRD_API_KEY }}
+          WEBSITE_BUILDER_API_KEY: ${{ secrets.WEBSITE_BUILDER_API_KEY }}
+          AICW_WEBSITE_BUILD_API_KEY: ${{ secrets.WEBSITE_BUILDER_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AICW_ZONE_ID: ${{ secrets.CLOUDFLARE_AICW_ZONE_ID }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          cd apps/web/deployment/full-stack
+          # Boot accessories first (must be running before web app starts)
+          kamal accessory boot website-builder -c config/deploy.yml || true
+          kamal accessory boot sgen -c config/deploy.yml || true
+          # Deploy web app
+          kamal deploy -c config/deploy.yml --version=${{ github.ref_name }} --skip-push
+
+      - name: Verify deployment
+        run: |
+          HEALTH_URL="https://${{ secrets.AICW_RAILS_DOMAIN }}/up"
+          echo "Waiting for deployment to stabilize..."
+          sleep 5
+
+          echo "Checking health endpoint at $HEALTH_URL..."
+          for i in 1 2 3; do
+            if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "::warning::Health check failed after 3 attempts"
+          exit 0

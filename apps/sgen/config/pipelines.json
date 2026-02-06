@@ -1,0 +1,103 @@
+{
+  "publishableFilter": "^enhance.*",
+  "pipelines": {
+    "generate": {
+      "description": "Generate article from seed",
+      "needsProject": true,
+      "needsFileInput": false,
+      "articleFilter": {
+        "last_pipeline": null
+      },
+      "actions": [
+        {
+          "action": "write_draft"
+        }
+      ]
+    },
+    "enhance": {
+      "description": "Full content enhancement (no images)",
+      "needsProject": true,
+      "needsFileInput": false,
+      "articleFilter": {
+        "last_pipeline": "generate"
+      },
+      "actions": [
+        {
+          "action": "fact_check"
+        },
+        {
+          "action": "humanize_text"
+        },
+        {
+          "action": "humanize_text_random"
+        },
+        {
+          "action": "improve_seo"
+        },
+        {
+          "action": "condense_text"
+        },
+        {
+          "action": "add_external_links"
+        },
+        {
+          "action": "add_diagrams"
+        },
+        {
+          "action": "render_diagrams"
+        },
+        {
+          "action": "add_faq"
+        },
+        {
+          "action": "add_toc"
+        },
+        {
+          "action": "create_meta"
+        },
+        {
+          "action": "add_jsonld"
+        }
+      ]
+    },
+    "enhance-image-hero": {
+      "description": "Generate AI hero image (Flux API - paid)",
+      "needsProject": true,
+      "needsFileInput": false,
+      "articleFilter": {
+        "last_pipeline": "enhance"
+      },
+      "actions": [
+        {
+          "action": "generate_image_hero"
+        }
+      ]
+    },
+    "enhance-image-og": {
+      "description": "Generate social/OG image (local CPU)",
+      "needsProject": true,
+      "needsFileInput": false,
+      "articleFilter": {
+        "last_pipeline": "enhance-image-hero"
+      },
+      "actions": [
+        {
+          "action": "generate_image_social"
+        }
+      ]
+    },
+    "enhance-interlink-articles": {
+      "description": "Add internal links between articles",
+      "needsProject": true,
+      "needsFileInput": false,
+      "articleFilter": {
+        "last_pipeline": "enhance"
+      },
+      "actions": [
+        {
+          "action": "add_internal_links"
+        }
+      ]
+    }
+  }
+}

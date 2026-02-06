@@ -1,0 +1,52 @@
+{
+  "actions": [
+    {
+      "name": "plan-import",
+      "description": "Import content plan from file or clipboard",
+      "usage": "blogpostgen plan-import <project> --file <path> | --clipboard",
+      "estimatedCost": 0.05,
+      "requiresPath": true,
+      "requiresArticle": false,
+      "parameters": {
+        "file": { "type": "string" },
+        "clipboard": { "type": "boolean", "default": false }
+      }
+    },
+    {
+      "name": "generate",
+      "description": "Generate article from brief",
+      "usage": "blogpostgen generate <path> [--all]",
+      "estimatedCost": 0.08,
+      "requiresPath": true,
+      "requiresArticle": true,
+      "validLastActions": ["plan-import", "article-seed"],
+      "parameters": {
+        "limit": { "type": "number", "default": 0 },
+        "all": { "type": "boolean", "default": false }
+      }
+    },
+    {
+      "name": "enhance",
+      "description": "Enhance article with AI (requires reviewed: 1 in meta.md)",
+      "usage": "blogpostgen enhance <path> --mode <mode>",
+      "estimatedCost": 0.03,
+      "requiresPath": true,
+      "requiresArticle": true,
+      "validLastActions": ["generate", "enhance"],
+      "requiresReviewed": true,
+      "parameters": {
+        "mode": { "type": "string", "required": true, "default": "improve_seo" },
+        "all": { "type": "boolean", "default": false },
+        "limit": { "type": "number", "default": 0 }
+      }
+    },
+    {
+      "name": "status",
+      "description": "Show project or article status",
+      "usage": "blogpostgen status [path]",
+      "requiresPath": false,
+      "requiresArticle": false,
+      "parameters": {}
+    }
+  ]
+}

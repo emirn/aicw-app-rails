@@ -1,0 +1,51 @@
+---
+// Lightbox component for prose images - include once in layouts
+---
+
+<div id="lightbox-overlay" class="lightbox-overlay">
+  <img id="lightbox-image" src="" alt="" />
+  <p id="lightbox-caption" class="lightbox-caption"></p>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('lightbox-overlay');
+    const lightboxImg = document.getElementById('lightbox-image') as HTMLImageElement;
+    const caption = document.getElementById('lightbox-caption');
+    if (!overlay || !lightboxImg) return;
+
+    // Find all images in .prose that aren't wrapped in <a> tags
+    document.querySelectorAll('.prose img').forEach(img => {
+      const imgElement = img as HTMLImageElement;
+
+      // Skip if parent is an anchor
+      if (imgElement.parentElement?.tagName === 'A') return;
+
+      imgElement.style.cursor = 'zoom-in';
+      imgElement.addEventListener('click', () => {
+        lightboxImg.src = imgElement.src;
+        lightboxImg.alt = imgElement.alt;
+        if (caption) {
+          caption.textContent = imgElement.alt || '';
+          caption.style.display = imgElement.alt ? 'block' : 'none';
+        }
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    // Close on overlay click
+    overlay.addEventListener('click', () => {
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    });
+  });
+</script>

@@ -1,0 +1,88 @@
+# Kamal 2.0 deployment configuration for Sgen Service
+# Deploy with: kamal deploy -c config/deploy.yml
+# Setup server: kamal setup -c config/deploy.yml (first time only)
+#
+# MULTI-SERVICE SAFETY: This config uses unique service names, data paths,
+# and domains to avoid conflicts with other services on the same server.
+
+service: sgen
+
+# Docker image name (Kamal automatically prepends registry server)
+# Will become: ghcr.io/{github-username}/sgen
+image: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>/sgen
+
+# GitHub Container Registry (ghcr.io)
+registry:
+  server: ghcr.io
+  username: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>
+  password: <%= ENV['KAMAL_REGISTRY_PASSWORD'] %>
+
+# Skip building locally - use remote build by GitHub Actions
+# To skip building use --skip-push, see https://kamal-deploy.org/docs/commands/deploy/
+builder:
+  arch: amd64
+  context: .
+  dockerfile: apps/sgen/Dockerfile
+
+# Servers to deploy to with resource limits
+servers:
+  web:
+    hosts:
+      - <%= ENV["SGEN_SERVER_IP"] %>
+    options:
+      memory: 768m    # Increased for Puppeteer/Chromium diagram rendering
+      cpus: 0.5       # Share CPU fairly with other services
+
+# SSH configuration for AWS Lightsail
+ssh:
+  user: <%= ENV['SGEN_DEPLOY_USERNAME'] || 'ubuntu' %>
+  <% if ENV['SGEN_DEPLOY_SSH_PRIVATE_KEY'] %>
+  # GitHub Actions: use key from environment variable (via ssh-agent)
+  <% elsif ENV['SSH_KEY_PATH'] %>
+  # Local deployment: use key file path
+  keys:
+    - <%= ENV['SSH_KEY_PATH'] %>
+  <% else %>
+  # Fallback: use default SSH key
+  keys:
+    - ~/.ssh/id_rsa
+  keys_only: true
+  <% end %>
+
+# Environment variables for the container
+env:
+  clear:
+    PORT: 3001
+    NODE_ENV: production
+    HOST: 0.0.0.0
+  secret:
+    - OPENROUTER_API_KEY
+    - OPENAI_API_KEY
+
+# Keep last 3 containers for rollback
+retain_containers: 3
+
+# Deploy timeout for app to become healthy
+deploy_timeout: 60
+# Drain timeout when stopping old containers
+drain_timeout: 30
+
+# Proxy configuration (Kamal Proxy - replaces Traefik in Kamal 2)
+proxy:
+  ssl: true
+  host: <%= ENV['SGEN_DOMAIN'] %>
+  app_port: 3001
+  # Healthcheck configuration
+  healthcheck:
+    path: /health
+    interval: 10
+    timeout: 5
+  # Forward headers to the application
+  forward_headers: true
+
+# Logging configuration
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"

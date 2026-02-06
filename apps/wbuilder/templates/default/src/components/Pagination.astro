@@ -1,0 +1,110 @@
+---
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  basePath?: string;
+}
+
+const { currentPage, totalPages, basePath = '' } = Astro.props;
+
+// Generate page URLs
+function getPageUrl(page: number): string {
+  if (page === 1) return basePath || '/';
+  return `${basePath}/page/${page}/`;
+}
+
+// Calculate visible page numbers
+function getVisiblePages(): (number | 'ellipsis')[] {
+  const pages: (number | 'ellipsis')[] = [];
+  const delta = 2;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= currentPage - delta && i <= currentPage + delta)
+    ) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== 'ellipsis') {
+      pages.push('ellipsis');
+    }
+  }
+
+  return pages;
+}
+
+const visiblePages = getVisiblePages();
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+---
+
+{totalPages > 1 && (
+  <nav class="flex items-center justify-center gap-2 mt-12" aria-label="Pagination">
+    <!-- Previous -->
+    {hasPrev ? (
+      <a
+        href={getPageUrl(currentPage - 1)}
+        class="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)] rounded-lg hover:bg-[var(--color-bg-secondary)] dark:hover:bg-[var(--color-dark-bg-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
+        aria-label="Previous page"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Prev
+      </a>
+    ) : (
+      <span class="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)] rounded-lg cursor-not-allowed">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Prev
+      </span>
+    )}
+
+    <!-- Page Numbers -->
+    <div class="hidden sm:flex items-center gap-1">
+      {visiblePages.map((page) =>
+        page === 'ellipsis' ? (
+          <span class="px-3 py-2 text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">...</span>
+        ) : page === currentPage ? (
+          <span class="px-4 py-2 text-sm font-medium bg-[var(--color-primary)] text-white rounded-lg">
+            {page}
+          </span>
+        ) : (
+          <a
+            href={getPageUrl(page)}
+            class="px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)] rounded-lg hover:bg-[var(--color-bg-secondary)] dark:hover:bg-[var(--color-dark-bg-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
+          >
+            {page}
+          </a>
+        )
+      )}
+    </div>
+
+    <!-- Mobile page indicator -->
+    <span class="sm:hidden px-4 py-2 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
+      Page {currentPage} of {totalPages}
+    </span>
+
+    <!-- Next -->
+    {hasNext ? (
+      <a
+        href={getPageUrl(currentPage + 1)}
+        class="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)] rounded-lg hover:bg-[var(--color-bg-secondary)] dark:hover:bg-[var(--color-dark-bg-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
+        aria-label="Next page"
+      >
+        Next
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    ) : (
+      <span class="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border border-[var(--color-border)] dark:border-[var(--color-dark-border)] rounded-lg cursor-not-allowed">
+        Next
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
+    )}
+  </nav>
+)}

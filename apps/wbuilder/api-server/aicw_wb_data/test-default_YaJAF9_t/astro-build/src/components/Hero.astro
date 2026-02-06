@@ -1,0 +1,25 @@
+---
+import type { SiteConfig } from '../lib/config';
+
+interface Props {
+  config: SiteConfig;
+}
+
+const { config } = Astro.props;
+---
+
+{config.hero.enabled && (
+  <section class="bg-gradient-to-br from-[var(--color-bg-secondary)] to-[var(--color-bg-primary)] dark:from-[var(--color-dark-bg-secondary)] dark:to-[var(--color-dark-bg-primary)] py-16 sm:py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-6 leading-tight">
+        {config.hero.title || config.branding.site.name}
+      </h1>
+
+      {config.hero.subtitle && (
+        <p class="text-lg sm:text-xl text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] max-w-2xl mx-auto">
+          {config.hero.subtitle}
+        </p>
+      )}
+    </div>
+  </section>
+)}

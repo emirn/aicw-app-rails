@@ -1,0 +1,7 @@
+{
+  "ai_provider": "openai",
+  "ai_model_id": "gpt-4o-mini-search-preview",
+  "output_mode": "text_replace",
+  "description": "Find and insert authoritative external links using web search",
+  "web_search": true
+}

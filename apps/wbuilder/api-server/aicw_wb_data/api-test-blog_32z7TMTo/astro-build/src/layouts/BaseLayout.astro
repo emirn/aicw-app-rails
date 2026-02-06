@@ -1,0 +1,169 @@
+---
+import { getConfig, replacePlaceholders } from '../lib/config';
+import SEO from '../components/SEO.astro';
+import PreviewBanner from '../components/PreviewBanner.astro';
+import Navigation from '../components/Navigation.astro';
+import Footer from '../components/Footer.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import Search from '../components/Search.astro';
+import '../styles/global.css';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  image?: string;
+  imageAlt?: string;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  author?: string;
+  keywords?: string;
+}
+
+const config = getConfig();
+const {
+  title,
+  description = config.branding.site.description,
+  canonical,
+  image,
+  imageAlt,
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  author,
+  keywords,
+} = Astro.props;
+
+const pageTitle = title
+  ? `${title}${config.seo.titleSeparator || ' | '}${config.branding.site.name}`
+  : config.branding.site.name;
+
+// Generate CSS variables from config colors
+const cssVars = {
+  '--color-primary': config.branding.colors.primary,
+  '--color-primary-hover': config.branding.colors.secondary,
+  '--color-accent': config.branding.colors.accent || '#f5576c',
+  '--color-text-primary': config.branding.colors.text_primary,
+  '--color-text-secondary': config.branding.colors.text_secondary,
+  '--color-text-muted': config.branding.colors.text_muted || '#9CA3AF',
+  '--color-bg-primary': config.branding.colors.background,
+  '--color-bg-secondary': config.branding.colors.background_secondary,
+  '--color-border': config.branding.colors.border,
+  '--color-dark-text-primary': config.branding.dark_mode.colors.text_primary,
+  '--color-dark-text-secondary': config.branding.dark_mode.colors.text_secondary,
+  '--color-dark-text-muted': config.branding.dark_mode.colors.text_muted || '#9CA3AF',
+  '--color-dark-bg-primary': config.branding.dark_mode.colors.background,
+  '--color-dark-bg-secondary': config.branding.dark_mode.colors.background_secondary,
+  '--color-dark-border': config.branding.dark_mode.colors.border,
+  '--font-family': config.typography.fontFamily || 'Inter, system-ui, sans-serif',
+  '--font-heading': config.typography.headingFontFamily || 'Inter, system-ui, sans-serif',
+  '--logo-border-color': config.branding.colors.primary,
+};
+---
+
+<!DOCTYPE html>
+<html lang={config.branding.site.language || 'en'}>
+  <head>
+    <SEO
+      title={pageTitle}
+      description={description}
+      canonical={canonical}
+      image={image}
+      imageAlt={imageAlt}
+      type={type}
+      publishedTime={publishedTime}
+      modifiedTime={modifiedTime}
+      author={author}
+      keywords={keywords}
+      config={config}
+    />
+
+    <!-- Google Fonts -->
+    {config.typography.googleFonts && config.typography.googleFonts.length > 0 && (
+      <>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+          href={`https://fonts.googleapis.com/css2?family=${config.typography.googleFonts.join('&family=')}&display=swap`}
+          rel="stylesheet"
+        />
+      </>
+    )}
+
+    <!-- Custom Head Code -->
+    {config.tracking.customHeadCode && <Fragment set:html={config.tracking.customHeadCode} />}
+
+    <slot name="head" />
+  </head>
+  <body style={Object.entries(cssVars).map(([k, v]) => `${k}:${v}`).join(';')}>
+    <PreviewBanner config={config} />
+    <Navigation config={config} />
+
+    <main>
+      <slot />
+    </main>
+
+    <Footer config={config} />
+
+    {config.branding.dark_mode.enabled && <ThemeToggle config={config} />}
+
+    <!-- Search Modal -->
+    {config.search?.enabled && <Search config={config} />}
+
+    <!-- JSON-LD Structured Data -->
+    {config.seo.enableJsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": config.branding.site.name,
+        "url": config.branding.site.url,
+        "description": config.branding.site.description,
+        "publisher": {
+          "@type": "Organization",
+          "name": config.branding.site.name,
+        }
+      })} />
+    )}
+
+    <!-- AICW Tracking Script -->
+    {config.aicw?.enabled && config.aicw?.trackingId && (
+      <script
+        is:inline
+        async
+        defer
+        src="https://aicw.io/track.js"
+        data-id={config.aicw.trackingId}
+        data-domain={config.aicw.domain || config.seo.canonicalDomain?.replace(/^https?:\/\//, '').replace(/\/$/, '') || new URL(config.branding.site.url).hostname}
+      />
+    )}
+
+    <!-- Tracking Widget Code -->
+    {config.tracking.widgetCode && <Fragment set:html={config.tracking.widgetCode} />}
+
+    <!-- Custom Body Code -->
+    {config.tracking.customBodyCode && <Fragment set:html={config.tracking.customBodyCode} />}
+
+    <!-- Theme Initialization Script -->
+    <script is:inline define:vars={{ darkModeDefault: config.branding.dark_mode.default, darkModeEnabled: config.branding.dark_mode.enabled }}>
+      (function() {
+        if (!darkModeEnabled) return;
+
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const defaultTheme = darkModeDefault || 'light';
+
+        let theme;
+        if (savedTheme) {
+          theme = savedTheme;
+        } else if (defaultTheme === 'system') {
+          theme = prefersDark ? 'dark' : 'light';
+        } else {
+          theme = defaultTheme;
+        }
+
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+  </body>
+</html>

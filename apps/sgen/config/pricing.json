@@ -1,0 +1,108 @@
+{
+  "models": {
+    "openai/gpt-4o-mini": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.60,
+      "description": "GPT-4o Mini - Fast and cheap (via OpenRouter)"
+    },
+    "gpt-4o-mini": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.60,
+      "description": "GPT-4o Mini - Fast and cheap (direct OpenAI)"
+    },
+    "openai/gpt-4o": {
+      "input_per_million": 2.50,
+      "output_per_million": 10.00,
+      "description": "GPT-4o - High quality (via OpenRouter)"
+    },
+    "gpt-4o": {
+      "input_per_million": 2.50,
+      "output_per_million": 10.00,
+      "description": "GPT-4o - High quality (direct OpenAI)"
+    },
+    "openai/gpt-4o-2024-11-20": {
+      "input_per_million": 2.50,
+      "output_per_million": 10.00,
+      "description": "GPT-4o November 2024"
+    },
+    "anthropic/claude-3.5-sonnet": {
+      "input_per_million": 3.00,
+      "output_per_million": 15.00,
+      "description": "Claude 3.5 Sonnet"
+    },
+    "anthropic/claude-sonnet-4.5": {
+      "input_per_million": 3.00,
+      "output_per_million": 15.00,
+      "description": "Claude Sonnet 4.5 - Best for polished writing"
+    },
+    "anthropic/claude-opus-4.5": {
+      "input_per_million": 5.00,
+      "output_per_million": 25.00,
+      "description": "Claude Opus 4.5 - Best reasoning"
+    },
+    "anthropic/claude-sonnet-4": {
+      "input_per_million": 3.00,
+      "output_per_million": 15.00,
+      "description": "Claude Sonnet 4"
+    },
+    "anthropic/claude-3-haiku": {
+      "input_per_million": 0.25,
+      "output_per_million": 1.25,
+      "description": "Claude 3 Haiku - Fast"
+    },
+    "anthropic/claude-haiku-3.5": {
+      "input_per_million": 1.00,
+      "output_per_million": 5.00,
+      "description": "Claude Haiku 3.5 - Fast and cheap"
+    },
+    "meta-llama/llama-3.1-70b-instruct": {
+      "input_per_million": 0.52,
+      "output_per_million": 0.75,
+      "description": "Llama 3.1 70B"
+    },
+    "meta-llama/llama-3.1-8b-instruct": {
+      "input_per_million": 0.06,
+      "output_per_million": 0.06,
+      "description": "Llama 3.1 8B - Cheapest"
+    },
+    "google/gemini-pro-1.5": {
+      "input_per_million": 1.25,
+      "output_per_million": 5.00,
+      "description": "Gemini Pro 1.5"
+    },
+    "perplexity/sonar": {
+      "input_per_million": 1.00,
+      "output_per_million": 1.00,
+      "description": "Perplexity Sonar - Fast fact-checking with citations"
+    },
+    "perplexity/sonar-pro": {
+      "input_per_million": 3.00,
+      "output_per_million": 15.00,
+      "description": "Perplexity Sonar Pro - Advanced fact-checking with citations"
+    },
+    "gpt-4o-mini-search-preview": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.60,
+      "search_per_call": 0.025,
+      "description": "GPT-4o mini with native web search (direct OpenAI)"
+    },
+    "gpt-4o-search-preview": {
+      "input_per_million": 2.50,
+      "output_per_million": 10.00,
+      "search_per_call": 0.035,
+      "description": "GPT-4o with native web search (direct OpenAI)"
+    },
+    "default": {
+      "input_per_million": 0.15,
+      "output_per_million": 0.60,
+      "description": "Default fallback pricing (GPT-4o-mini)"
+    },
+    "black-forest-labs/flux.2-pro": {
+      "input_per_million": 70000,
+      "output_per_million": 30000,
+      "description": "FLUX.2 Pro - $0.07 for first megapixel, $0.03 each additional megapixel"
+    }
+  },
+  "default_input_output_ratio": 0.7,
+  "updated_at": "2026-01-16"
+}

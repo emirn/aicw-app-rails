@@ -1,0 +1,55 @@
+# Kamal deployment configuration
+# Deploy with: kamal deploy
+
+service: aicw-website-builder
+
+image: your-username/aicw-website-builder
+
+servers:
+  web:
+    hosts:
+      - YOUR_LIGHTSAIL_IP
+    options:
+      memory: "1800m"
+
+registry:
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+env:
+  clear:
+    DATA_DIR: /data/aicw-website-builder
+    PORT: "3000"
+  secret:
+    - API_SECRET
+    - CLOUDFLARE_API_TOKEN
+    - CLOUDFLARE_ACCOUNT_ID
+    - GITHUB_TOKEN
+
+# Persistent storage for builds
+volumes:
+  - /data/aicw-website-builder:/data/aicw-website-builder
+
+# Health check
+healthcheck:
+  path: /health
+  port: 3000
+
+# Traefik for SSL (optional - remove if using Cloudflare proxy)
+traefik:
+  options:
+    publish:
+      - "443:443"
+      - "80:80"
+    volume:
+      - "/letsencrypt:/letsencrypt"
+  args:
+    entryPoints.web.address: ":80"
+    entryPoints.websecure.address: ":443"
+    entryPoints.web.http.redirections.entryPoint.to: websecure
+    certificatesResolvers.letsencrypt.acme.email: you@example.com
+    certificatesResolvers.letsencrypt.acme.storage: /letsencrypt/acme.json
+    certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint: web

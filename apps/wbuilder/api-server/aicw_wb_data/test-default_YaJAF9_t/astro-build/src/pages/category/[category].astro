@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import { getConfig } from '../../lib/config';
+import {
+  getAllCategories,
+  categorySlug,
+  getArticlesByCategory,
+  findCategoryBySlug,
+} from '../../lib/categories';
+
+export async function getStaticPaths() {
+  const config = getConfig();
+
+  // If categories are disabled, return no paths
+  if (!config.categories?.enabled) {
+    return [];
+  }
+
+  const categories = await getAllCategories();
+
+  return categories.map((cat) => ({
+    params: { category: categorySlug(cat) },
+    props: { categoryName: cat },
+  }));
+}
+
+interface Props {
+  categoryName: string;
+}
+
+const config = getConfig();
+const { category: categorySlugParam } = Astro.params;
+const { categoryName } = Astro.props;
+
+// Get articles for this category
+const articles = await getArticlesByCategory(categoryName);
+
+const title = `${categoryName} Articles`;
+const description = `Browse all ${articles.length} articles in the ${categoryName} category.`;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Header -->
+    <header class="mb-12 text-center">
+      <nav class="mb-4">
+        <a
+          href="/"
+          class="text-sm text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+        >
+          &larr; Back to Home
+        </a>
+      </nav>
+      <h1 class="text-3xl sm:text-4xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-4">
+        {categoryName}
+      </h1>
+      <p class="text-lg text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
+        {articles.length} {articles.length === 1 ? 'article' : 'articles'}
+      </p>
+    </header>
+
+    <!-- Articles Grid -->
+    {articles.length > 0 ? (
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {articles.map((article) => (
+          <ArticleCard article={article} config={config} />
+        ))}
+      </div>
+    ) : (
+      <p class="text-center text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
+        No articles found in this category.
+      </p>
+    )}
+  </div>
+</BaseLayout>

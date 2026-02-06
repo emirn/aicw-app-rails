@@ -1,0 +1,6 @@
+.env
+.env.backup
+.env.kamal
+.ssh/**/*
+.keys/**/*
+.kamal/secrets

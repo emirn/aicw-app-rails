@@ -1,0 +1,25 @@
+# Docker Compose for local testing
+# Run from project root: docker compose up --build
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api-server/Dockerfile
+    ports:
+      - "4002:4002"
+    environment:
+      - AICW_WEBSITE_BUILD_API_KEY=local-test-key-123
+      - PORT=4002
+      - NODE_ENV=production
+      # Optional: Add your Cloudflare credentials to test full deployment
+      # - CLOUDFLARE_API_TOKEN=your-token
+      # - CLOUDFLARE_ACCOUNT_ID=your-account-id
+    volumes:
+      # Persist job data between restarts
+      - ./aicw_wb_data:/data/aicw_wb_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

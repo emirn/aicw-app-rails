@@ -1,0 +1,85 @@
+---
+interface Props {
+  headings: Array<{ depth: number; slug: string; text: string }>;
+}
+
+const { headings } = Astro.props;
+
+// Filter to only h2 and h3 headings
+const filteredHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{filteredHeadings.length > 0 && (
+  <nav class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto">
+    <div class="p-4 bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] rounded-xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
+      <h2 class="text-sm font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-4 uppercase tracking-wider">
+        On this page
+      </h2>
+
+      <ul class="space-y-2" id="toc-list">
+        {filteredHeadings.map((heading) => (
+          <li>
+            <a
+              href={`#${heading.slug}`}
+              class:list={[
+                'block text-sm transition-colors',
+                'text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]',
+                'hover:text-[var(--color-primary)]',
+                heading.depth === 3 && 'pl-4',
+              ]}
+              data-heading={heading.slug}
+            >
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </nav>
+)}
+
+<script>
+  // Highlight active heading on scroll
+  function initTocHighlight() {
+    const tocLinks = document.querySelectorAll('#toc-list a[data-heading]');
+    const headings: Element[] = [];
+
+    tocLinks.forEach((link) => {
+      const slug = link.getAttribute('data-heading');
+      if (slug) {
+        const heading = document.getElementById(slug);
+        if (heading) headings.push(heading);
+      }
+    });
+
+    if (headings.length === 0) return;
+
+    function highlightActive() {
+      let activeSlug = '';
+      const scrollY = window.scrollY;
+
+      for (const heading of headings) {
+        const rect = heading.getBoundingClientRect();
+        if (rect.top <= 150) {
+          activeSlug = heading.id;
+        }
+      }
+
+      tocLinks.forEach((link) => {
+        const slug = link.getAttribute('data-heading');
+        if (slug === activeSlug) {
+          link.classList.add('text-[var(--color-primary)]', 'font-medium');
+          link.classList.remove('text-[var(--color-text-secondary)]', 'dark:text-[var(--color-dark-text-secondary)]');
+        } else {
+          link.classList.remove('text-[var(--color-primary)]', 'font-medium');
+          link.classList.add('text-[var(--color-text-secondary)]', 'dark:text-[var(--color-dark-text-secondary)]');
+        }
+      });
+    }
+
+    window.addEventListener('scroll', highlightActive, { passive: true });
+    highlightActive();
+  }
+
+  document.addEventListener('DOMContentLoaded', initTocHighlight);
+</script>

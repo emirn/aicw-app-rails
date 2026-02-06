@@ -1,0 +1,58 @@
+{
+  "id": "dbd4f196-a5b8-4e53-b63f-fa7c7aaf1140",
+  "hash": "a87afaa230998f412fe927fb5c39b6e0",
+  "type": "pdf",
+  "usage": "reference",
+  "filename": "llm-content-moderation.pdf",
+  "filepath": "./test-pdfs/llm-content-moderation.pdf",
+  "mime_type": "application/pdf",
+  "size_bytes": 3499397,
+  "summary": "This document contains 39 pages. Analysis based on first 5 pages:\n\nThe document discusses the impact of large language models (LLMs) on content moderation related to social issues, highlighting the opaque nature of their moderation policies. It introduces AI Watchman, a longitudinal auditing system designed to monitor and analyze the moderation practices of LLMs over time. By utilizing a dataset of over 400 social issues, the authors aim to provide transparency into the moderation processes of different LLMs, including GPT-4 and DeepSpeak, and examine how changes in company policies affect content moderation outcomes.\n\nThe study emphasizes the importance of understanding how LLMs handle sensitive topics and the implications of their moderation decisions. By analyzing various forms of refusal and the contextual differences in moderation, the authors contribute valuable insights into the operational dynamics of LLMs and the ethical considerations surrounding their use in public discourse.\n\nThe document discusses the challenges and considerations involved in content moderation for large language models (LLMs). It highlights how LLMs are often designed to avoid generating harmful or inappropriate content, and the various safeguards that developers implement to achieve this. The paper focuses on the concept of 'refusal' in response to user queries, which can stem from a model's interpretation of safety protocols and the influence of company policies shaped by societal norms and legal frameworks.\n\nThe authors also examine the implications of recent changes in U.S. presidential administration policies on content moderation, particularly regarding the prioritization of 'intellectual freedom.' They introduce a tool called AI WATCHMAN, which aims to audit the moderation practices of LLMs by analyzing responses to social issues, thereby providing insights into the effectiveness and transparency of these models in real-world applications.\n\nThe document discusses the longitudinal monitoring of large language model (LLM) content moderation, particularly in relation to social issues. It highlights the importance of understanding how LLMs, which are increasingly integrated into everyday information-seeking behaviors, impact content moderation. The authors argue for the necessity of auditing these models to ensure accountability and transparency, drawing parallels between LLMs and traditional search engines. The paper outlines the creation of a dataset for monitoring LLM content moderation and proposes methods for conducting audits to identify potential biases and unannounced changes in moderation practices.\n\nThe authors present three main contributions: the development of a social issues dataset, the design of a monitoring system using various APIs, and findings from their initial investigations into LLM content moderation. They emphasize the need for further research in this area to enhance understanding of how LLMs operate and to inform future improvements in content moderation practices across different platforms and languages.\n\nThe section discusses the complexities of content moderation on online platforms, particularly focusing on the balance between under-moderation and over-moderation. It highlights the challenges faced by companies in ensuring appropriate content removal while also addressing societal implications. The authors reference real-world consequences of inadequate moderation, such as the suppression of marginalized voices and the perpetuation of harmful content. Additionally, the text explores the reliance on automated systems for moderation, which can introduce biases and disproportionately affect certain groups, particularly in languages with fewer resources.\n\nThe authors emphasize the need for a systematic approach to evaluate and improve content moderation practices, especially in the context of generative AI systems. They argue for the importance of longitudinal monitoring and the development of benchmarks to assess the impact of these systems on social dynamics. The discussion also touches on the labor implications for human moderators who are often exposed to harmful content and face significant challenges in their roles.\n\nThis section of the document discusses the concepts of LLM (Large Language Model) abstention and refusal, particularly in the context of content moderation related to social issues. It highlights how LLMs respond to requests by either declining them to maintain safety and ethical standards or providing alternative responses. The paper emphasizes the importance of understanding these refusals as they reflect the values embedded in LLM systems and their role in navigating user interactions while ensuring safety protocols are upheld. Additionally, it introduces a new dataset aimed at monitoring how social issues are moderated by LLMs, created from various research topics and Wikipedia content, which will be used for further analysis of LLM filtering practices.\n\nThe authors argue that refusals are not merely technical denials but are deeply rooted in ethical considerations and social structures. They acknowledge the challenges in measuring refusal behaviors and the significance of these responses in shaping user engagement. The section also outlines the methodology for creating a dataset that categorizes social issues, which will facilitate longitudinal studies on LLM content moderation practices in both English and Chinese contexts.",
+  "key_points": [
+    "LLMs are influenced by changing company content moderation policies.",
+    "AI Watchman is introduced as a tool for longitudinal auditing of LLM moderation.",
+    "The study analyzes over 400 social issues to track moderation outcomes.",
+    "Changes in company policies can significantly affect content moderation.",
+    "The research aims to enhance transparency in LLM operations.",
+    "LLMs are designed to prevent the generation of harmful content.",
+    "Content moderation practices are influenced by company policies and societal norms.",
+    "The concept of 'refusal' in LLM responses is a significant safety measure.",
+    "Recent U.S. policy changes impact the approach to content moderation.",
+    "AI WATCHMAN is introduced as a tool for auditing LLM moderation practices."
+  ],
+  "important_citations": [
+    {
+      "text": "LLM moderation often takes the form of refusal.",
+      "context": "This highlights the challenges in understanding how LLMs decide to moderate content.",
+      "page": 1
+    },
+    {
+      "text": "We find evidence that changes in company policies... can be detected by AI Watchman.",
+      "context": "This underscores the effectiveness of AI Watchman in monitoring LLM behavior.",
+      "page": 1
+    },
+    {
+      "text": "This work contributes evidence for the value of longitudinal auditing of LLMs.",
+      "context": "It emphasizes the need for ongoing evaluation of LLM moderation practices.",
+      "page": 1
+    },
+    {
+      "text": "Content moderation policies are shaped by the legal and political landscape.",
+      "context": "This highlights the external factors influencing how LLMs operate and respond to queries.",
+      "page": 2
+    },
+    {
+      "text": "We observe that refusal rates on the Social Issue Dataset varies across models from 12% to 15%.",
+      "context": "This statistic underscores the variability in content moderation effectiveness among different LLMs.",
+      "page": 2
+    }
+  ],
+  "metadata": {
+    "title": "Longitudinal Monitoring of LLM Content Moderation of Social Issues",
+    "author": "Yunlang Dai, Emma Lurie, Danae Metaxa, and Sorelle A. Friedler",
+    "date": "24 Sep 2025",
+    "page_count": 39
+  },
+  "processed_at": "2025-11-02T14:18:46.235Z",
+  "model_used": "openai/gpt-4o-mini"
+}

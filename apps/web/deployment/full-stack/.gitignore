@@ -1,0 +1,2 @@
+# Don't commit actual secrets — only the template (.env.kamal.example)
+.env.kamal

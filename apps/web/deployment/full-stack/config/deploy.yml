@@ -1,0 +1,153 @@
+# Kamal 2.0 Full Stack Deployment Configuration
+# Deploy aicw-app-rails + website-builder + sgen on a single Lightsail server
+#
+# Images are built by GitHub Actions and pushed to GHCR
+# Deploy with: kamal deploy --skip-push --version=<tag>
+#
+# First time setup:
+#   kamal setup
+#   kamal accessory boot website-builder
+#   kamal accessory boot sgen
+#   kamal deploy --skip-push
+
+service: aicw-app-rails
+
+# Docker image name - built by GitHub Actions, pushed to ghcr.io
+image: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-app-rails
+
+# GitHub Container Registry
+registry:
+  server: ghcr.io
+  username: <%= ENV['KAMAL_REGISTRY_USERNAME'] %>
+  password: <%= ENV['KAMAL_REGISTRY_PASSWORD'] %>
+
+# Builder - images built by GitHub Actions, not locally
+builder:
+  arch: amd64
+
+# Servers configuration - single server
+servers:
+  web:
+    hosts:
+      - <%= ENV["AICW_RAILS_SERVER_IP"] %>
+    options:
+      add-host: "host.docker.internal:host-gateway"
+
+# SSH configuration
+ssh:
+  user: <%= ENV['AICW_RAILS_DEPLOY_USERNAME'] || 'ubuntu' %>
+  <% if ENV['AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY'] %>
+  # GitHub Actions: SSH agent handles the key
+  <% elsif ENV['SSH_KEY_PATH'] %>
+  keys:
+    - <%= ENV['SSH_KEY_PATH'] %>
+  <% else %>
+  keys:
+    - ~/.ssh/id_rsa
+  keys_only: true
+  <% end %>
+
+# Environment variables for the Rails container
+env:
+  clear:
+    RAILS_ENV: production
+    RAILS_LOG_TO_STDOUT: "true"
+    RAILS_SERVE_STATIC_FILES: "true"
+    SOLID_QUEUE_IN_PUMA: "true"
+
+    # Internal service URLs (Docker network names)
+    WEBSITE_BUILDER_URL: http://aicw-app-rails-website-builder:4002
+    SGEN_SERVICE_URL: http://aicw-app-rails-sgen:3001
+
+    # Host
+    APP_HOST: <%= ENV['AICW_RAILS_DOMAIN'] || '' %>
+
+  secret:
+    - RAILS_MASTER_KEY
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+    - TINYBIRD_API_KEY
+    - WEBSITE_BUILDER_API_KEY
+    - SUPABASE_URL
+    - SUPABASE_SERVICE_ROLE_KEY
+
+# Persistent storage for SQLite databases
+volumes:
+  - "aicw_app_rails_storage:/rails/storage"
+
+# Asset path bridging between deployments
+asset_path: /rails/public/assets
+
+# Keep last 3 containers for rollback
+retain_containers: 3
+
+# Deploy timeout
+deploy_timeout: 60
+drain_timeout: 30
+
+# Proxy configuration (SSL + healthcheck)
+proxy:
+  ssl: true
+  host: <%= ENV['AICW_RAILS_DOMAIN'] %>
+  app_port: 80
+  healthcheck:
+    path: /up
+    interval: 10
+    timeout: 5
+  forward_headers: true
+
+# Logging
+logging:
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+# Aliases for common operations
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+
+# Accessories - sgen and website-builder services
+accessories:
+  # website-builder: builds and deploys Astro sites to Cloudflare Pages
+  # Internal only — NOT publicly accessible
+  website-builder:
+    image: ghcr.io/<%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-website-builder:latest
+    host: <%= ENV["AICW_RAILS_SERVER_IP"] %>
+    network: kamal
+    env:
+      clear:
+        PORT: "4002"
+        NODE_ENV: production
+      secret:
+        - AICW_WEBSITE_BUILD_API_KEY
+        - CLOUDFLARE_API_TOKEN
+        - CLOUDFLARE_ACCOUNT_ID
+        - CLOUDFLARE_AICW_ZONE_ID
+    directories:
+      - aicw_wb_data:/data/aicw_wb_data
+    options:
+      health-cmd: "curl -f http://localhost:4002/health || exit 1"
+      health-interval: "10s"
+      health-timeout: "5s"
+      health-retries: 3
+
+  # sgen: AI content generation service
+  # Internal only — NOT publicly accessible
+  sgen:
+    image: ghcr.io/<%= ENV['KAMAL_REGISTRY_USERNAME'] %>/sgen:latest
+    host: <%= ENV["AICW_RAILS_SERVER_IP"] %>
+    network: kamal
+    env:
+      clear:
+        PORT: "3001"
+        NODE_ENV: production
+      secret:
+        - OPENROUTER_API_KEY
+    options:
+      health-cmd: "curl -f http://localhost:3001/health || exit 1"
+      health-interval: "10s"
+      health-timeout: "5s"
+      health-retries: 3

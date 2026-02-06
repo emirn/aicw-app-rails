@@ -1,0 +1,10 @@
+{
+  "status": "completed",
+  "message": "Build successful (folder)",
+  "updatedAt": "2026-01-26T14:30:30.565Z",
+  "createdAt": "2026-01-26T14:30:10.810Z",
+  "path": "/Users/mine/projects/ai-chat-watch/aicw-website-builder/api-server/aicw_wb_data/api-test-blog_32z7TMTo/build/dist",
+  "duration": 7672,
+  "articlesCount": 1,
+  "pagesCount": 3
+}
