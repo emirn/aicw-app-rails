@@ -1,0 +1,272 @@
+[
+  {
+    "desc": "OpenAI SearchBot",
+    "ref_bot_parent_name": "OpenAI",
+    "parent_url": "openai.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "OpenAI ChatGPT-User",
+    "ref_bot_parent_name": "OpenAI",
+    "parent_url": "openai.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "OpenAI GPTBot",
+    "ref_bot_parent_name": "OpenAI",
+    "parent_url": "openai.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "PerplexityBot",
+    "ref_bot_parent_name": "Perplexity",
+    "parent_url": "perplexity.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Perplexity-User",
+    "ref_bot_parent_name": "Perplexity",
+    "parent_url": "perplexity.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "ClaudeBot",
+    "ref_bot_parent_name": "Anthropic Claude",
+    "parent_url": "claude.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Claude-SearchBot",
+    "ref_bot_parent_name": "Anthropic Claude",
+    "parent_url": "claude.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Claude-User",
+    "ref_bot_parent_name": "Anthropic Claude",
+    "parent_url": "claude.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Anthropic AI Bulk Trainer",
+    "ref_bot_parent_name": "Anthropic Claude",
+    "parent_url": "claude.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Google Extended",
+    "ref_bot_parent_name": "Google AI",
+    "parent_url": "google.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Google Other",
+    "ref_bot_parent_name": "Google AI",
+    "parent_url": "google.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Google NotebookLM",
+    "ref_bot_parent_name": "Google AI",
+    "parent_url": "google.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Google Gemini Deep Research",
+    "ref_bot_parent_name": "Google AI",
+    "parent_url": "google.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Mistral User",
+    "ref_bot_parent_name": "Mistral",
+    "parent_url": "mistral.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Meta External Fetcher",
+    "ref_bot_parent_name": "Meta AI",
+    "parent_url": "meta.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Meta External Agent",
+    "ref_bot_parent_name": "Meta AI",
+    "parent_url": "meta.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "FacebookBot",
+    "ref_bot_parent_name": "Meta",
+    "parent_url": "facebook.com",
+    "ref_bot_category": "other"
+  },
+  {
+    "desc": "Facebook External Hit",
+    "ref_bot_parent_name": "Meta",
+    "parent_url": "facebook.com",
+    "ref_bot_category": "other"
+  },
+  {
+    "desc": "DeepSeek Bot",
+    "ref_bot_parent_name": "DeepSeek",
+    "parent_url": "deepseek.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "DeepSeek User",
+    "ref_bot_parent_name": "DeepSeek",
+    "parent_url": "deepseek.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "You.com Bot",
+    "ref_bot_parent_name": "You.com",
+    "parent_url": "you.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "You.com User",
+    "ref_bot_parent_name": "You.com",
+    "parent_url": "you.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "CommonCrawl Dataset",
+    "ref_bot_parent_name": "CommonCrawl",
+    "parent_url": "commoncrawl.org",
+    "ref_bot_category": "dataset"
+  },
+  {
+    "desc": "Cohere Crawler",
+    "ref_bot_parent_name": "Cohere",
+    "parent_url": "cohere.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Googlebot",
+    "ref_bot_parent_name": "Google",
+    "parent_url": "google.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "Baiduspider",
+    "ref_bot_parent_name": "Baidu",
+    "parent_url": "baidu.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "HaosouSpider",
+    "ref_bot_parent_name": "Qihoo 360",
+    "parent_url": "360.cn",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "PetalBot",
+    "ref_bot_parent_name": "Huawei",
+    "parent_url": "huawei.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "PanguBot",
+    "ref_bot_parent_name": "Huawei",
+    "parent_url": "huawei.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "YandexBot",
+    "ref_bot_parent_name": "Yandex",
+    "parent_url": "yandex.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "DuckDuckBot",
+    "ref_bot_parent_name": "DuckDuckGo",
+    "parent_url": "duckduckgo.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "Applebot",
+    "ref_bot_parent_name": "Apple",
+    "parent_url": "apple.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "AhrefsBot",
+    "ref_bot_parent_name": "Ahrefs",
+    "parent_url": "ahrefs.com",
+    "ref_bot_category": "dataset"
+  },
+  {
+    "desc": "BingBot",
+    "ref_bot_parent_name": "Microsoft Bing",
+    "parent_url": "bing.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "Bing Preview",
+    "ref_bot_parent_name": "Microsoft Bing",
+    "parent_url": "bing.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "MSNBot",
+    "ref_bot_parent_name": "Microsoft",
+    "parent_url": "microsoft.com",
+    "ref_bot_category": "search"
+  },
+  {
+    "desc": "Bytespider",
+    "ref_bot_parent_name": "ByteDance",
+    "parent_url": "bytedance.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Grok Bot",
+    "ref_bot_parent_name": "X.ai",
+    "parent_url": "x.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Grok User",
+    "ref_bot_parent_name": "X.ai",
+    "parent_url": "x.ai",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Phind Bot",
+    "ref_bot_parent_name": "Phind",
+    "parent_url": "phind.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Phind User",
+    "ref_bot_parent_name": "Phind",
+    "parent_url": "phind.com",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "HuggingFace Bot",
+    "ref_bot_parent_name": "HuggingFace",
+    "parent_url": "huggingface.co",
+    "ref_bot_category": "ai"
+  },
+  {
+    "desc": "Headless Browser",
+    "ref_bot_parent_name": "",
+    "parent_url": "",
+    "ref_bot_category": "other: headless browser"
+  },
+  {
+    "desc": "Console Client",
+    "ref_bot_parent_name": "",
+    "parent_url": "",
+    "ref_bot_category": "other: console client"
+  },
+  {
+    "desc": "Code Execution Client",
+    "ref_bot_parent_name": "",
+    "parent_url": "",
+    "ref_bot_category": "other: code execution client"
+  }
+]

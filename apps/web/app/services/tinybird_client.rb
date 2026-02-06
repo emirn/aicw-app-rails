@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TinybirdClient
-  BASE_URL = "https://api.tinybird.co"
+  BASE_URL = ENV.fetch("TINYBIRD_API_URL", "https://api.tinybird.co")
 
   # Mock response when Tinybird is disabled
   MOCK_RESPONSE = {

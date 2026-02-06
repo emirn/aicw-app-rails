@@ -2,6 +2,7 @@
 
 class Api::V1::AnalyticsController < Api::BaseController
   skip_before_action :authenticate_api_token!, only: [:public_query]
+  skip_before_action :set_current_account, only: [:public_query]
 
   before_action :find_project, only: [:query]
 
@@ -10,14 +11,22 @@ class Api::V1::AnalyticsController < Api::BaseController
     analytics_overview
     ai_sources_breakdown
     search_sources_breakdown
+    other_sources_breakdown
     traffic_sources
     traffic_trend_by_channel
+    ai_visits_geo
     visits_geo
     top_pages_by_channel
     crawler_breakdown
     page_views_by_date
     unique_visitors_by_date
     ai_vs_search_comparison
+    summarize_clicks_overview
+    summarize_clicks_timeseries
+    summarize_clicks_by_page
+    share_clicks_overview
+    share_clicks_timeseries
+    share_clicks_by_page
   ].freeze
 
   # POST /api/v1/projects/:project_id/analytics/query
@@ -29,16 +38,17 @@ class Api::V1::AnalyticsController < Api::BaseController
       return
     end
 
-    result = TinybirdClient.query(
+    result = CachedTinybirdClient.query(
       pipe: pipe,
-      params: build_tinybird_params(@project)
+      params: build_tinybird_params(@project),
+      public_mode: false
     )
 
-    render_api_success(
+    render_api_success({
       data: result["data"],
       meta: result["meta"],
       statistics: result["statistics"]
-    )
+    })
   rescue TinybirdClient::TinybirdError => e
     render_api_error(e.message, status: :service_unavailable)
   end
@@ -46,7 +56,14 @@ class Api::V1::AnalyticsController < Api::BaseController
   # POST /api/v1/analytics/public
   # Public endpoint for projects with enable_public_page=true
   def public_query
-    project = Project.public_enabled.find_by!(domain: params[:domain])
+    # Handle lookup_project without calling Tinybird
+    if params[:pipe] == "lookup_project"
+      handle_lookup_project
+      return
+    end
+
+    project = find_public_project
+    return unless project
 
     pipe = params[:pipe]
 
@@ -55,19 +72,23 @@ class Api::V1::AnalyticsController < Api::BaseController
       return
     end
 
-    result = TinybirdClient.query(
+    result = CachedTinybirdClient.query(
       pipe: pipe,
-      params: build_tinybird_params(project)
+      params: build_tinybird_params(project),
+      public_mode: true
     )
 
-    render_api_success(
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["X-Cache-TTL"] = "86400"
+
+    render_api_success({
       data: result["data"],
       meta: {
         project_name: project.name,
         domain: project.domain
       },
       statistics: result["statistics"]
-    )
+    })
   rescue ActiveRecord::RecordNotFound
     render_api_not_found("Project")
   rescue TinybirdClient::TinybirdError => e
@@ -76,9 +97,34 @@ class Api::V1::AnalyticsController < Api::BaseController
 
   private
 
+  def handle_lookup_project
+    project = Project.unscoped.public_enabled.find_by(domain: params[:domain])
+    if project
+      render_api_success({
+        data: [{ project_id: project.prefix_id, name: project.name, domain: project.domain }],
+        meta: { project_name: project.name, domain: project.domain }
+      })
+    else
+      render_api_not_found("Project")
+    end
+  end
+
+  def find_public_project
+    if params[:domain].present?
+      Project.unscoped.public_enabled.find_by!(domain: params[:domain])
+    elsif params[:project_id].present?
+      project = Project.find_by_prefix_id(params[:project_id])
+      raise ActiveRecord::RecordNotFound unless project&.enable_public_page
+      project
+    else
+      render_api_bad_request("domain or project_id required")
+      nil
+    end
+  end
+
   def build_tinybird_params(project)
     params_hash = {
-      tracking_id: project.tracking_id
+      project_id: project.tracking_id
     }
 
     # Optional date range filters
