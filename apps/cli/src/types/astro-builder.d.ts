@@ -51,7 +51,8 @@ export interface AstroArticle {
     description?: string;
     keywords?: string[];
     date: string;
-    date_updated_at?: string;
+    updated_at?: string;
+    published_at?: string;
     image_hero?: string;
     image_og?: string;
     author?: string;

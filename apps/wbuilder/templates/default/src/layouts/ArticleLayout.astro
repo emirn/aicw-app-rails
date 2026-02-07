@@ -59,7 +59,7 @@ const showCategories = config.blog.showCategories && config.categories?.enabled 
   image={data.image_og}
   type="article"
   publishedTime={data.date}
-  modifiedTime={data.date_updated_at}
+  modifiedTime={data.updated_at}
   author={data.author || getDefaultAuthor(config)}
   keywords={data.keywords?.join(', ')}
 >

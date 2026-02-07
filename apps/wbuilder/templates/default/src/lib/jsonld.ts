@@ -88,8 +88,8 @@ export function generateBlogPosting(
     blogPosting.description = data.description;
   }
 
-  if (data.date_updated_at) {
-    blogPosting.dateModified = data.date_updated_at.toISOString();
+  if (data.updated_at) {
+    blogPosting.dateModified = data.updated_at.toISOString();
   } else if (data.date) {
     blogPosting.dateModified = data.date.toISOString();
   }

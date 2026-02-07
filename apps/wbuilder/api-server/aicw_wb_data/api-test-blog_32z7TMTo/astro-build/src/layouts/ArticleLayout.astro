@@ -46,7 +46,7 @@ const showCategories = config.blog.showCategories && config.categories?.enabled 
   image={data.image_og || data.image_hero}
   type="article"
   publishedTime={data.date}
-  modifiedTime={data.date_updated_at}
+  modifiedTime={data.updated_at}
   author={data.author || config.branding.site.name}
   keywords={data.keywords?.join(', ')}
 >

@@ -9,7 +9,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { IArticle, META_FILE, LEGACY_META_FILE, PROJECT_CONFIG_FILE, LEGACY_PROJECT_CONFIG_FILE, INDEX_FILE, CONTENT_OVERRIDE_FILE } from '@blogpostgen/types';
 import { getProjectPaths } from '../config/user-paths';
-import { migrateArticleFolder, migrateProjectFolder, isOldArticleFormat, isOldProjectFormat, isUnifiedFormat } from './unified-serializer';
+import { UnifiedSerializer, migrateArticleFolder, migrateProjectFolder, isOldArticleFormat, isOldProjectFormat, isUnifiedFormat } from './unified-serializer';
 import { scanContentFolder } from './folder-manager';
 
 /** JSON indentation constant */
@@ -993,4 +993,59 @@ export async function migrateContentExtractAllProject(projectName: string): Prom
   }
 
   return result;
+}
+
+// ============================================================================
+// Backfill published_at from updated_at
+// ============================================================================
+
+/**
+ * Backfill missing published_at from updated_at for all articles in a project
+ *
+ * @param projectName - Project name to migrate
+ * @returns Migration result with counts
+ */
+export async function migrateBackfillPublishedAt(projectName: string): Promise<{
+  total: number;
+  migrated: number;
+  skipped: number;
+  errors: Array<{ path: string; error: string }>;
+}> {
+  const paths = getProjectPaths(projectName);
+  const articles = await scanContentFolder(paths.content);
+
+  let migrated = 0;
+  let skipped = 0;
+  const errors: Array<{ path: string; error: string }> = [];
+
+  for (const article of articles) {
+    try {
+      if (article.meta.published_at?.trim()) {
+        skipped++;
+        continue;
+      }
+
+      const backfillValue = article.meta.updated_at;
+      if (!backfillValue) {
+        errors.push({ path: article.path, error: 'No updated_at value to backfill from' });
+        continue;
+      }
+
+      const serializer = new UnifiedSerializer<IArticle>(article.absolutePath);
+      await serializer.update({ published_at: backfillValue } as Partial<IArticle>);
+      migrated++;
+      console.log(`Backfilled published_at: ${article.path}`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      errors.push({ path: article.path, error: errMsg });
+      console.error(`Error backfilling ${article.path}: ${errMsg}`);
+    }
+  }
+
+  return {
+    total: articles.length,
+    migrated,
+    skipped,
+    errors,
+  };
 }

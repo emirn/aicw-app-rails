@@ -740,6 +740,9 @@ export async function buildPublished(
     if (!article.meta.keywords || article.meta.keywords.length === 0) {
       errors.push('keywords is empty');
     }
+    if (!article.meta.published_at?.trim()) {
+      errors.push('published_at is empty (run migrate-published-at to backfill)');
+    }
 
     if (errors.length > 0) {
       throw new Error(

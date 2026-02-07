@@ -220,8 +220,10 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
    * Extract descriptive slug from mermaid code
    */
   private extractDiagramSlug(code: string): string {
-    // Strip HTML tags first
-    const noHtml = code.replace(/<[^>]*>/g, ' ');
+    // Strip mermaid directives (%%{init: ...}%% config lines)
+    const noDirectives = code.replace(/%%\{[\s\S]*?\}%%/g, ' ');
+    // Strip HTML tags
+    const noHtml = noDirectives.replace(/<[^>]*>/g, ' ');
 
     // Mermaid syntax keywords to exclude from slug
     const mermaidKeywords = new Set([
@@ -235,6 +237,7 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
       'state',
       'style', 'classdef', 'click', 'linkstyle',
       'href', 'http', 'https', 'www', 'com', 'org', 'io',
+      'init', 'theme', 'base', 'themevariables',
     ]);
 
     const words = noHtml
