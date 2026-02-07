@@ -42,9 +42,9 @@ export type JsonldContentField = typeof JSONLD_CONTENT_FIELDS[number];
 export const HISTORY_DIR = '_history';
 
 /**
- * Fields that are serialized to separate .md files for easy editing.
+ * Fields that are serialized to separate .md files for dev convenience.
  * When UnifiedSerializer writes, these fields are automatically synced to {field}.md
- * When reading, these .md files override the corresponding index.json field
+ * These .md files are write-only — never read back as overrides.
  */
 export const SERIALIZED_FIELDS = ['content', 'faq', 'content_jsonld', 'faq_jsonld'] as const;
 
