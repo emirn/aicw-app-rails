@@ -2,3 +2,4 @@ project_id = "vuzocqdmeetootjqnejp"
 
 [functions.view]
 verify_jwt = false
+static_files = [ "./functions/view/data/dbip-country-lite.mmdb" ]

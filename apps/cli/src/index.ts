@@ -69,6 +69,7 @@ import {
   migrateJsonldFromContentProject,
   migrateContentExtractAllProject,
 } from './lib/migrate';
+import { verifyProject, fixArticles } from './lib/pipeline-verify';
 import chalk from 'chalk';
 
 /**
@@ -93,6 +94,7 @@ const LOCAL_ACTIONS = [
   { name: 'migrate-faq', description: 'Extract FAQ from content to faq.md', usage: 'blogpostgen migrate-faq <project>', group: 'utility' },
   { name: 'migrate-jsonld', description: 'Extract JSON-LD from content to jsonld.md', usage: 'blogpostgen migrate-jsonld <project>', group: 'utility' },
   { name: 'migrate-content', description: 'Extract both FAQ and JSON-LD from content', usage: 'blogpostgen migrate-content <project>', group: 'utility' },
+  { name: 'pipeline-verify', description: 'Verify pipeline state & applied actions', usage: 'blogpostgen pipeline-verify <project> [--fix]', group: 'utility' },
 
   // Publishing group (201-299)
   { name: 'publish', description: 'Build published articles from enhanced drafts', usage: 'blogpostgen publish <project>', group: 'publish' },
@@ -984,6 +986,65 @@ async function main(): Promise<void> {
         for (const err of result.errors) {
           logger.log(`    - ${err.path}: ${err.error}`);
         }
+      }
+
+      await pressEnterToContinue();
+      continue;
+    }
+
+    // Handle pipeline-verify (verify pipeline state & applied actions)
+    if (finalAction === 'pipeline-verify') {
+      const selectedProject = await selectProject();
+      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
+        if (selectedProject === CREATE_NEW_PROJECT) {
+          logger.log('Please create a project first with project-init.');
+          await pressEnterToContinue();
+        }
+        continue;
+      }
+
+      logger.log(`\nVerifying pipeline state for: ${selectedProject}\n`);
+
+      try {
+        const result = await verifyProject(selectedProject);
+
+        logger.log(`Total articles: ${result.totalArticles}  |  Valid: ${result.validArticles}  |  Invalid: ${result.invalidArticles}`);
+
+        if (result.invalidArticles === 0) {
+          logger.log(chalk.green('\n✓ All articles have complete pipeline actions.'));
+          await pressEnterToContinue();
+          continue;
+        }
+
+        logger.log('\nArticles with incomplete pipeline actions:\n');
+
+        for (const r of result.results) {
+          logger.log(`  ${r.articlePath}`);
+          logger.log(`    File: ${path.join(r.absolutePath, 'index.json')}`);
+          logger.log(`    Pipeline: ${r.lastPipeline} (expected ${r.expectedActions.length} actions, applied ${r.appliedActions.length})`);
+          logger.log(`    Missing: ${r.missingActions.join(', ')}`);
+          logger.log('');
+        }
+
+        if (flags.fix) {
+          const readline = await import('readline');
+          const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+          const answer = await new Promise<string>((resolve) => {
+            rl.question(`Fix ${result.invalidArticles} article(s) by reverting last_pipeline to previous state? (y/n): `, resolve);
+          });
+          rl.close();
+
+          if (answer.toLowerCase() === 'y') {
+            const fixedCount = await fixArticles(result.results, selectedProject);
+            logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
+          } else {
+            logger.log('\nFix cancelled.');
+          }
+        } else {
+          logger.log(chalk.cyan('Run with --fix to roll back these articles to their previous pipeline state.'));
+        }
+      } catch (error: any) {
+        logger.log(chalk.red(`Error: ${error.message}`));
       }
 
       await pressEnterToContinue();
@@ -2466,6 +2527,62 @@ async function main(): Promise<void> {
       for (const err of result.errors) {
         logger.log(`    - ${err.path}: ${err.error}`);
       }
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
+  // Handle pipeline-verify action (local - no API needed)
+  if (finalAction === 'pipeline-verify') {
+    if (!finalPath) {
+      outputError('Error: Project name required. Usage: blogpostgen pipeline-verify <project> [--fix]');
+      process.exit(1);
+    }
+
+    const selectedProject = finalPath;
+
+    logger.log(`\nVerifying pipeline state for: ${selectedProject}\n`);
+
+    try {
+      const result = await verifyProject(selectedProject);
+
+      logger.log(`Total articles: ${result.totalArticles}  |  Valid: ${result.validArticles}  |  Invalid: ${result.invalidArticles}`);
+
+      if (result.invalidArticles === 0) {
+        logger.log(chalk.green('\n✓ All articles have complete pipeline actions.'));
+        process.exit(0);
+      }
+
+      logger.log('\nArticles with incomplete pipeline actions:\n');
+
+      for (const r of result.results) {
+        logger.log(`  ${r.articlePath}`);
+        logger.log(`    File: ${path.join(r.absolutePath, 'index.json')}`);
+        logger.log(`    Pipeline: ${r.lastPipeline} (expected ${r.expectedActions.length} actions, applied ${r.appliedActions.length})`);
+        logger.log(`    Missing: ${r.missingActions.join(', ')}`);
+        logger.log('');
+      }
+
+      if (flags.fix) {
+        const readline = await import('readline');
+        const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+        const answer = await new Promise<string>((resolve) => {
+          rl.question(`Fix ${result.invalidArticles} article(s) by reverting last_pipeline to previous state? (y/n): `, resolve);
+        });
+        rl.close();
+
+        if (answer.toLowerCase() === 'y') {
+          const fixedCount = await fixArticles(result.results, selectedProject);
+          logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
+        } else {
+          logger.log('\nFix cancelled.');
+        }
+      } else {
+        logger.log(chalk.cyan('Run with --fix to roll back these articles to their previous pipeline state.'));
+      }
+    } catch (error: any) {
+      logger.log(chalk.red(`Error: ${error.message}`));
       process.exit(1);
     }
 

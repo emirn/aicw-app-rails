@@ -23,7 +23,7 @@ import {
   HISTORY_DIR,
 } from '@blogpostgen/types';
 import { UnifiedSerializer, isUnifiedFormat, isOldArticleFormat } from './unified-serializer';
-import { PublishedRenderer, PublishedMetadata } from '../utils/published-renderer';
+import { PublishedRenderer } from '../utils/published-renderer';
 
 /**
  * Error thrown when old format is detected
@@ -767,22 +767,12 @@ export async function buildPublished(
   for (const article of articles) {
     log(`  Publishing: ${article.path}`);
 
-    const content = article.content || '';
-    const metadata: PublishedMetadata = {
-      title: article.meta.title || '',
-      description: article.meta.description || '',
-      keywords: article.meta.keywords || [],
-      created_at: article.meta.created_at || new Date().toISOString(),
-      updated_at: article.meta.updated_at || new Date().toISOString(),
-      published_at: article.meta.published_at,
-      version: article.meta.version,
-      last_pipeline: article.meta.last_pipeline || undefined,
-      faq: article.meta.faq,
-      content_jsonld: article.meta.content_jsonld,
-      faq_jsonld: article.meta.faq_jsonld,
+    const articleData: Record<string, any> = {
+      ...article.meta,
+      content: article.content || '',
     };
 
-    const rendered = await renderer.render(content, metadata);
+    const rendered = await renderer.render(articleData);
 
     // Output path: published/{articlePath}.md (single file, not folder)
     const outputPath = path.join(publishedDir, `${article.path}.md`);
