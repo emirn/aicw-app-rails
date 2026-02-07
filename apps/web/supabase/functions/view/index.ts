@@ -13,7 +13,7 @@ import { UNKNOWN_VALUE } from "../_shared/constants.ts";
 
 const REQUEST_RETRY_MS = 1000; // delay between retries for http requests in mseconds
 
-const FUNCTION_VERSION = '2026-feb-07-fix-deploy-esm-buffer';
+const FUNCTION_VERSION = '2026-feb-07-fix-tinybird-log';
 const MAX_STRING_LENGTH = 2000;
 const MAX_UTM_LENGTH = 255;
 
@@ -625,13 +625,15 @@ async function sendToTinybirdWithRetry(
         const result = await response.json();
         if (attempt > 1) {
           console.log(`[${requestId}] [TINYBIRD] Event ingested on retry ${attempt}:`, {
-            successful_rows: result.successful_rows,
-            project_id: event.project_id
+            quarantine_rows: result.quarantine_rows,
+            project_id: event.project_id,
+            page_host: event.page_host
           });
         } else {
           console.log(`[${requestId}] [TINYBIRD] Event ingested:`, {
-            successful_rows: result.successful_rows,
-            project_id: event.project_id
+            quarantine_rows: result.quarantine_rows,
+            project_id: event.project_id,
+            page_host: event.page_host
           });
         }
         return { success: true, attempts: attempt };
@@ -735,6 +737,11 @@ serve(async (req) => {
   console.log(`[${requestId}] "view" function, version: ${FUNCTION_VERSION}, method: ${req.method}`);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers });
+  }
+
+  // Only accept POST requests - silently drop GET/HEAD/etc from bots
+  if (req.method !== 'POST') {
+    return new Response(null, { status: 200, headers });
   }
 
   // main function logic
@@ -1197,7 +1204,7 @@ serve(async (req) => {
       // See: https://plausible.io/data-policy (geo lookup uses full IP, then discards)
       try {
         geoData = await withTimeout(
-          detectGeoLocation(rawIP, req.headers),
+          detectGeoLocation(rawIP, req.headers, requestId),
           5000,
           'Geo-location lookup',
           requestId

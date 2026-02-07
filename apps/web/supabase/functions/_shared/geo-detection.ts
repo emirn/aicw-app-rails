@@ -53,6 +53,7 @@ async function detectFromCloudflare(headers: Headers): Promise<GeoLocation | nul
 export async function detectGeoLocation(
   ipAddress: string | null,  // Pre-anonymized IP address (last 2 parts removed)
   headers: Headers,
+  requestId?: string,
 ): Promise<GeoLocation | null> {
   // Try Cloudflare headers first (most accurate, provides country + state)
   const cloudflareData = await detectFromCloudflare(headers);
@@ -69,7 +70,7 @@ export async function detectGeoLocation(
   // Fallback to IP-to-country lookup (only provides country, not state)
   // NOTE: ipAddress MUST be pre-anonymized by caller
   if (ipAddress) {
-    const geoLocation: GeoLocation | null = await getGeoLocationByIP(ipAddress);
+    const geoLocation: GeoLocation | null = await getGeoLocationByIP(ipAddress, requestId);
     return geoLocation;
   }
 

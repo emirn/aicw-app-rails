@@ -26,13 +26,14 @@ let mmdbReader: Reader<{ country: { iso_code: string } }> | null = null;
  * The MMDB file is included via static_files in config.toml and available
  * relative to the function's working directory at runtime.
  */
-async function getReader(): Promise<Reader<{ country: { iso_code: string } }>> {
+async function getReader(requestId?: string): Promise<Reader<{ country: { iso_code: string } }>> {
   if (mmdbReader) return mmdbReader;
 
+  const logPrefix = requestId ? `[${requestId}] ` : '';
   const rawBuffer = await Deno.readFile("./data/dbip-country-lite.mmdb");
   const buffer = Buffer.from(rawBuffer);
   mmdbReader = new Reader<{ country: { iso_code: string } }>(buffer);
-  console.log('[IP-to-Country] MMDB reader loaded successfully');
+  console.log(`${logPrefix}[IP-to-Country] MMDB reader loaded successfully`);
   return mmdbReader;
 }
 
@@ -44,10 +45,12 @@ async function getReader(): Promise<Reader<{ country: { iso_code: string } }>> {
  */
 export async function getGeoLocationByIP(
   ipAddress: string | null | undefined,
+  requestId?: string,
 ): Promise<GeoLocation | null> {
+  const logPrefix = requestId ? `[${requestId}] ` : '';
 
   if (!ipAddress) {
-    console.error('[IP-to-Country] No IP address provided');
+    console.error(`${logPrefix}[IP-to-Country] No IP address provided`);
     return null;
   }
 
@@ -56,16 +59,16 @@ export async function getGeoLocationByIP(
   const isIPv6 = ipAddress.includes(':');
 
   if (!isIPv4 && !isIPv6) {
-    console.error('[IP-to-Country] Invalid IP format [redacted for privacy]');
+    console.error(`${logPrefix}[IP-to-Country] Invalid IP format [redacted for privacy]`);
     return null;
   }
 
   try {
-    const reader = await getReader();
+    const reader = await getReader(requestId);
     const result = reader.get(ipAddress);
 
     if (!result || !result.country || !result.country.iso_code) {
-      console.debug('[IP-to-Country] No results for IP');
+      console.debug(`${logPrefix}[IP-to-Country] No results for IP`);
       return null;
     }
 
@@ -76,7 +79,7 @@ export async function getGeoLocationByIP(
       city_name: null,     // Country-level DB only
     };
   } catch (error) {
-    console.error('[IP-to-Country] MMDB lookup error:', error);
+    console.error(`${logPrefix}[IP-to-Country] MMDB lookup error:`, error);
     return null;
   }
 }
