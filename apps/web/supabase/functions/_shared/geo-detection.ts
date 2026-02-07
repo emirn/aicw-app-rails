@@ -10,7 +10,6 @@
 
 // Import data from separate JSON files for better maintainability
 import { GeoLocation, getGeoLocationByIP } from "./ip-to-location.ts";
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export const UNKNOWN_GEO_LOCATION: GeoLocation = {
   country_code: 'ZZ',
@@ -54,7 +53,6 @@ async function detectFromCloudflare(headers: Headers): Promise<GeoLocation | nul
 export async function detectGeoLocation(
   ipAddress: string | null,  // Pre-anonymized IP address (last 2 parts removed)
   headers: Headers,
-  supabaseClient: SupabaseClient
 ): Promise<GeoLocation | null> {
   // Try Cloudflare headers first (most accurate, provides country + state)
   const cloudflareData = await detectFromCloudflare(headers);
@@ -71,7 +69,7 @@ export async function detectGeoLocation(
   // Fallback to IP-to-country lookup (only provides country, not state)
   // NOTE: ipAddress MUST be pre-anonymized by caller
   if (ipAddress) {
-    const geoLocation: GeoLocation | null = await getGeoLocationByIP(ipAddress, supabaseClient);
+    const geoLocation: GeoLocation | null = await getGeoLocationByIP(ipAddress);
     return geoLocation;
   }
 

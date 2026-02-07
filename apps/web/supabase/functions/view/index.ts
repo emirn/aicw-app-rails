@@ -1174,12 +1174,10 @@ serve(async (req) => {
         visitorSource = await withTimeout(
           findVisitorSource(
             {
-              //ip_address: rawIP, // disabled for now
               user_agent: user_agent || '',
               referrer: referrer || '',
               utm_params: utmParams,
               text_fragment: text_fragment || '',
-              supabase_client: supabaseClient
             }
           ),
           3000, // 3 second timeout (includes DB lookup for bot detection)
@@ -1197,12 +1195,18 @@ serve(async (req) => {
       // This matches Plausible/GA4 approach: geo lookup BEFORE anonymization
       // The full IP is already logged by Supabase/Cloudflare infrastructure anyway
       // See: https://plausible.io/data-policy (geo lookup uses full IP, then discards)
-      geoData = await withTimeout(
-        detectGeoLocation(rawIP, req.headers, supabaseClient),
-        5000,
-        'Geo-location lookup',
-        requestId
-      );
+      try {
+        geoData = await withTimeout(
+          detectGeoLocation(rawIP, req.headers),
+          5000,
+          'Geo-location lookup',
+          requestId
+        );
+      } catch (error) {
+        console.error(`[${requestId}] Geo-location detection failed:`, error);
+        // Continue with unknown country (graceful degradation)
+        geoData = { country_code: 'ZZ', country_name: '', region_name: null, city_name: null };
+      }
     } else {
       // ====================================================================
       // ENGAGEMENT/SUMMARIZE_CLICK/SUMMARIZE_OPENED/SHARE_CLICK: Fast path - skip expensive operations

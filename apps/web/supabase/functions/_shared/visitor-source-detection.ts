@@ -12,8 +12,6 @@ import {
   VISITOR_SOURCES,
   BOT_SOURCES,
 } from './constants-visitor-sources.ts';
-import { getBotNameByIP } from './ip-to-bot.ts';
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 
 export interface VisitorSourceDetectionResult {
@@ -27,29 +25,16 @@ export interface VisitorSourceDetectionResult {
 export async function findVisitorSource(
 
   params: {
-      // ip_address: string, // disabled for now
     user_agent: string,
     referrer: string,
     utm_params: UtmParams,
     text_fragment: string,
-    supabase_client: SupabaseClient
   }
 ): Promise<VisitorSourceDetectionResult> {
 
   // Normalize inputs for case-insensitive matching (defensive against null/undefined)
   const ua = params.user_agent?.toLowerCase() || '';
   const ref = params.referrer?.toLowerCase() || '';
-
-  // IP-based bot detection DISABLED for now - will re-add later
-  /*
-  let bot_source_name: string | null = await getBotNameByIP(params.ip_address, params.supabase_client);
-  if(bot_source_name) {
-    const bot_source: BotSourceType | undefined = BOT_SOURCES.find((source) => source.desc === bot_source_name);
-    if(bot_source) {
-      return { visitor_source: undefined, bot_source: bot_source, matched_bot_pattern: bot_source_name.toLowerCase().replace(/\s+/g, '-') };
-    }
-  }
-  */
 
   // Detect bot by user agent (case-insensitive)
   let bot_source: BotSourceType | undefined;
