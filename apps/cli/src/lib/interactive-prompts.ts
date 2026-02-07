@@ -43,7 +43,7 @@ async function prompt(question: string, defaultValue?: string): Promise<string> 
 /**
  * Prompt for yes/no confirmation
  */
-async function confirm(question: string, defaultYes: boolean = true): Promise<boolean> {
+export async function confirm(question: string, defaultYes: boolean = true): Promise<boolean> {
   const defaultText = defaultYes ? 'Y/n' : 'y/N';
   const answer = await prompt(`${question} [${defaultText}]`);
 
