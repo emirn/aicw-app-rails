@@ -39,6 +39,7 @@ import {
   promptPlanImportSource,
   promptMultilineInput,
   resolveConflictsInteractive,
+  confirm,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
@@ -1060,21 +1061,16 @@ async function main(): Promise<void> {
         }
 
         if (flags.fix) {
-          const readline = await import('readline');
-          const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
-          const answer = await new Promise<string>((resolve) => {
-            rl.question(`Fix ${result.invalidArticles} article(s) by reverting last_pipeline to previous state? (y/n): `, resolve);
-          });
-          rl.close();
-
-          if (answer.toLowerCase() === 'y') {
+          const fixedCount = await fixArticles(result.results, selectedProject);
+          logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
+        } else {
+          const shouldFix = await confirm(`Fix ${result.invalidArticles} article(s) by reverting last_pipeline to previous state?`, false);
+          if (shouldFix) {
             const fixedCount = await fixArticles(result.results, selectedProject);
             logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
           } else {
-            logger.log('\nFix cancelled.');
+            logger.log('\nFix skipped.');
           }
-        } else {
-          logger.log(chalk.cyan('Run with --fix to roll back these articles to their previous pipeline state.'));
         }
       } catch (error: any) {
         logger.log(chalk.red(`Error: ${error.message}`));
@@ -2627,21 +2623,16 @@ async function main(): Promise<void> {
       }
 
       if (flags.fix) {
-        const readline = await import('readline');
-        const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
-        const answer = await new Promise<string>((resolve) => {
-          rl.question(`Fix ${result.invalidArticles} article(s) by reverting last_pipeline to previous state? (y/n): `, resolve);
-        });
-        rl.close();
-
-        if (answer.toLowerCase() === 'y') {
+        const fixedCount = await fixArticles(result.results, selectedProject);
+        logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
+      } else {
+        const shouldFix = await confirm(`Fix ${result.invalidArticles} article(s) by reverting last_pipeline to previous state?`, false);
+        if (shouldFix) {
           const fixedCount = await fixArticles(result.results, selectedProject);
           logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
         } else {
-          logger.log('\nFix cancelled.');
+          logger.log('\nFix skipped.');
         }
-      } else {
-        logger.log(chalk.cyan('Run with --fix to roll back these articles to their previous pipeline state.'));
       }
     } catch (error: any) {
       logger.log(chalk.red(`Error: ${error.message}`));
