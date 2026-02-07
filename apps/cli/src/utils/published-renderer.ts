@@ -8,7 +8,8 @@ import { existsSync } from 'fs';
  */
 const DEFAULT_TEMPLATE = `---
 date: {{created_at}}
-date_updated_at: {{updated_at}}
+updated_at: {{updated_at}}
+published_at: {{published_at}}
 title: "{{title}}"
 description: "{{description}}"
 og_title: "{{title}}"

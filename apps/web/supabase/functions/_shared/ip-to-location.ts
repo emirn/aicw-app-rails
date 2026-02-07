@@ -8,7 +8,8 @@
  * License: Creative Commons Attribution 4.0 International License
  */
 
-import { Reader } from "npm:mmdb-lib@2.1.1";
+import { Reader } from "https://esm.sh/mmdb-lib@2.1.1";
+import { Buffer } from "https://esm.sh/buffer@6.0.3";
 
 export interface GeoLocation {
   country_code: string | null;
@@ -28,7 +29,6 @@ let mmdbReader: Reader<{ country: { iso_code: string } }> | null = null;
 async function getReader(): Promise<Reader<{ country: { iso_code: string } }>> {
   if (mmdbReader) return mmdbReader;
 
-  const { Buffer } = await import("npm:buffer");
   const rawBuffer = await Deno.readFile("./data/dbip-country-lite.mmdb");
   const buffer = Buffer.from(rawBuffer);
   mmdbReader = new Reader<{ country: { iso_code: string } }>(buffer);

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { UAParser } from "npm:ua-parser-js@2";
+import { UAParser } from "https://esm.sh/ua-parser-js@2";
 // -- user libraries
 import { UtmParams, VisitorSourceType } from "../_shared/constants-visitor-sources.ts";
 import { detectBotFromUA } from "../_shared/bot-detection.ts";
@@ -13,7 +13,7 @@ import { UNKNOWN_VALUE } from "../_shared/constants.ts";
 
 const REQUEST_RETRY_MS = 1000; // delay between retries for http requests in mseconds
 
-const FUNCTION_VERSION = '2026-feb-05-simplified-projects-table'; 
+const FUNCTION_VERSION = '2026-feb-07-fix-deploy-esm-buffer';
 const MAX_STRING_LENGTH = 2000;
 const MAX_UTM_LENGTH = 255;
 

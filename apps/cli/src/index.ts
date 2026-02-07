@@ -68,6 +68,7 @@ import {
   migrateFaqFromContentProject,
   migrateJsonldFromContentProject,
   migrateContentExtractAllProject,
+  migrateBackfillPublishedAt,
 } from './lib/migrate';
 import { verifyProject, fixArticles } from './lib/pipeline-verify';
 import chalk from 'chalk';
@@ -94,6 +95,7 @@ const LOCAL_ACTIONS = [
   { name: 'migrate-faq', description: 'Extract FAQ from content to faq.md', usage: 'blogpostgen migrate-faq <project>', group: 'utility' },
   { name: 'migrate-jsonld', description: 'Extract JSON-LD from content to jsonld.md', usage: 'blogpostgen migrate-jsonld <project>', group: 'utility' },
   { name: 'migrate-content', description: 'Extract both FAQ and JSON-LD from content', usage: 'blogpostgen migrate-content <project>', group: 'utility' },
+  { name: 'migrate-published-at', description: 'Backfill published_at from updated_at', usage: 'blogpostgen migrate-published-at <project>', group: 'utility' },
   { name: 'pipeline-verify', description: 'Verify pipeline state & applied actions', usage: 'blogpostgen pipeline-verify <project> [--fix]', group: 'utility' },
 
   // Publishing group (201-299)
@@ -981,6 +983,37 @@ async function main(): Promise<void> {
       logger.log(`  FAQ extracted: ${result.faqMigrated}`);
       logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
       logger.log(`  Skipped (no FAQ/JSON-LD): ${result.skipped}`);
+      if (result.errors.length > 0) {
+        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
+        for (const err of result.errors) {
+          logger.log(`    - ${err.path}: ${err.error}`);
+        }
+      }
+
+      await pressEnterToContinue();
+      continue;
+    }
+
+    // Handle migrate-published-at (backfill published_at from updated_at)
+    if (finalAction === 'migrate-published-at') {
+      const selectedProject = await selectProject();
+      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
+        if (selectedProject === CREATE_NEW_PROJECT) {
+          logger.log('Please create a project first with project-init.');
+          await pressEnterToContinue();
+        }
+        continue;
+      }
+
+      logger.log(`\nBackfilling published_at from updated_at for: ${selectedProject}`);
+
+      const result = await migrateBackfillPublishedAt(selectedProject);
+
+      logger.log('');
+      logger.log(chalk.green('Migration complete!'));
+      logger.log(`  Total articles: ${result.total}`);
+      logger.log(`  Backfilled: ${result.migrated}`);
+      logger.log(`  Skipped (already set): ${result.skipped}`);
       if (result.errors.length > 0) {
         logger.log(chalk.red(`  Errors: ${result.errors.length}`));
         for (const err of result.errors) {
@@ -2522,6 +2555,35 @@ async function main(): Promise<void> {
     logger.log(`  FAQ extracted: ${result.faqMigrated}`);
     logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
     logger.log(`  Skipped (no FAQ/JSON-LD): ${result.skipped}`);
+    if (result.errors.length > 0) {
+      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
+      for (const err of result.errors) {
+        logger.log(`    - ${err.path}: ${err.error}`);
+      }
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
+  // Handle migrate-published-at action (local - no API needed)
+  if (finalAction === 'migrate-published-at') {
+    if (!finalPath) {
+      outputError('Error: Project name required. Usage: blogpostgen migrate-published-at <project>');
+      process.exit(1);
+    }
+
+    const selectedProject = finalPath;
+
+    logger.log(`Backfilling published_at from updated_at for: ${selectedProject}`);
+
+    const result = await migrateBackfillPublishedAt(selectedProject);
+
+    logger.log('');
+    logger.log(chalk.green('Migration complete!'));
+    logger.log(`  Total articles: ${result.total}`);
+    logger.log(`  Backfilled: ${result.migrated}`);
+    logger.log(`  Skipped (already set): ${result.skipped}`);
     if (result.errors.length > 0) {
       logger.log(chalk.red(`  Errors: ${result.errors.length}`));
       for (const err of result.errors) {

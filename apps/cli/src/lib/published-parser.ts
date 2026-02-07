@@ -19,7 +19,8 @@ export interface BlogPostGenArticle {
     description: string;
     keywords: string[];
     date: string;
-    date_updated_at?: string;
+    updated_at?: string;
+    published_at?: string;
     image_hero?: string;
     image_og?: string;
   };
@@ -87,7 +88,8 @@ function parseArticle(relativePath: string, fileContent: string): BlogPostGenArt
 
   // Parse dates
   const date = parseDate(frontmatter.date);
-  const date_updated_at = frontmatter.date_updated_at ? parseDate(frontmatter.date_updated_at) : undefined;
+  const updated_at = frontmatter.updated_at ? parseDate(frontmatter.updated_at) : undefined;
+  const published_at = frontmatter.published_at ? parseDate(frontmatter.published_at) : undefined;
 
   return {
     slug,
@@ -96,7 +98,8 @@ function parseArticle(relativePath: string, fileContent: string): BlogPostGenArt
       description: frontmatter.description || '',
       keywords,
       date,
-      date_updated_at,
+      updated_at,
+      published_at,
       image_hero: frontmatter.image_hero,
       image_og: frontmatter.og_image || frontmatter.image_social,
     },
