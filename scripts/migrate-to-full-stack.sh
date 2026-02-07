@@ -23,10 +23,10 @@ echo ""
 
 # 1. Remove kamal-proxy routes
 echo "--- Removing kamal-proxy routes ---"
-for service in sgen aicw-website-builder; do
+for service in sgen-web aicw-website-builder-web; do
   if docker exec kamal-proxy kamal-proxy list 2>/dev/null | grep -q "$service"; then
     echo "Removing proxy route: $service"
-    docker exec kamal-proxy kamal-proxy remove --service "$service"
+    docker exec kamal-proxy kamal-proxy remove "$service"
   else
     echo "No proxy route for $service (already removed or never existed)"
   fi
