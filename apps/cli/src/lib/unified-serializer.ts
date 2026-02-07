@@ -1,10 +1,9 @@
 /**
  * Unified Serializer for Folder-Based Data Storage
  *
- * Stores all data in index.json with file-override support:
- * - `<attribute>.md` files override string attributes
- * - `<attribute>.json` files override object/array attributes (first-level only)
- * - Writes sync both index.json and existing override files
+ * All data is read exclusively from index.json.
+ * `.md` files (content.md, faq.md, etc.) are write-only — synced from index.json
+ * on every write for dev convenience and easier code review, but never read back.
  */
 
 import { promises as fs } from 'fs';
@@ -103,15 +102,8 @@ export class UnifiedSerializer<T extends Record<string, any>> {
   }
 
   /**
-   * Read data from index.json with override files merged
-   *
-   * Algorithm:
-   * 1. Load index.json as base (return null if missing)
-   * 2. Scan folder for override files
-   * 3. For each first-level attribute in base data:
-   *    - If {attr}.md exists → read as string, override
-   *    - If {attr}.json exists → parse JSON, override
-   * 4. Return merged data + metadata about overridden fields
+   * Read data exclusively from index.json.
+   * .md files are write-only and never read back as overrides.
    */
   async read(): Promise<IReadResult<T>> {
     const meta: ISerializerMeta = {
@@ -120,7 +112,6 @@ export class UnifiedSerializer<T extends Record<string, any>> {
       overrideFiles: new Map(),
     };
 
-    // Try to read base index.json
     const indexPath = this.getIndexPath();
     let baseData: T | null = null;
 
@@ -137,39 +128,7 @@ export class UnifiedSerializer<T extends Record<string, any>> {
       throw err;
     }
 
-    // Detect override files
-    const overrides = await this.detectOverrides();
-    meta.overrideFiles = overrides;
-
-    // Apply overrides to base data
-    const mergedData = { ...baseData };
-
-    for (const [fieldName, filePath] of overrides) {
-      try {
-        const content = await fs.readFile(filePath, 'utf-8');
-
-        if (filePath.endsWith('.md')) {
-          // String override - use content as-is
-          (mergedData as any)[fieldName] = content;
-          meta.overriddenFields.push(fieldName);
-        } else if (filePath.endsWith('.json')) {
-          // JSON override - parse and replace
-          (mergedData as any)[fieldName] = JSON.parse(content);
-          meta.overriddenFields.push(fieldName);
-        }
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          // Override file was deleted between detection and read
-          continue;
-        }
-        if (err instanceof SyntaxError && filePath.endsWith('.json')) {
-          throw new Error(`Invalid JSON in override file ${filePath}: ${err.message}`);
-        }
-        throw err;
-      }
-    }
-
-    return { data: mergedData as T, meta };
+    return { data: baseData, meta };
   }
 
   /**
