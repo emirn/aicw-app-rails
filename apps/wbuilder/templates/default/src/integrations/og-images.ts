@@ -11,13 +11,14 @@ import type { AstroIntegration } from 'astro';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
 import { generateOGImage, type OGImageConfig } from '../lib/og-image-generator.js';
-import { selectOGImageSource } from '../lib/og-image-selector.js';
 
 interface ArticleFrontmatter {
   title: string;
   description?: string;
   image_hero?: string;
+  image_og?: string;
   author?: string;
   date?: string;
 }
@@ -30,7 +31,6 @@ interface ParsedArticle {
 
 /**
  * Parse YAML frontmatter from markdown content
- * Simple parser for the fields we need
  */
 function parseFrontmatter(content: string): { frontmatter: Record<string, any>; body: string } {
   const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
@@ -43,26 +43,12 @@ function parseFrontmatter(content: string): { frontmatter: Record<string, any>; 
   const yamlContent = match[1];
   const body = match[2];
 
-  // Simple YAML parsing for our needs
-  const frontmatter: Record<string, any> = {};
-  const lines = yamlContent.split('\n');
-
-  for (const line of lines) {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) continue;
-
-    const key = line.slice(0, colonIndex).trim();
-    let value = line.slice(colonIndex + 1).trim();
-
-    // Remove quotes if present
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-
-    frontmatter[key] = value;
+  try {
+    const frontmatter = (yaml.load(yamlContent) as Record<string, any>) || {};
+    return { frontmatter, body };
+  } catch {
+    return { frontmatter: {}, body };
   }
-
-  return { frontmatter, body };
 }
 
 /**
@@ -100,8 +86,11 @@ async function getArticles(projectRoot: string): Promise<ParsedArticle[]> {
           title: frontmatter.title,
           description: frontmatter.description,
           image_hero: frontmatter.image_hero,
+          image_og: frontmatter.image_og,
           author: frontmatter.author,
-          date: frontmatter.date,
+          date: frontmatter.date instanceof Date
+            ? frontmatter.date.toISOString().split('T')[0]
+            : frontmatter.date,
         },
         body,
       });
@@ -129,7 +118,7 @@ async function loadSiteConfig(projectRoot: string): Promise<{ siteName: string; 
     const config = JSON.parse(content);
 
     return {
-      siteName: config.site?.name || defaults.siteName,
+      siteName: config.branding?.site?.name || config.site?.name || defaults.siteName,
       gradient: config.gradient || defaults.gradient,
     };
   } catch {
@@ -138,23 +127,28 @@ async function loadSiteConfig(projectRoot: string): Promise<{ siteName: string; 
 }
 
 /**
- * Resolve image path to absolute file path
+ * Resolve image path to absolute file path, checking dist then public
  */
-function resolveImagePath(imagePath: string, projectRoot: string, distDir: string): string | null {
+async function resolveImagePath(imagePath: string, projectRoot: string, distDir: string): Promise<string | null> {
   if (!imagePath) return null;
 
-  // Handle absolute paths starting with /
   if (imagePath.startsWith('/')) {
     // Check in dist folder first (for built assets)
     const distPath = path.join(distDir, imagePath);
-    // Also check in public folder
+    if (await fileExists(distPath)) return distPath;
+
+    // Fall back to public folder
     const publicPath = path.join(projectRoot, 'public', imagePath);
-    // Return the dist path - we'll verify existence later
-    return distPath;
+    if (await fileExists(publicPath)) return publicPath;
+
+    return null;
   }
 
   // Handle relative paths
-  return path.join(projectRoot, 'public', imagePath);
+  const publicPath = path.join(projectRoot, 'public', imagePath);
+  if (await fileExists(publicPath)) return publicPath;
+
+  return null;
 }
 
 /**
@@ -222,17 +216,28 @@ export function ogImages(): AstroIntegration {
         logger.info(`Found ${articles.length} article(s) to process`);
 
         let generated = 0;
+        let skipped = 0;
         let errors = 0;
 
         for (const article of articles) {
           try {
+            // Skip if image_og is already set and the file exists
+            if (article.frontmatter.image_og) {
+              const existingOg = await resolveImagePath(article.frontmatter.image_og, projectRoot, distDir);
+              if (existingOg) {
+                skipped++;
+                logger.info(`  Skipped (image_og exists): ${article.slug}`);
+                continue;
+              }
+            }
+
             // Determine background image
             let backgroundImagePath: string | undefined;
 
             // Priority 1: image_hero from frontmatter
             if (article.frontmatter.image_hero) {
-              const resolved = resolveImagePath(article.frontmatter.image_hero, projectRoot, distDir);
-              if (resolved && (await fileExists(resolved))) {
+              const resolved = await resolveImagePath(article.frontmatter.image_hero, projectRoot, distDir);
+              if (resolved) {
                 backgroundImagePath = resolved;
               }
             }
@@ -241,12 +246,17 @@ export function ogImages(): AstroIntegration {
             if (!backgroundImagePath) {
               const contentImage = extractFirstImage(article.body);
               if (contentImage) {
-                const resolved = resolveImagePath(contentImage, projectRoot, distDir);
-                if (resolved && (await fileExists(resolved))) {
+                const resolved = await resolveImagePath(contentImage, projectRoot, distDir);
+                if (resolved) {
                   backgroundImagePath = resolved;
                 }
               }
             }
+
+            // Create output directory
+            const outputDir = path.join(distDir, 'assets', article.slug);
+            await fs.mkdir(outputDir, { recursive: true });
+            const outputPath = path.join(outputDir, 'og.webp');
 
             // Generate OG image
             const ogBuffer = await generateOGImage(
@@ -261,23 +271,37 @@ export function ogImages(): AstroIntegration {
               ogConfig
             );
 
-            // Create output directory
-            const outputDir = path.join(distDir, 'assets', article.slug);
-            await fs.mkdir(outputDir, { recursive: true });
-
-            // Write OG image
-            const outputPath = path.join(outputDir, 'og.webp');
             await fs.writeFile(outputPath, ogBuffer);
-
             generated++;
             logger.info(`  Generated: /assets/${article.slug}/og.webp`);
           } catch (err) {
-            errors++;
-            logger.error(`  Failed: ${article.slug} - ${err instanceof Error ? err.message : 'Unknown error'}`);
+            // Retry with gradient-only (no background image)
+            try {
+              const outputDir = path.join(distDir, 'assets', article.slug);
+              await fs.mkdir(outputDir, { recursive: true });
+              const outputPath = path.join(outputDir, 'og.webp');
+
+              const fallback = await generateOGImage(
+                {
+                  title: article.frontmatter.title,
+                  description: article.frontmatter.description,
+                  brandName: siteConfig.siteName,
+                  author: article.frontmatter.author,
+                  date: article.frontmatter.date,
+                },
+                ogConfig
+              );
+              await fs.writeFile(outputPath, fallback);
+              generated++;
+              logger.warn(`  Fallback (gradient): /assets/${article.slug}/og.webp`);
+            } catch (retryErr) {
+              errors++;
+              logger.error(`  Failed: ${article.slug} - ${retryErr instanceof Error ? retryErr.message : 'Unknown error'}`);
+            }
           }
         }
 
-        logger.info(`OG images complete: ${generated} generated, ${errors} failed`);
+        logger.info(`OG images complete: ${generated} generated, ${skipped} skipped, ${errors} failed`);
       },
     },
   };

@@ -6,57 +6,65 @@ import { getCategoriesWithCounts } from '../../lib/categories';
 const config = getConfig();
 
 // Return 404 if categories are disabled or showIndex is false
-if (!config.categories?.enabled || config.categories?.showIndex === false) {
-  return Astro.redirect('/404');
-}
+const categoriesDisabled = !config.categories?.enabled || config.categories?.showIndex === false;
 
-const categories = await getCategoriesWithCounts();
+const categories = categoriesDisabled ? [] : await getCategoriesWithCounts();
 
-const title = 'Categories';
-const description = `Browse all ${categories.length} categories on ${config.branding.site.name}.`;
+const title = categoriesDisabled ? 'Not Found' : 'Categories';
+const description = categoriesDisabled
+  ? 'Page not found'
+  : `Browse all ${categories.length} categories on ${config.branding.site.name}.`;
 ---
 
 <BaseLayout title={title} description={description}>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <!-- Header -->
-    <header class="mb-12 text-center">
-      <nav class="mb-4">
-        <a
-          href="/"
-          class="text-sm text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] hover:text-[var(--color-primary)] transition-colors"
-        >
-          &larr; Back to Home
-        </a>
-      </nav>
-      <h1 class="text-3xl sm:text-4xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-4">
-        Categories
-      </h1>
-      <p class="text-lg text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
-        Browse {categories.length} {categories.length === 1 ? 'category' : 'categories'}
-      </p>
-    </header>
-
-    <!-- Categories List -->
-    {categories.length > 0 ? (
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((category) => (
+  {categoriesDisabled ? (
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+      <h1 class="text-4xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-4">404</h1>
+      <p class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] mb-6">Page not found</p>
+      <a href="/" class="text-[var(--color-primary)] hover:underline">&larr; Back to Home</a>
+    </div>
+  ) : (
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <!-- Header -->
+      <header class="mb-12 text-center">
+        <nav class="mb-4">
           <a
-            href={category.url}
-            class="group flex items-center justify-between p-4 rounded-xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)] bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] hover:border-[var(--color-primary)] hover:shadow-md transition-all"
+            href="/"
+            class="text-sm text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] hover:text-[var(--color-primary)] transition-colors"
           >
-            <span class="font-medium text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
-              {category.name}
-            </span>
-            <span class="text-sm text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] px-2 py-1 rounded-full">
-              {category.count}
-            </span>
+            &larr; Back to Home
           </a>
-        ))}
-      </div>
-    ) : (
-      <p class="text-center text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
-        No categories found.
-      </p>
-    )}
-  </div>
+        </nav>
+        <h1 class="text-3xl sm:text-4xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-4">
+          Categories
+        </h1>
+        <p class="text-lg text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
+          Browse {categories.length} {categories.length === 1 ? 'category' : 'categories'}
+        </p>
+      </header>
+
+      <!-- Categories List -->
+      {categories.length > 0 ? (
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {categories.map((category) => (
+            <a
+              href={category.url}
+              class="group flex items-center justify-between p-4 rounded-xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)] bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] hover:border-[var(--color-primary)] hover:shadow-md transition-all"
+            >
+              <span class="font-medium text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] group-hover:text-[var(--color-primary)] transition-colors">
+                {category.name}
+              </span>
+              <span class="text-sm text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] px-2 py-1 rounded-full">
+                {category.count}
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p class="text-center text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
+          No categories found.
+        </p>
+      )}
+    </div>
+  )}
 </BaseLayout>

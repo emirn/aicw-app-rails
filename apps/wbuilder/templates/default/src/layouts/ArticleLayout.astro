@@ -47,6 +47,12 @@ const heroImage = data.image_hero || extractFirstImage(article.body);
 
 const canonicalUrl = `${config.branding.site.url}/${article.slug}/`;
 
+// OG image: use explicit image_og, or fall back to the generated path
+const ogImagePath = data.image_og || `/assets/${article.slug}/og.webp`;
+
+// Skip template JSON-LD if the article body already contains inline JSON-LD
+const hasInlineJsonLd = article.body?.includes('application/ld+json');
+
 // Categories
 const categories = data.categories || [];
 const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
@@ -56,15 +62,19 @@ const showCategories = config.blog.showCategories && config.categories?.enabled 
   title={data.title}
   description={data.description}
   canonical={canonicalUrl}
-  image={data.image_og}
+  image={ogImagePath}
   type="article"
   publishedTime={data.date}
   modifiedTime={data.updated_at}
   author={data.author || getDefaultAuthor(config)}
   keywords={data.keywords?.join(', ')}
+  ogTitle={data.og_title}
+  ogDescription={data.og_description}
+  twitterTitle={data.twitter_title}
+  twitterDescription={data.twitter_description}
 >
-  <!-- Article-specific JSON-LD (BlogPosting + Breadcrumbs) -->
-  {config.seo.enableJsonLd && (
+  <!-- Article-specific JSON-LD (BlogPosting + Breadcrumbs) - skipped if article has inline JSON-LD -->
+  {config.seo.enableJsonLd && !hasInlineJsonLd && (
     <Fragment slot="head">
       <script type="application/ld+json" set:html={JSON.stringify(generateBlogPosting(config, article, canonicalUrl))} />
       <script type="application/ld+json" set:html={JSON.stringify(generateArticleBreadcrumbs(config, article))} />

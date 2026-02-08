@@ -50,29 +50,28 @@ function truncateText(text: string, max: number): string {
 }
 
 /**
- * Load font buffer from bundled assets
+ * Load font buffer from bundled assets (cached after first read)
  */
+let fontCache: Buffer | null = null;
 async function loadFont(): Promise<Buffer> {
-  const fontPath = path.join(__dirname, '../assets/fonts/Inter-Bold.ttf');
-  return fs.readFile(fontPath);
+  if (!fontCache) {
+    const fontPath = path.join(__dirname, '../assets/fonts/Inter-Bold.ttf');
+    fontCache = await fs.readFile(fontPath);
+  }
+  return fontCache;
 }
 
 /**
- * Read image file and convert to base64 data URL
+ * Read image file and convert to JPEG base64 data URL.
+ * All formats are converted to JPEG because Resvg only supports
+ * PNG/JPEG/GIF in SVG <image> elements (not WebP).
  */
 async function imageToBase64(imagePath: string): Promise<string | null> {
   try {
     const buffer = await fs.readFile(imagePath);
-    const ext = path.extname(imagePath).toLowerCase();
-    const mimeType =
-      ext === '.webp'
-        ? 'image/webp'
-        : ext === '.png'
-          ? 'image/png'
-          : ext === '.jpg' || ext === '.jpeg'
-            ? 'image/jpeg'
-            : 'image/png';
-    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+    // Convert any image format to JPEG for Resvg compatibility
+    const jpegBuffer = await sharp(buffer).jpeg({ quality: 85 }).toBuffer();
+    return `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
   } catch {
     return null;
   }

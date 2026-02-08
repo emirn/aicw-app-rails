@@ -19,6 +19,10 @@ export interface Props {
   modifiedTime?: Date;
   author?: string;
   keywords?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
 }
 
 const config = getConfig();
@@ -33,6 +37,10 @@ const {
   modifiedTime,
   author,
   keywords,
+  ogTitle,
+  ogDescription,
+  twitterTitle,
+  twitterDescription,
 } = Astro.props;
 
 const pageTitle = title
@@ -76,6 +84,10 @@ const cssVars = {
       modifiedTime={modifiedTime}
       author={author}
       keywords={keywords}
+      ogTitle={ogTitle}
+      ogDescription={ogDescription}
+      twitterTitle={twitterTitle}
+      twitterDescription={twitterDescription}
       config={config}
     />
 

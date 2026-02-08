@@ -13,6 +13,10 @@ export interface Props {
   modifiedTime?: Date;
   author?: string;
   keywords?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
   config: SiteConfig;
 }
 
@@ -27,6 +31,10 @@ const {
   modifiedTime,
   author,
   keywords,
+  ogTitle,
+  ogDescription,
+  twitterTitle,
+  twitterDescription,
   config,
 } = Astro.props;
 
@@ -71,8 +79,8 @@ const ogImage = image
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content={type} />
 <meta property="og:url" content={fullCanonical} />
-<meta property="og:title" content={title} />
-<meta property="og:description" content={description || config.branding.site.description} />
+<meta property="og:title" content={ogTitle || title} />
+<meta property="og:description" content={ogDescription || description || config.branding.site.description} />
 {ogImage && (
   <>
     <meta property="og:image" content={ogImage} />
@@ -94,8 +102,8 @@ const ogImage = image
 <!-- Twitter -->
 <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
 <meta name="twitter:url" content={fullCanonical} />
-<meta name="twitter:title" content={title} />
-<meta name="twitter:description" content={description || config.branding.site.description} />
+<meta name="twitter:title" content={twitterTitle || ogTitle || title} />
+<meta name="twitter:description" content={twitterDescription || ogDescription || description || config.branding.site.description} />
 {ogImage && (
   <>
     <meta name="twitter:image" content={ogImage} />

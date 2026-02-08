@@ -1,0 +1,6 @@
+[submodule "sample-apps/once-campfire"]
+	path = sample-apps/once-campfire
+	url = https://github.com/basecamp/once-campfire.git
+[submodule "sample-apps/jumpstart-pro-rails"]
+	path = sample-apps/jumpstart-pro-rails
+	url = git@github.com:emirn/jumpstart-pro-rails.git
