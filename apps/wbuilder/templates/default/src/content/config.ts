@@ -17,6 +17,11 @@ const articles = defineCollection({
     author: z.string().optional(),
     categories: z.array(z.string()).optional(),
     tags: z.array(z.string()).optional(),
+    og_title: z.string().optional(),
+    og_description: z.string().optional(),
+    twitter_title: z.string().optional(),
+    twitter_description: z.string().optional(),
+    breadcrumbs: z.string().optional(),
   }),
 });
 
