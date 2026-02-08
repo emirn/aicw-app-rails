@@ -21,6 +21,8 @@ things: "{{keywords}}"
 keywords: "{{keywords}}"
 ---
 
+{{toc}}
+
 {{content_jsonld}}
 
 {{content}}

@@ -1402,11 +1402,19 @@ async function main(): Promise<void> {
             let articleSuccess = true;
             for (let m = 0; m < actions.length; m++) {
               const currentAction = actions[m];
+
+              // Check if action was already applied — skip for all action types (local and API)
+              const localFolderPath = path.join(getProjectPaths(selectedProject!).content, articlePath);
+              const actionMeta = await getArticleMeta(localFolderPath);
+              if (actionMeta?.applied_actions?.includes(currentAction)) {
+                logger.log(`  [${m + 1}/${actions.length}] ${currentAction} skipped (already applied)`);
+                continue;
+              }
+
               logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
               // Handle local-only modes (e.g., render_diagrams, generate_image_hero)
               if (isLocalMode(currentAction)) {
-                const localFolderPath = path.join(getProjectPaths(selectedProject!).content, articlePath);
                 if (currentAction === 'render_diagrams') {
                   const localResult = await renderDiagramsLocal(fullPath, logger);
                   if (localResult.success) {
@@ -1458,6 +1466,7 @@ async function main(): Promise<void> {
                 if (result.skipped) {
                   // Action was skipped (e.g., already applied) - log warning and continue
                   logger.log(`  [${m + 1}/${actions.length}] ${currentAction} SKIPPED (already applied)`);
+                  await addAppliedAction(localFolderPath, currentAction);
                 } else {
                   // Action executed successfully
                   totalTokens += result.tokensUsed || 0;
@@ -1465,7 +1474,6 @@ async function main(): Promise<void> {
                   logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
 
                   // Record the action in applied_actions
-                  const localFolderPath = path.join(getProjectPaths(selectedProject!).content, articlePath);
                   await addAppliedAction(localFolderPath, currentAction);
                 }
               } else {
@@ -2077,10 +2085,18 @@ async function main(): Promise<void> {
               let articleSuccess = true;
               for (let m = 0; m < actions.length; m++) {
                 const currentAction = actions[m];
+
+                // Check if action was already applied — skip for all action types (local and API)
+                const localFolderPath = path.join(getProjectPaths(resolved.projectName).content, articlePath);
+                const actionMeta = await getArticleMeta(localFolderPath);
+                if (actionMeta?.applied_actions?.includes(currentAction)) {
+                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} skipped (already applied)`);
+                  continue;
+                }
+
                 logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
                 if (isLocalMode(currentAction)) {
-                  const localFolderPath = path.join(getProjectPaths(resolved.projectName).content, articlePath);
                   if (currentAction === 'render_diagrams') {
                     const localResult = await renderDiagramsLocal(fullPath, logger);
                     if (localResult.success) {
@@ -2133,7 +2149,6 @@ async function main(): Promise<void> {
                   logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
 
                   // Record the action in applied_actions
-                  const localFolderPath = path.join(getProjectPaths(resolved.projectName).content, articlePath);
                   await addAppliedAction(localFolderPath, currentAction);
                 } else {
                   logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${result.error}`);

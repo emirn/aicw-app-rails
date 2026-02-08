@@ -6,16 +6,6 @@
  */
 
 // ============================================================================
-// Configuration
-// ============================================================================
-
-/**
- * When true: generates TOC content and adds it as `toc` attribute in article JSON
- * When false (default): only adds anchors to content, no TOC generated
- */
-export const GENERATE_TOC_CONTENT = false;
-
-// ============================================================================
 // Types
 // ============================================================================
 
@@ -30,7 +20,7 @@ interface TOCHeading {
 
 interface TOCResult {
   anchorReplacements: Array<{ find: string; replace: string }>;  // Always populated
-  tocMarkdown: string;        // TOC content (empty if GENERATE_TOC_CONTENT=false)
+  tocHtml: string;            // TOC HTML content (wrapped in <div id="toc">)
   headings: TOCHeading[];
   skipped: boolean;
 }
@@ -120,16 +110,8 @@ function isInsideCodeBlock(index: number, ranges: CodeBlockRange[]): boolean {
  * Check if content already has a TOC
  */
 export function hasExistingTOC(content: string): boolean {
-  // Check for "## Table of Contents" header
-  if (/^##\s+Table of Contents/mi.test(content)) {
-    return true;
-  }
-
-  // Check for anchor patterns before headings (sign of existing TOC)
-  if (/<a\s+id="[^"]+"><\/a>\s*\n+##/m.test(content)) {
-    return true;
-  }
-
+  if (/^##\s+Table of Contents/mi.test(content)) return true;
+  if (/<div\s+id="toc">/i.test(content)) return true;
   return false;
 }
 
@@ -149,7 +131,7 @@ export function generateTOCLocal(content: string): TOCResult {
     return {
       anchorReplacements: [],
       headings: [],
-      tocMarkdown: '',
+      tocHtml: '',
       skipped: true
     };
   }
@@ -193,27 +175,29 @@ export function generateTOCLocal(content: string): TOCResult {
     return {
       anchorReplacements: [],
       headings: [],
-      tocMarkdown: '',
+      tocHtml: '',
       skipped: false
     };
   }
 
-  // 5. Build TOC markdown (only if GENERATE_TOC_CONTENT is enabled)
-  let tocMarkdown = '';
-  if (GENERATE_TOC_CONTENT) {
-    const tocLines = ['## Table of Contents', ''];
-    for (const h of headings) {
-      const indent = h.level === 3 ? '  ' : '';
-      tocLines.push(`${indent}- [${h.plainText}](#${h.slug})`);
-    }
-    tocMarkdown = tocLines.join('\n');
+  // 5. Build TOC HTML (always generated)
+  let tocHtml = '';
+  if (headings.length > 0) {
+    const items = headings.map(h => {
+      const cls = h.level === 3 ? ' class="toc-h3"' : '';
+      return `<li${cls}><a href="#${h.slug}">${h.plainText}</a></li>`;
+    }).join('\n');
+    tocHtml = `<div id="toc">\n<ul>\n${items}\n</ul>\n</div>`;
   }
 
-  // 6. Build anchor replacements (always - needed for TOC links to work)
+  // 6. Build anchor replacements — per-anchor existence check to prevent duplicates
   const anchorReplacements: Array<{ find: string; replace: string }> = [];
 
-  // Add anchors before each H2/H3 heading
   for (const h of headings) {
+    // Skip if this specific anchor already exists in content
+    if (content.includes(`<a id="${h.slug}"></a>`)) {
+      continue;
+    }
     anchorReplacements.push({
       find: h.line,
       replace: `<a id="${h.slug}"></a>\n\n${h.line}`
@@ -223,7 +207,7 @@ export function generateTOCLocal(content: string): TOCResult {
   return {
     anchorReplacements,
     headings,
-    tocMarkdown,
+    tocHtml,
     skipped: false
   };
 }
