@@ -101,7 +101,8 @@ const LOCAL_ACTIONS = [
 
   // Publishing group (201-299)
   { name: 'publish', description: 'Build published articles from enhanced drafts', usage: 'blogpostgen publish <project>', group: 'publish' },
-  { name: 'publish-local', description: 'Copy published articles to configured local folder', usage: 'blogpostgen publish-local <project>', group: 'publish' },
+  { name: 'publish-local', description: 'Copy published articles to local folder (no clean)', usage: 'blogpostgen publish-local <project>', group: 'publish' },
+  { name: 'publish-local-template', description: 'Clean, copy template + articles to local folder', usage: 'blogpostgen publish-local-template <project>', group: 'publish' },
   { name: 'publish-local-list', description: 'List projects with local folder publishing configured', usage: 'blogpostgen publish-local-list', group: 'publish' },
   { name: 'wb-preview', description: 'Build and preview published articles as website', usage: 'blogpostgen wb-preview <project>', group: 'publish' },
   { name: 'wb-build', description: 'Build website locally (no API server needed)', usage: 'blogpostgen wb-build <project>', group: 'publish' },
@@ -603,8 +604,9 @@ async function main(): Promise<void> {
       continue;
     }
 
-    // Handle publish-local (copy published articles to local folder)
-    if (finalAction === 'publish-local') {
+    // Handle publish-local (soft copy) and publish-local-template (clean + template copy)
+    if (finalAction === 'publish-local' || finalAction === 'publish-local-template') {
+      const softCopy = finalAction === 'publish-local';
       const { publishToLocalFolder } = await import('./lib/local-publish.js');
       const { loadProjectConfig } = await import('./lib/project-config.js');
 
@@ -632,7 +634,8 @@ async function main(): Promise<void> {
       }
 
       try {
-        logger.log(`\nCopying published articles to ${projectConfig.publish_to_local_folder.path}...`);
+        const modeLabel = softCopy ? 'soft copy' : 'clean + template';
+        logger.log(`\nCopying published articles to ${projectConfig.publish_to_local_folder.path} (${modeLabel})...`);
         logger.log('');
 
         const result = await publishToLocalFolder(
@@ -640,6 +643,7 @@ async function main(): Promise<void> {
           projectConfig.publish_to_local_folder,
           logger,
           projectConfig,
+          softCopy,
         );
 
         logger.log('');
@@ -2282,10 +2286,12 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Handle publish-local action (local - no API needed)
-  if (finalAction === 'publish-local') {
+  // Handle publish-local (soft copy) and publish-local-template (clean + template) actions
+  if (finalAction === 'publish-local' || finalAction === 'publish-local-template') {
+    const softCopy = finalAction === 'publish-local';
+    const cmdName = softCopy ? 'publish-local' : 'publish-local-template';
     if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen publish-local <project>');
+      outputError(`Error: Project name required. Usage: blogpostgen ${cmdName} <project>`);
       process.exit(1);
     }
 
@@ -2308,13 +2314,15 @@ async function main(): Promise<void> {
 
     const { publishToLocalFolder } = await import('./lib/local-publish.js');
 
-    logger.log(`Copying published articles to ${projectConfig.publish_to_local_folder.path}...`);
+    const modeLabel = softCopy ? 'soft copy' : 'clean + template';
+    logger.log(`Copying published articles to ${projectConfig.publish_to_local_folder.path} (${modeLabel})...`);
 
     const localResult = await publishToLocalFolder(
       projectPaths.root,
       projectConfig.publish_to_local_folder,
       logger,
       projectConfig,
+      softCopy,
     );
 
     logger.log(`${localResult.articlesPublished} article(s) copied`);
