@@ -1,12 +1,15 @@
 # frozen_string_literal: true
 
 class ProjectWebsite < ApplicationRecord
+  include Auditable
+
   has_prefix_id :website
 
   # Associations
   belongs_to :project
   has_many :articles, class_name: "WebsiteArticle", foreign_key: :website_id, dependent: :destroy
   has_many :deployments, class_name: "WebsiteDeployment", foreign_key: :website_id, dependent: :destroy
+  has_many :pipeline_executions, foreign_key: :website_id, dependent: :destroy
 
   # Status enum (matches Supabase CHECK constraint)
   enum :status, { draft: "draft", active: "active", disabled: "disabled" }
@@ -31,6 +34,11 @@ class ProjectWebsite < ApplicationRecord
   # Theme config handling
   def theme_config
     super || DEFAULT_THEME_CONFIG
+  end
+
+  # Sgen config handling
+  def sgen_config
+    super || {}
   end
 
   # Get the public URL for this website

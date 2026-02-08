@@ -72,13 +72,20 @@ class Api::V1::ProjectWebsitesController < Api::BaseController
   end
 
   def website_params
-    params.require(:website).permit(
+    permitted = params.require(:website).permit(
       :name,
       :slug,
       :status,
       :custom_domain,
       theme_config: [:primaryColor, :headerText, :footerText, :logoUrl]
     )
+
+    # sgen_config is arbitrary nested JSON, permit it separately
+    if params[:website]&.key?(:sgen_config)
+      permitted[:sgen_config] = params[:website][:sgen_config].permit!
+    end
+
+    permitted
   end
 
   def website_json(website)
@@ -91,6 +98,7 @@ class Api::V1::ProjectWebsitesController < Api::BaseController
       custom_domain: website.custom_domain,
       cloudflare_project_name: website.cloudflare_project_name,
       theme_config: website.theme_config,
+      sgen_config: website.sgen_config,
       public_url: website.public_url,
       last_deployed_at: website.last_deployed_at,
       created_at: website.created_at,
