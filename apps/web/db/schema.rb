@@ -10,7 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_08_000006) do
+  create_table "account_invitations", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.integer "invited_by_id", null: false
+    t.string "name"
+    t.json "roles", default: {"admin" => false, "member" => true}
+    t.string "token", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "email"], name: "index_account_invitations_on_account_id_and_email", unique: true
+    t.index ["account_id"], name: "index_account_invitations_on_account_id"
+    t.index ["invited_by_id"], name: "index_account_invitations_on_invited_by_id"
+    t.index ["token"], name: "index_account_invitations_on_token", unique: true
+  end
+
   create_table "account_users", force: :cascade do |t|
     t.integer "account_id", null: false
     t.datetime "created_at", null: false
@@ -74,6 +89,49 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
     t.index ["user_id"], name: "index_api_tokens_on_user_id"
   end
 
+  create_table "audit_logs", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.string "action", null: false
+    t.integer "auditable_id"
+    t.string "auditable_type"
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.json "metadata", default: {}
+    t.string "request_id"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["account_id", "action"], name: "index_audit_logs_on_account_id_and_action"
+    t.index ["account_id", "created_at"], name: "index_audit_logs_on_account_id_and_created_at"
+    t.index ["account_id"], name: "index_audit_logs_on_account_id"
+    t.index ["auditable_type", "auditable_id"], name: "index_audit_logs_on_auditable_type_and_auditable_id"
+    t.index ["user_id"], name: "index_audit_logs_on_user_id"
+  end
+
+  create_table "pipeline_executions", force: :cascade do |t|
+    t.integer "actions_completed", default: 0
+    t.integer "article_id"
+    t.json "completed_actions", default: []
+    t.datetime "completed_at"
+    t.decimal "cost_usd", precision: 10, scale: 6, default: "0.0"
+    t.datetime "created_at", null: false
+    t.string "current_action"
+    t.integer "duration_ms"
+    t.text "error_message"
+    t.string "failed_action"
+    t.string "pipeline_name", null: false
+    t.string "status", default: "pending", null: false
+    t.integer "tokens_used", default: 0
+    t.integer "total_actions"
+    t.string "trigger_reason"
+    t.datetime "updated_at", null: false
+    t.integer "website_id", null: false
+    t.index ["article_id", "created_at"], name: "index_pipeline_executions_on_article_id_and_created_at"
+    t.index ["article_id"], name: "index_pipeline_executions_on_article_id"
+    t.index ["status"], name: "index_pipeline_executions_on_status"
+    t.index ["website_id", "created_at"], name: "index_pipeline_executions_on_website_id_and_created_at"
+    t.index ["website_id"], name: "index_pipeline_executions_on_website_id"
+  end
+
   create_table "project_ranking_configs", force: :cascade do |t|
     t.json "brand_synonyms", default: []
     t.datetime "created_at", null: false
@@ -91,6 +149,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
     t.datetime "last_deployed_at"
     t.string "name", null: false
     t.integer "project_id", null: false
+    t.json "sgen_config", default: {}
     t.string "slug", null: false
     t.string "status", default: "draft", null: false
     t.json "theme_config"
@@ -108,11 +167,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
     t.string "name", null: false
     t.string "tracking_id", null: false
     t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
     t.index ["account_id"], name: "index_projects_on_account_id"
     t.index ["domain"], name: "index_projects_on_domain", unique: true
     t.index ["tracking_id"], name: "index_projects_on_tracking_id", unique: true
-    t.index ["user_id"], name: "index_projects_on_user_id"
   end
 
   create_table "subscription_plans", force: :cascade do |t|
@@ -128,6 +185,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
   end
 
   create_table "subscriptions", force: :cascade do |t|
+    t.integer "account_id"
     t.datetime "created_at", null: false
     t.datetime "current_period_end"
     t.datetime "current_period_start"
@@ -137,7 +195,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
     t.string "stripe_subscription_id"
     t.datetime "trial_ends_at"
     t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
+    t.integer "user_id"
+    t.index ["account_id"], name: "index_subscriptions_on_account_id"
     t.index ["plan_id"], name: "index_subscriptions_on_plan_id"
     t.index ["status"], name: "index_subscriptions_on_status"
     t.index ["user_id"], name: "index_subscriptions_on_user_id", unique: true
@@ -202,16 +261,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_000002) do
     t.index ["website_id"], name: "index_website_deployments_on_website_id"
   end
 
+  add_foreign_key "account_invitations", "accounts"
+  add_foreign_key "account_invitations", "users", column: "invited_by_id"
   add_foreign_key "account_users", "accounts"
   add_foreign_key "account_users", "users"
   add_foreign_key "accounts", "users", column: "owner_id"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "api_tokens", "users"
+  add_foreign_key "audit_logs", "accounts"
+  add_foreign_key "audit_logs", "users"
+  add_foreign_key "pipeline_executions", "project_websites", column: "website_id"
+  add_foreign_key "pipeline_executions", "website_articles", column: "article_id"
   add_foreign_key "project_ranking_configs", "projects"
   add_foreign_key "project_websites", "projects"
   add_foreign_key "projects", "accounts"
-  add_foreign_key "projects", "users"
+  add_foreign_key "subscriptions", "accounts"
   add_foreign_key "subscriptions", "subscription_plans", column: "plan_id"
   add_foreign_key "subscriptions", "users"
   add_foreign_key "visibility_checks", "projects"
