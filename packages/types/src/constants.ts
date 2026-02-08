@@ -46,7 +46,7 @@ export const HISTORY_DIR = '_history';
  * When UnifiedSerializer writes, these fields are automatically synced to {field}.md
  * These .md files are write-only — never read back as overrides.
  */
-export const SERIALIZED_FIELDS = ['content', 'faq', 'content_jsonld', 'faq_jsonld'] as const;
+export const SERIALIZED_FIELDS = ['content', 'faq', 'content_jsonld', 'faq_jsonld', 'toc'] as const;
 
 /** Type for serialized field names */
 export type SerializedField = typeof SERIALIZED_FIELDS[number];
@@ -57,4 +57,5 @@ export const SERIALIZED_FIELD_FILES: Record<SerializedField, string> = {
   faq: 'faq.md',
   content_jsonld: 'content_jsonld.md',
   faq_jsonld: 'faq_jsonld.md',
+  toc: 'toc.md',
 };

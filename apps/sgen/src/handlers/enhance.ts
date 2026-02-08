@@ -531,7 +531,18 @@ export async function handleEnhance(
 
     // ============== LOCAL TOC GENERATION (NO AI) ==============
     if (mode === 'add_toc') {
-      const { generateTOCLocal, GENERATE_TOC_CONTENT } = await import('../utils/toc-generator');
+      // Skip if toc already exists on the article
+      if (normalizedMeta.toc && normalizedMeta.toc.trim()) {
+        log.info({ path: context.articlePath, mode }, 'add_toc:skipped (toc already exists)');
+        return {
+          success: true,
+          message: 'Skipped (toc already exists)',
+          skipped: true,
+          operations: [],
+        };
+      }
+
+      const { generateTOCLocal } = await import('../utils/toc-generator');
       const tocResult = generateTOCLocal(article.content);
 
       if (tocResult.skipped) {
@@ -544,50 +555,51 @@ export async function handleEnhance(
         };
       }
 
-      if (tocResult.anchorReplacements.length > 0) {
-        // Apply anchor replacements to content (always)
-        const { result, applied, skipped } = applyTextReplacements(
-          article.content,
-          tocResult.anchorReplacements
-        );
-
-        // Build updated article (unified object)
-        // Conditionally add toc attribute if GENERATE_TOC_CONTENT is enabled
-        const updatedArticleObj = updateArticle(normalizedMeta, {
-          content: result,
-          ...(GENERATE_TOC_CONTENT && tocResult.tocMarkdown ? { toc: tocResult.tocMarkdown } : {}),
-        });
-
-        const message = GENERATE_TOC_CONTENT
-          ? `Added TOC with ${tocResult.headings.length} headings (local, no AI)`
-          : `Added anchors for ${tocResult.headings.length} headings (local, no AI)`;
-
-        log.info({
-          path: context.articlePath,
-          mode,
-          headings: tocResult.headings.length,
-          applied,
-          skipped: skipped.length,
-          tocGenerated: GENERATE_TOC_CONTENT
-        }, 'add_toc:local applied');
-
+      if (tocResult.headings.length === 0) {
+        log.info({ path: context.articlePath, mode }, 'add_toc:no headings found');
         return {
           success: true,
-          message,
+          message: 'No headings found for TOC',
           tokensUsed: 0,
           costUsd: 0,
-          operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          operations: [],
         };
       }
 
-      // No headings found
-      log.info({ path: context.articlePath, mode }, 'add_toc:no headings found');
+      // Apply anchor replacements to content if any new anchors needed
+      let updatedContent = article.content;
+      let applied = 0;
+      let skippedReplacements: string[] = [];
+      if (tocResult.anchorReplacements.length > 0) {
+        const replaceResult = applyTextReplacements(
+          article.content,
+          tocResult.anchorReplacements
+        );
+        updatedContent = replaceResult.result;
+        applied = replaceResult.applied;
+        skippedReplacements = replaceResult.skipped;
+      }
+
+      // Build updated article — always save toc HTML
+      const updatedArticleObj = updateArticle(normalizedMeta, {
+        content: updatedContent,
+        toc: tocResult.tocHtml,
+      });
+
+      log.info({
+        path: context.articlePath,
+        mode,
+        headings: tocResult.headings.length,
+        anchorsAdded: applied,
+        anchorsSkipped: skippedReplacements.length,
+      }, 'add_toc:local applied');
+
       return {
         success: true,
-        message: 'No headings found for TOC',
+        message: `Added TOC with ${tocResult.headings.length} headings (local, no AI)`,
         tokensUsed: 0,
         costUsd: 0,
-        operations: [],
+        operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
       };
     }
     // ============== END LOCAL TOC GENERATION ==============

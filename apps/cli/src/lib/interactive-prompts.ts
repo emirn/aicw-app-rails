@@ -1067,6 +1067,8 @@ export function displayBatchSummary(
     console.error('\nFailed articles:');
     for (const result of failed) {
       console.error(`  - ${result.path}: ${result.error || 'Unknown error'}`);
+      const failedFullPath = join(projectDir, 'drafts', result.path, 'index.json');
+      console.error(`    ${failedFullPath}`);
     }
   }
 }
