@@ -28,14 +28,15 @@ export interface LocalPublishProjectInfo {
 /**
  * Copy published articles and assets to a configured local folder.
  *
- * Reads from published/ and published-assets/ directories (output of `publish` command).
- * Only copies/overwrites — never deletes destination files.
+ * Rebuilds published/ from drafts, then copies to the target folder.
+ * Cleans the content and assets subfolders before copying.
  */
 export async function publishToLocalFolder(
   projectDir: string,
   config: ILocalPublishConfig,
   logger: Logger,
   projectConfig?: IProjectConfig,
+  softCopy?: boolean,
 ): Promise<LocalPublishResult> {
   const result: LocalPublishResult = { articlesPublished: 0, assetsCopied: 0, errors: [] };
 
@@ -44,8 +45,19 @@ export async function publishToLocalFolder(
     throw new Error(`Target path does not exist: ${config.path}`);
   }
 
+  // Auto-run publish step to rebuild published/ from drafts/
+  const draftsDir = path.join(projectDir, 'drafts');
+  const publishedDir = path.join(projectDir, 'published');
+  if (existsSync(draftsDir)) {
+    const { buildPublished } = await import('./folder-manager.js');
+    logger.log('Building published articles from drafts...');
+    const publishResult = await buildPublished(projectDir, draftsDir, publishedDir, logger);
+    logger.log(`Published ${publishResult.success} article(s)`);
+  }
+
   // Template copy step: if templatePath is set, copy template and write merged config
-  if (config.templatePath) {
+  // Skip in soft-copy mode (preserves custom layouts/components/pages)
+  if (!softCopy && config.templatePath) {
     if (!existsSync(config.templatePath)) {
       throw new Error(`Template path does not exist: ${config.templatePath}`);
     }
@@ -84,22 +96,31 @@ export async function publishToLocalFolder(
     logger.log(`Wrote merged site config to data/site-config.json`);
   }
 
-  // When templatePath is set, ensure content subfolder exists (template may have created it)
+  // When templatePath is set (and not soft-copy), ensure content subfolder exists (template may have created it)
   const contentDest = path.join(config.path, config.content_subfolder);
-  if (config.templatePath) {
+  if (softCopy) {
+    // Soft mode: ensure dir exists but don't require it pre-exists
+    await fs.mkdir(contentDest, { recursive: true });
+  } else if (config.templatePath) {
     await fs.mkdir(contentDest, { recursive: true });
   } else if (!existsSync(contentDest)) {
     throw new Error(`Content subfolder does not exist: ${contentDest}`);
   }
 
   // Source directories (output of `publish` command)
-  const publishedDir = path.join(projectDir, 'published');
   const publishedAssetsDir = path.join(projectDir, 'published-assets');
 
   if (!existsSync(publishedDir)) {
     throw new Error(
       `No published/ directory found. Run \`publish\` first to build published articles.`
     );
+  }
+
+  // Clean content subfolder to remove stale articles (skip in soft-copy mode)
+  if (!softCopy) {
+    await fs.rm(contentDest, { recursive: true, force: true });
+    await fs.mkdir(contentDest, { recursive: true });
+    logger.log(`Cleaned content folder: ${config.content_subfolder}`);
   }
 
   // Copy markdown files from published/ to content destination
@@ -124,6 +145,11 @@ export async function publishToLocalFolder(
   // Copy assets from published-assets/ to assets destination
   if (existsSync(publishedAssetsDir)) {
     const assetsDest = path.join(config.path, config.assets_subfolder);
+
+    // Clean assets subfolder to remove stale assets (skip in soft-copy mode)
+    if (!softCopy) {
+      await fs.rm(assetsDest, { recursive: true, force: true });
+    }
     await fs.mkdir(assetsDest, { recursive: true });
 
     const assetFiles = await getAllFiles(publishedAssetsDir);
