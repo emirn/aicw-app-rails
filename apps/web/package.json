@@ -2,6 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "vite build",
     "postinstall": "node patches/fix-vite-plugin-ruby.js"
   },
   "devDependencies": {
