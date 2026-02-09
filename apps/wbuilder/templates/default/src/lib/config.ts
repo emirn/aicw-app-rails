@@ -223,6 +223,33 @@ export interface SiteConfig {
      */
     domain?: string;
   };
+  /**
+   * Content sections configuration. Maps article subfolders to section metadata.
+   * When configured, enables section index pages, nav auto-injection, and home page filtering.
+   * Sites without sections config work exactly as before.
+   */
+  sections?: SectionConfig[];
+}
+
+export interface SectionConfig {
+  /** Must match subfolder name in src/content/articles/ */
+  id: string;
+  /** Display name (e.g., "Legal AI Tools") */
+  label: string;
+  /** URL path prefix (usually same as id), OR absolute URL (https://...) for nav-only links */
+  path: string;
+  /** Auto-add to header nav. Default: false */
+  showInNav?: boolean;
+  /** Show articles on home page. Default: true */
+  showOnHome?: boolean;
+  /** Uppercase label above grid (e.g., "LEGAL AI TOOLS") */
+  sectionTitle?: string;
+  /** Meta description for section index page */
+  description?: string;
+  /** Override blog.postsPerPage for this section */
+  postsPerPage?: number;
+  /** Article display layout. 'grid' = tile cards, 'list' = horizontal rows. Default: 'grid' */
+  layout?: 'grid' | 'list';
 }
 
 // Default configuration

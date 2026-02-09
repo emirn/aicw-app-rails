@@ -167,9 +167,8 @@ export async function buildAstroSite(options) {
     const frontmatter = {
       title: meta.title || 'Untitled',
       description: meta.description,
-      date: meta.date || new Date().toISOString(),
+      published_at: meta.created_at || meta.published_at || new Date().toISOString(),
       updated_at: meta.updated_at,
-      published_at: meta.published_at,
       image_hero: meta.image_hero,
       image_og: meta.image_og,
       keywords: meta.keywords || [],

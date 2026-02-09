@@ -7,7 +7,6 @@ import { existsSync } from 'fs';
  * All macros map 1:1 to article JSON field names
  */
 const DEFAULT_TEMPLATE = `---
-date: {{created_at}}
 updated_at: {{updated_at}}
 published_at: {{published_at}}
 title: "{{title}}"

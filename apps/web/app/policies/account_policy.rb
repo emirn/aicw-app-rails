@@ -10,12 +10,11 @@ class AccountPolicy < ApplicationPolicy
   end
 
   def create?
-    # Any authenticated user can create accounts
     true
   end
 
   def update?
-    admin? || owner?
+    target_admin? || owner?
   end
 
   def destroy?
@@ -26,13 +25,16 @@ class AccountPolicy < ApplicationPolicy
     member?
   end
 
-  # Member management policies
+  def transfer?
+    owner?
+  end
+
   def invite_member?
-    admin? || owner?
+    target_admin? || owner?
   end
 
   def remove_member?
-    admin? || owner?
+    target_admin? || owner?
   end
 
   def update_member_role?
@@ -45,22 +47,21 @@ class AccountPolicy < ApplicationPolicy
     record.account_users.exists?(user: user)
   end
 
-  def admin?
-    account_user&.admin?
+  def target_admin?
+    target_account_user&.admin?
   end
 
   def owner?
-    record.owner?(user)
+    user && record.owner?(user)
   end
 
-  def account_user
-    @account_user ||= record.account_users.find_by(user: user)
+  def target_account_user
+    @target_account_user ||= record.account_users.find_by(user: user)
   end
 
   class Scope < Scope
     def resolve
-      # Return all accounts where the user is a member
-      scope.joins(:account_users).where(account_users: { user_id: user.id })
+      scope.joins(:account_users).where(account_users: { user_id: account_user&.user_id })
     end
   end
 end

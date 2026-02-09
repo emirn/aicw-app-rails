@@ -5,9 +5,8 @@ const articles = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string().optional(),
-    date: z.coerce.date(),
+    published_at: z.coerce.date(),
     updated_at: z.coerce.date().optional(),
-    published_at: z.coerce.date().optional(),
     image_hero: z.string().optional(),
     image_og: z.string().optional(),
     keywords: z.union([
@@ -25,4 +24,16 @@ const articles = defineCollection({
   }),
 });
 
-export const collections = { articles };
+const pages = defineCollection({
+  type: 'content',
+  schema: z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    image_hero: z.string().optional(),
+    blog_grid: z.boolean().default(false),
+    blog_grid_title: z.string().optional(),
+    blog_grid_limit: z.number().default(9),
+  }),
+});
+
+export const collections = { articles, pages };

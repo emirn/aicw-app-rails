@@ -1,0 +1,9 @@
+You've been invited!
+
+<%= @invited_by.name %> has invited you to join "<%= @account.name %>" on AI Chat Watch.
+
+<% if @invitation.name.present? %>Hi <%= @invitation.name %>,<% end %>
+
+Accept your invitation: <%= accept_invitation_url(token: @invitation.token) %>
+
+If you don't want to accept this invitation, you can simply ignore this email.

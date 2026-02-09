@@ -8,6 +8,7 @@ class Api::BaseController < ActionController::API
 
   before_action :authenticate_api_token!
   before_action :set_current_account
+  before_action :set_request_details
   around_action :track_api_response_time
 
   protected
@@ -21,6 +22,12 @@ class Api::BaseController < ActionController::API
   end
 
   def current_account_user
+    Current.account_user
+  end
+
+  # Pundit uses this as the first argument to all policies.
+  # By passing account_user instead of user, policies can check roles directly.
+  def pundit_user
     Current.account_user
   end
 
@@ -55,7 +62,7 @@ class Api::BaseController < ActionController::API
                      @api_token&.metadata&.dig("account_id")
 
     Current.account = if account_prefix.present?
-      @current_user.accounts.find_by(prefix_id: account_prefix)
+      @current_user.accounts.find_by_prefix_id(account_prefix)
     else
       @current_user.default_account
     end
@@ -104,6 +111,12 @@ class Api::BaseController < ActionController::API
     false
   end
 
+  def set_request_details
+    Current.request_id = request.request_id
+    Current.ip_address = request.remote_ip
+    Current.user_agent = request.user_agent
+  end
+
   def track_api_response_time
     start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     yield
@@ -113,7 +126,7 @@ class Api::BaseController < ActionController::API
 
   # Helper to find project by prefix_id (auto-scoped to current account via ActsAsTenant)
   def find_project
-    @project = Project.find_by!(prefix_id: params[:project_id])
+    @project = Project.find_by_prefix_id!(params[:project_id] || params[:id])
   rescue ActiveRecord::RecordNotFound
     render_api_not_found("Project")
   end

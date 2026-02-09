@@ -30,16 +30,12 @@ function getTemplatePath(): string {
     }
   }
 
-  // Try relative paths from CLI location
-  // aicw-app-rails/apps/cli/dist/lib -> ../../aicw-website-builder/aicw_wb_site_templates/default
-  // Go up 5 levels from dist/lib to websites root
+  // Try relative paths from CLI location within monorepo
   const possiblePaths = [
-    // From dist/lib (compiled): dist/lib -> cli -> apps -> aicw-app-rails -> websites
-    path.resolve(__dirname, '../../../../../aicw-website-builder/aicw_wb_site_templates/default'),
-    // From src/lib (development): src/lib -> cli -> apps -> aicw-app-rails -> websites
-    path.resolve(__dirname, '../../../../../aicw-website-builder/aicw_wb_site_templates/default'),
-    // From monorepo root (aicw-app-rails)
-    path.resolve(process.cwd(), '../aicw-website-builder/aicw_wb_site_templates/default'),
+    // From dist/lib or src/lib: lib -> dist/src -> cli -> apps -> aicw-app-rails
+    path.resolve(__dirname, '../../../../apps/wbuilder/templates/default'),
+    // From monorepo root (cwd when run via bin/dev)
+    path.resolve(process.cwd(), 'apps/wbuilder/templates/default'),
   ];
 
   for (const templatePath of possiblePaths) {
@@ -65,14 +61,12 @@ function getAstroBuilderPath(): string {
     }
   }
 
-  // Try relative paths from CLI location
+  // Try relative paths from CLI location within monorepo
   const possiblePaths = [
-    // From dist/lib (compiled): dist/lib -> cli -> apps -> aicw-app-rails -> websites
-    path.resolve(__dirname, '../../../../../aicw-website-builder/api-server/src/astro-builder.js'),
-    // From src/lib (development): src/lib -> cli -> apps -> aicw-app-rails -> websites
-    path.resolve(__dirname, '../../../../../aicw-website-builder/api-server/src/astro-builder.js'),
-    // From monorepo root (aicw-app-rails)
-    path.resolve(process.cwd(), '../aicw-website-builder/api-server/src/astro-builder.js'),
+    // From dist/lib or src/lib: lib -> dist/src -> cli -> apps -> aicw-app-rails
+    path.resolve(__dirname, '../../../../apps/wbuilder/api-server/src/astro-builder.js'),
+    // From monorepo root (cwd when run via bin/dev)
+    path.resolve(process.cwd(), 'apps/wbuilder/api-server/src/astro-builder.js'),
   ];
 
   for (const builderPath of possiblePaths) {

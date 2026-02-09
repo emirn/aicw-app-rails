@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class WebsiteArticle < ApplicationRecord
+  include Auditable
+
   has_prefix_id :article
 
   # Associations

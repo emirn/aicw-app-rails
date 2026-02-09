@@ -42,3 +42,27 @@ SubscriptionPlan.find_or_create_by!(name: "Enterprise") do |plan|
 end
 
 puts "Created #{SubscriptionPlan.count} subscription plans"
+
+# Development seed user
+if Rails.env.development?
+  puts "Seeding development user..."
+
+  dev_user = User.find_or_initialize_by(email: "dev@example.com")
+  dev_user.password = "password123"
+  dev_user.full_name = "Dev User"
+  dev_user.save!
+
+  # Assign free trial subscription
+  trial_plan = SubscriptionPlan.find_by(name: "Free Trial")
+  if trial_plan && !dev_user.subscription
+    Subscription.create!(
+      user: dev_user,
+      plan: trial_plan,
+      status: "active",
+      current_period_start: Time.current,
+      current_period_end: 1.year.from_now
+    )
+  end
+
+  puts "Dev user created: dev@example.com / password123"
+end

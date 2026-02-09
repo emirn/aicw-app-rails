@@ -1,5 +1,6 @@
 ---
 import type { SiteConfig } from '../lib/config';
+import { getEffectiveNavLinks } from '../lib/sections';
 import SearchTrigger from './SearchTrigger.astro';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 
 const { config } = Astro.props;
 const showSearch = config.search?.enabled && config.search?.showInHeader !== false;
+const navLinks = getEffectiveNavLinks(config);
 ---
 
 <header class="sticky top-0 z-50 bg-[var(--color-bg-primary)]/95 dark:bg-[var(--color-dark-bg-primary)]/95 backdrop-blur-sm border-b border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
@@ -31,7 +33,7 @@ const showSearch = config.search?.enabled && config.search?.showInHeader !== fal
 
       <!-- Desktop Navigation -->
       <div class="hidden md:flex items-center gap-6">
-        {config.header.navLinks.map((link) => (
+        {navLinks.map((link) => (
           <a
             href={link.url}
             class:list={[
@@ -78,7 +80,7 @@ const showSearch = config.search?.enabled && config.search?.showInHeader !== fal
           <SearchTrigger class="justify-start" showShortcut={false} />
         )}
 
-        {config.header.navLinks.map((link) => (
+        {navLinks.map((link) => (
           <a
             href={link.url}
             class:list={[

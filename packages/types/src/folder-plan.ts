@@ -139,6 +139,8 @@ export interface ILocalPublishConfig {
   templatePath?: string;
   /** Settings merged with template's config.defaults.json → written to data/site-config.json */
   template_settings?: Record<string, unknown>;
+  /** Subfolder for custom pages content (default: "src/content/pages") */
+  pages_subfolder?: string;
 }
 
 /**

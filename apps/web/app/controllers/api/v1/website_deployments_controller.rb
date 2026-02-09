@@ -47,15 +47,15 @@ class Api::V1::WebsiteDeploymentsController < Api::BaseController
   private
 
   def find_website
-    @website = ProjectWebsite.joins(:project)
-                             .where(projects: { user_id: current_user.id })
-                             .find_by!(prefix_id: params[:website_id])
-  rescue ActiveRecord::RecordNotFound
-    render_api_not_found("Website")
+    # Find website by prefix_id, then verify its project belongs to current account via ActsAsTenant
+    @website = ProjectWebsite.find_by_prefix_id(params[:website_id])
+    unless @website && Project.exists?(@website.project_id)
+      render_api_not_found("Website")
+    end
   end
 
   def find_deployment
-    @deployment = @website.deployments.find_by!(prefix_id: params[:id])
+    @deployment = @website.deployments.find_by_prefix_id!(params[:id])
   rescue ActiveRecord::RecordNotFound
     render_api_not_found("Deployment")
   end

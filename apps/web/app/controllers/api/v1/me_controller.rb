@@ -10,7 +10,7 @@ class Api::V1::MeController < Api::BaseController
         name: current_user.name,
         full_name: current_user.full_name,
         avatar_url: current_user.avatar_url,
-        is_admin: current_user.is_admin,
+        is_admin: current_account_user&.admin? || false,
         created_at: current_user.created_at,
         subscription: subscription_data
       },
@@ -22,7 +22,7 @@ class Api::V1::MeController < Api::BaseController
   private
 
   def subscription_data
-    subscription = current_user.subscription
+    subscription = current_account&.subscription
     return nil unless subscription
 
     {

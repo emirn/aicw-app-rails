@@ -1,45 +1,84 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
 import { getConfig } from '../lib/config';
-import { getPublishedArticles } from '../lib/articles';
+import { getHomeArticles } from '../lib/sections';
 import Hero from '../components/Hero.astro';
 import ArticleCard from '../components/ArticleCard.astro';
 import Pagination from '../components/Pagination.astro';
 
 const config = getConfig();
 
-// Get all published articles sorted by date
-const articles = (await getPublishedArticles())
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+// Check for custom root page
+let customRoot: Awaited<ReturnType<typeof getCollection<'pages'>>>[number] | undefined;
+try {
+  const pages = await getCollection('pages');
+  customRoot = pages.find((p) => p.slug === 'root');
+} catch {
+  // No pages collection — use default layout
+}
+
+let CustomContent: any;
+if (customRoot) {
+  const rendered = await customRoot.render();
+  CustomContent = rendered.Content;
+}
+
+// Get home-page articles (filtered by sections config, or all if no sections)
+const articles = (await getHomeArticles(config))
+  .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf());
 
 // Pagination
-const postsPerPage = config.blog.postsPerPage || 9;
+const postsPerPage = customRoot?.data.blog_grid_limit || config.blog.postsPerPage || 9;
 const totalPages = Math.ceil(articles.length / postsPerPage);
 const paginatedArticles = articles.slice(0, postsPerPage);
+
+// Should we show the blog grid?
+const showBlogGrid = customRoot ? customRoot.data.blog_grid : true;
+const blogGridTitle = customRoot?.data.blog_grid_title || config.blog.sectionTitle;
 ---
 
-<BaseLayout>
-  <Hero config={config} />
+<BaseLayout title={customRoot?.data.title} description={customRoot?.data.description}>
+  {customRoot ? (
+    <>
+      {customRoot.data.image_hero && (
+        <section class="relative">
+          <img
+            src={customRoot.data.image_hero}
+            alt={customRoot.data.title}
+            class="w-full h-64 sm:h-80 lg:h-96 object-cover"
+          />
+        </section>
+      )}
+      <article class="prose dark:prose-invert max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <CustomContent />
+      </article>
+    </>
+  ) : (
+    <Hero config={config} />
+  )}
 
-  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    {config.blog.sectionTitle && (
-      <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
-        {config.blog.sectionTitle}
-      </h2>
-    )}
+  {showBlogGrid && (
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {blogGridTitle && (
+        <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
+          {blogGridTitle}
+        </h2>
+      )}
 
-    {paginatedArticles.length > 0 ? (
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedArticles.map((article) => (
-          <ArticleCard article={article} config={config} />
-        ))}
-      </div>
-    ) : (
-      <p class="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] py-12">
-        No articles published yet.
-      </p>
-    )}
+      {paginatedArticles.length > 0 ? (
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {paginatedArticles.map((article) => (
+            <ArticleCard article={article} config={config} />
+          ))}
+        </div>
+      ) : (
+        <p class="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] py-12">
+          No articles published yet.
+        </p>
+      )}
 
-    <Pagination currentPage={1} totalPages={totalPages} />
-  </section>
+      {!customRoot && <Pagination currentPage={1} totalPages={totalPages} />}
+    </section>
+  )}
 </BaseLayout>

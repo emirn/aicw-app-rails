@@ -49,7 +49,7 @@ class Api::V1::ApiTokensController < Api::BaseController
   private
 
   def find_api_token
-    @managed_token = current_user.api_tokens.api_tokens.find_by!(prefix_id: params[:id])
+    @managed_token = current_user.api_tokens.api_tokens.find_by_prefix_id!(params[:id])
   rescue ActiveRecord::RecordNotFound
     render_api_not_found("API token")
   end

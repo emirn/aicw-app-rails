@@ -14,6 +14,7 @@ aicw-app-rails/
 ├── sample-apps/
 │   ├── inspector/            # Reference: full-stack inspector app
 │   └── cloudfare-website-publisher-template/  # Reference: Cloudflare Pages template
+|   --- once-campfire  # Reference: Campfire Ruby on Rails app for groups chats, like Slack
 ├── bin/
 │   └── dev           # Start all services for development
 ├── package.json      # npm workspaces root
