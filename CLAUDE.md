@@ -43,7 +43,36 @@ cd apps/sgen && npm run dev     # Article generation API only
 
 ## Deployment
 
-Push a tag matching `full-v*` (e.g., `full-v1.0.0`) to trigger the full-stack deployment workflow to AWS Lightsail via Kamal.
+Push a tag matching `full-v*` to trigger the full-stack deployment workflow (GitHub Actions) to AWS Lightsail via Kamal.
+
+### How to deploy
+
+```bash
+# Check existing tags to pick the next version
+git tag --list 'full-v*' --sort=-v:refname
+
+# Create the tag
+git tag full-v1.0.0
+
+# Push the tag to trigger deployment
+git push origin full-v1.0.0
+```
+
+The workflow builds and pushes Docker images for all three services (web, sgen, website-builder) to GHCR, then deploys them via Kamal to a single Lightsail instance.
+
+### What gets deployed
+
+| Service | Image | Description |
+|---------|-------|-------------|
+| **web** | `aicw-app-rails` | Rails 8 dashboard (main app) |
+| **sgen** | `sgen` | AI article generation API |
+| **website-builder** | `aicw-website-builder` | Astro site builder + Cloudflare Pages deployer |
+
+### Deployment config
+
+- Workflow: `.github/workflows/deploy-full-stack.yml`
+- Kamal config: `apps/web/deployment/full-stack/config/deploy.yml`
+- Dockerfiles: `apps/web/deployment/full-stack/Dockerfile.web`, `apps/sgen/Dockerfile`, `apps/wbuilder/api-server/Dockerfile`
 
 ## Services
 

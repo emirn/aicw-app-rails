@@ -31,13 +31,17 @@ export interface LocalPublishProjectInfo {
  * Rebuilds published/ from drafts, then copies to the target folder.
  * Cleans the content and assets subfolders before copying.
  */
+export function getPublishMethod(config: ILocalPublishConfig): 'template' | 'copy' {
+  return config.templatePath ? 'template' : 'copy';
+}
+
 export async function publishToLocalFolder(
   projectDir: string,
   config: ILocalPublishConfig,
   logger: Logger,
   projectConfig?: IProjectConfig,
-  softCopy?: boolean,
 ): Promise<LocalPublishResult> {
+  const softCopy = !config.templatePath;
   const result: LocalPublishResult = { articlesPublished: 0, assetsCopied: 0, errors: [] };
 
   // Validate target path exists
