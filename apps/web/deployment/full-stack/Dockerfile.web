@@ -16,10 +16,11 @@ FROM node:20-slim AS frontend-builder
 
 WORKDIR /app
 
-# Copy package files and vite config
+# Copy package files, vite config, and patches (needed by postinstall)
 COPY package.json package-lock.json* ./
 COPY vite.config.ts ./
 COPY config/vite.json ./config/
+COPY patches/ ./patches/
 
 # Install frontend dependencies
 RUN npm ci
