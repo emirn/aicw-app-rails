@@ -31,11 +31,11 @@ await app.register(multipart, {
 const API_KEY = process.env.AICW_WEBSITE_BUILD_API_KEY;
 
 // Paths are hardcoded based on environment:
-// - Production (Docker): /data/aicw_wb_data and /app/aicw-website-templates
-// - Local dev: ./aicw_wb_data and ../aicw-website-templates (relative to api-server)
+// - Production (Docker): /data/aicw_wb_data and /app/templates
+// - Local dev: ./aicw_wb_data and ../templates (relative to api-server)
 const isProduction = process.env.NODE_ENV === 'production';
 const DATA_DIR = isProduction ? '/data/aicw_wb_data' : path.resolve(__dirname, '../aicw_wb_data');
-const TEMPLATES_DIR = isProduction ? '/app/aicw-website-templates' : path.resolve(__dirname, '../../aicw-website-templates');
+const TEMPLATES_DIR = isProduction ? '/app/templates' : path.resolve(__dirname, '../../templates');
 
 // Ensure data directory exists
 await fs.mkdir(DATA_DIR, { recursive: true });

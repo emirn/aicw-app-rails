@@ -22,10 +22,10 @@ RUN npm ci --production
 COPY api-server/src ./src
 
 # Copy Astro site templates
-COPY aicw-website-templates ./aicw-website-templates
+COPY templates ./templates
 
 # Pre-install Astro template dependencies for faster builds
-RUN cd aicw-website-templates/default && npm ci
+RUN cd templates/default && npm ci
 
 # Create data directory
 RUN mkdir -p /data/aicw_wb_data
