@@ -10,7 +10,9 @@ Rails.application.routes.draw do
   # Devise authentication routes
   # Skip password routes (Google OAuth only for now)
   devise_for :users, skip: [:passwords], controllers: {
-    omniauth_callbacks: "users/omniauth_callbacks"
+    omniauth_callbacks: "users/omniauth_callbacks",
+    sessions: "users/sessions",
+    registrations: "users/registrations"
   }
 
   # API routes
@@ -87,6 +89,6 @@ Rails.application.routes.draw do
   get "dashboard/manifest", to: "dashboard#manifest"
   get "dashboard/*path", to: "dashboard#index"
 
-  # Root route
-  root "pages#home"
+  # Root route — redirect to dashboard (Devise handles auth redirect)
+  root to: redirect("/dashboard")
 end

@@ -66,6 +66,11 @@ gem "rack-cors"
 gem "faraday", "~> 2.0"
 
 # ============================================
+# Maintenance Mode
+# ============================================
+gem "turnout"
+
+# ============================================
 # Environment Variables
 # ============================================
 gem "dotenv-rails", groups: [:development, :test]

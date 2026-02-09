@@ -293,6 +293,8 @@ GEM
     raabro (1.4.0)
     racc (1.8.1)
     rack (3.2.4)
+    rack-accept (0.4.5)
+      rack (>= 0.4)
     rack-cors (3.0.0)
       logger
       rack (>= 3.0.14)
@@ -452,6 +454,9 @@ GEM
     turbo-rails (2.0.23)
       actionpack (>= 7.1.0)
       railties (>= 7.1.0)
+    turnout (1.0.0)
+      rack
+      rack-accept (~> 0.4)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.2.0)
@@ -530,6 +535,7 @@ DEPENDENCIES
   stimulus-rails
   thruster
   turbo-rails
+  turnout
   tzinfo-data
   vite_rails (~> 3.0)
   web-console

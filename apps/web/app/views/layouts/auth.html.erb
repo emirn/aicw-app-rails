@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "AI Chat Watch" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= vite_client_tag %>
+    <%= vite_stylesheet_tag 'auth.css' %>
+  </head>
+
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div class="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <%# Branding %>
+      <div class="mb-8 text-center">
+        <h1 class="text-2xl font-bold tracking-tight text-foreground">AI Chat Watch</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Monitor your AI visibility</p>
+      </div>
+
+      <%# Card %>
+      <div class="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-lg">
+        <% if flash[:notice] %>
+          <div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <%= flash[:notice] %>
+          </div>
+        <% end %>
+
+        <% if flash[:alert] %>
+          <div class="mb-4 rounded-md border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <%= flash[:alert] %>
+          </div>
+        <% end %>
+
+        <%= yield %>
+      </div>
+    </div>
+  </body>
+</html>
