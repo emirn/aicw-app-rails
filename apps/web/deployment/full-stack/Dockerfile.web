@@ -21,12 +21,14 @@ COPY package.json package-lock.json* ./
 COPY vite.config.ts ./
 COPY config/vite.json ./config/
 COPY patches/ ./patches/
+COPY postcss.config.cjs tailwind.config.cjs ./
 
 # Install frontend dependencies
 RUN npm ci
 
-# Copy frontend source code
+# Copy frontend source code and views (Tailwind scans views for class names)
 COPY app/frontend ./app/frontend
+COPY app/views ./app/views
 
 # Build frontend assets
 RUN npm run build
