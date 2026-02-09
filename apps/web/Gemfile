@@ -68,7 +68,7 @@ gem "faraday", "~> 2.0"
 # ============================================
 # Maintenance Mode
 # ============================================
-gem "turnout2024"
+gem "turnout2024", require: "turnout"
 
 # ============================================
 # Environment Variables
