@@ -4,7 +4,6 @@
 # Trigger: Push to tags matching 'full-v*' (e.g., full-v1.0.0)
 #
 # Required secrets:
-#   - GHCR_PAT: GitHub Container Registry Personal Access Token
 #   - AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: SSH private key for server access
 #   - AICW_RAILS_SERVER_IP: Lightsail server IP
 #   - AICW_RAILS_DOMAIN: Domain name for SSL
@@ -24,13 +23,17 @@ on:
     tags:
       - 'full-v*'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     env:
       WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/aicw-app-rails
-      KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Git checkout
@@ -46,7 +49,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Rails image
         uses: docker/build-push-action@v5
@@ -122,7 +125,7 @@ jobs:
           mkdir -p apps/web/deployment/full-stack/.kamal
           cat > apps/web/deployment/full-stack/.kamal/secrets <<EOF
           KAMAL_REGISTRY_USERNAME=${{ github.repository_owner }}
-          KAMAL_REGISTRY_PASSWORD=${{ secrets.GHCR_PAT }}
+          KAMAL_REGISTRY_PASSWORD=${{ secrets.GITHUB_TOKEN }}
           RAILS_MASTER_KEY=${{ secrets.RAILS_MASTER_KEY }}
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -144,7 +147,7 @@ jobs:
           AICW_RAILS_DEPLOY_USERNAME: ${{ secrets.AICW_RAILS_DEPLOY_USERNAME }}
           AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: "true"
           KAMAL_REGISTRY_USERNAME: ${{ github.repository_owner }}
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
