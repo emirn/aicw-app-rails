@@ -1,0 +1,69 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getConfig } from '../../lib/config';
+import { getLocalSections, getArticlesBySection } from '../../lib/sections';
+import ArticleCard from '../../components/ArticleCard.astro';
+import ArticleListItem from '../../components/ArticleListItem.astro';
+import Pagination from '../../components/Pagination.astro';
+
+export const getStaticPaths = (async () => {
+  const config = getConfig();
+  const sections = getLocalSections(config);
+
+  // No sections configured = no pages generated
+  if (sections.length === 0) return [];
+
+  return sections.map((section) => ({
+    params: { section: section.path },
+    props: { sectionConfig: section },
+  }));
+}) satisfies GetStaticPaths;
+
+const config = getConfig();
+const { sectionConfig } = Astro.props;
+
+const articles = (await getArticlesBySection(sectionConfig.id))
+  .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf());
+
+const postsPerPage = sectionConfig.postsPerPage || config.blog.postsPerPage || 9;
+const totalPages = Math.ceil(articles.length / postsPerPage);
+const paginatedArticles = articles.slice(0, postsPerPage);
+const layout = sectionConfig.layout || 'grid';
+---
+
+<BaseLayout
+  title={sectionConfig.label}
+  description={sectionConfig.description}
+  canonical={`${config.branding.site.url}/${sectionConfig.path}/`}
+>
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    {sectionConfig.sectionTitle && (
+      <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
+        {sectionConfig.sectionTitle}
+      </h2>
+    )}
+
+    {paginatedArticles.length > 0 ? (
+      layout === 'list' ? (
+        <div class="flex flex-col gap-4">
+          {paginatedArticles.map((article) => (
+            <ArticleListItem article={article} config={config} />
+          ))}
+        </div>
+      ) : (
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {paginatedArticles.map((article) => (
+            <ArticleCard article={article} config={config} />
+          ))}
+        </div>
+      )
+    ) : (
+      <p class="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] py-12">
+        No articles in this section yet.
+      </p>
+    )}
+
+    <Pagination currentPage={1} totalPages={totalPages} basePath={`/${sectionConfig.path}`} />
+  </section>
+</BaseLayout>

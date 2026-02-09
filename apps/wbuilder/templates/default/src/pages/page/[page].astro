@@ -2,13 +2,13 @@
 import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getConfig } from '../../lib/config';
-import { getPublishedArticles } from '../../lib/articles';
+import { getHomeArticles } from '../../lib/sections';
 import ArticleCard from '../../components/ArticleCard.astro';
 import Pagination from '../../components/Pagination.astro';
 
 export const getStaticPaths = (async () => {
   const siteConfig = getConfig();
-  const articles = await getPublishedArticles();
+  const articles = await getHomeArticles(siteConfig);
   const postsPerPage = siteConfig.blog.postsPerPage || 9;
   const totalPages = Math.ceil(articles.length / postsPerPage);
 
@@ -28,9 +28,9 @@ const config = getConfig();
 const { page } = Astro.params;
 const currentPage = parseInt(page);
 
-// Get all published articles sorted by date
-const articles = (await getPublishedArticles())
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+// Get home-page articles (filtered by sections config, or all if no sections)
+const articles = (await getHomeArticles(config))
+  .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf());
 
 // Pagination
 const postsPerPage = config.blog.postsPerPage || 9;

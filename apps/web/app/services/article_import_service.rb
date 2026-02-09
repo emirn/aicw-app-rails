@@ -29,7 +29,7 @@ class ArticleImportService
 
   def find_or_initialize_article
     if @article_id.present?
-      @website.articles.find_by!(prefix_id: @article_id)
+      @website.articles.find_by_prefix_id!(@article_id)
     else
       @website.articles.new
     end

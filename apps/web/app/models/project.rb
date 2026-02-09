@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Project < ApplicationRecord
+  include Auditable
+
   has_prefix_id :project
 
   # Multi-tenancy: automatically scope queries to current account
@@ -8,7 +10,6 @@ class Project < ApplicationRecord
 
   # Associations
   belongs_to :account
-  belongs_to :user  # Keep for backwards compatibility during transition
   has_one :ranking_config, class_name: "ProjectRankingConfig", dependent: :destroy
   has_many :visibility_checks, dependent: :destroy
   has_one :website, class_name: "ProjectWebsite", dependent: :destroy

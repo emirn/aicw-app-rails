@@ -7,7 +7,7 @@ class WebsiteDeploymentJob < ApplicationJob
   retry_on StandardError, wait: :polynomially_longer, attempts: 3
 
   def perform(deployment_prefix_id)
-    deployment = WebsiteDeployment.find_by!(prefix_id: deployment_prefix_id)
+    deployment = WebsiteDeployment.find_by_prefix_id!(deployment_prefix_id)
 
     # Skip if deployment is already in a terminal state
     return if deployment.finished?

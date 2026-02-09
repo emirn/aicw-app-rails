@@ -21,16 +21,6 @@ class ProjectPolicy < ApplicationPolicy
     account_admin?
   end
 
-  private
-
-  def account_member?
-    Current.account_user.present?
-  end
-
-  def account_admin?
-    Current.account_user&.admin?
-  end
-
   class Scope < Scope
     def resolve
       # ActsAsTenant automatically scopes to current account

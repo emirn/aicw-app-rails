@@ -21,7 +21,7 @@ export interface SocialImageRequest {
     title: string;
     description?: string;
     author?: string;
-    date?: string;  // Formatted date string (e.g., "Jan 26, 2026")
+    published_at?: string;  // Formatted date string (e.g., "Jan 26, 2026")
   };
 
   branding?: {
@@ -80,7 +80,7 @@ export async function handleSocialImage(
       title: article.title,
       description: article.description,
       author: article.author,
-      date: article.date,
+      published_at: article.published_at,
       badge: branding?.badge,
       brandName: branding?.brand_name,
       heroImageBase64: hero_image_base64,

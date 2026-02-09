@@ -5,7 +5,7 @@ import { getPublishedArticles } from '../lib/articles';
 export async function GET() {
   const config = getConfig();
   const articles = (await getPublishedArticles())
-    .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+    .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf())
     .slice(0, 20);
 
   return rss({
@@ -14,7 +14,7 @@ export async function GET() {
     site: config.branding.site.url,
     items: articles.map((article) => ({
       title: article.data.title,
-      pubDate: article.data.date,
+      pubDate: article.data.published_at,
       description: article.data.description || '',
       link: `/${article.slug}/`,
     })),

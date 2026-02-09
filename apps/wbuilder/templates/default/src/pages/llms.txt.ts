@@ -43,8 +43,8 @@ export const GET: APIRoute = async () => {
 
     // Sort by date descending
     const sortedArticles = articles.sort((a, b) => {
-      const dateA = a.data.date?.getTime() || 0;
-      const dateB = b.data.date?.getTime() || 0;
+      const dateA = a.data.published_at?.getTime() || 0;
+      const dateB = b.data.published_at?.getTime() || 0;
       return dateB - dateA;
     });
 

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class WebsiteDeployment < ApplicationRecord
+  include Auditable
+
   has_prefix_id :deployment
 
   # Associations

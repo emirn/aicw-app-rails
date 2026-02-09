@@ -30,9 +30,8 @@ class Api::V1::ProjectsController < Api::BaseController
       return
     end
 
-    # ActsAsTenant auto-sets account_id; set user for backwards compatibility
+    # ActsAsTenant auto-sets account_id
     project = Project.new(project_params)
-    project.user = current_user
 
     if project.save
       render_api_created(project: project_json(project))

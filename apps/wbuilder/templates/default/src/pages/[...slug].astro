@@ -37,7 +37,7 @@ const relatedArticles = allArticles
 
     return sharedKeywords || sharedCategories || sharedTags;
   })
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf())
   .slice(0, 3);
 ---
 

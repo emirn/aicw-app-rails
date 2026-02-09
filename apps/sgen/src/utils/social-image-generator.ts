@@ -23,7 +23,7 @@ export interface SocialImageOptions {
   badge?: string; // e.g., "BLOG", "GUIDE"
   brandName?: string; // e.g., "MyBlog.com"
   author?: string;
-  date?: string;
+  published_at?: string;
   heroImageBase64?: string; // Base64-encoded hero image for background (data URL)
 }
 
@@ -104,7 +104,7 @@ export class SocialImageGenerator {
       '{{badge}}': escapeHtml(options.badge || ''),
       '{{brandName}}': escapeHtml(options.brandName || ''),
       '{{author}}': escapeHtml(options.author || ''),
-      '{{date}}': escapeHtml(options.date || ''),
+      '{{published_at}}': escapeHtml(options.published_at || ''),
     };
 
     let result = template;
@@ -232,7 +232,7 @@ export class SocialImageGenerator {
    * Uses hero image as background if available, otherwise gradient
    */
   private buildTemplate(options: SocialImageOptions): any {
-    const { title, description, badge, brandName, author, date, heroImageBase64 } = options;
+    const { title, description, badge, brandName, author, published_at, heroImageBase64 } = options;
 
     // Truncate text at word boundaries
     const truncTitle = this.truncateText(title, 80);
@@ -243,7 +243,7 @@ export class SocialImageGenerator {
     const bgGradient = `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 50%, ${gradient[2]} 100%)`;
 
     // Build footer text
-    const footerParts = [author, date].filter(Boolean);
+    const footerParts = [author, published_at].filter(Boolean);
     const footerText = footerParts.join(' • ');
 
     // Build content layer (badge, title/desc, footer)

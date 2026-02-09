@@ -16,7 +16,7 @@ class Api::V1::AccountsController < Api::BaseController
   # GET /api/v1/accounts/:id
   # Show account details
   def show
-    account = current_user.accounts.find_by!(prefix_id: params[:id])
+    account = current_user.accounts.find_by_prefix_id!(params[:id])
     authorize account
 
     render_api_success(
@@ -45,7 +45,7 @@ class Api::V1::AccountsController < Api::BaseController
   # PATCH /api/v1/accounts/:id
   # Update account details
   def update
-    account = current_user.accounts.find_by!(prefix_id: params[:id])
+    account = current_user.accounts.find_by_prefix_id!(params[:id])
     authorize account
 
     if account.update(account_params)
@@ -60,7 +60,7 @@ class Api::V1::AccountsController < Api::BaseController
   # DELETE /api/v1/accounts/:id
   # Delete an account (cannot delete your only account)
   def destroy
-    account = current_user.accounts.find_by!(prefix_id: params[:id])
+    account = current_user.accounts.find_by_prefix_id!(params[:id])
     authorize account
 
     if current_user.accounts.count <= 1
@@ -72,10 +72,30 @@ class Api::V1::AccountsController < Api::BaseController
     render_api_no_content
   end
 
+  # POST /api/v1/accounts/:id/transfer
+  # Transfer account ownership to another member
+  def transfer
+    account = current_user.accounts.find_by_prefix_id!(params[:id])
+    authorize account
+
+    new_owner = User.find_by_prefix_id!(params[:user_id])
+
+    if account.transfer_ownership(new_owner)
+      render_api_success(
+        account: account_json(account.reload),
+        message: "Ownership transferred to #{new_owner.name}"
+      )
+    else
+      render_api_error(account.errors.full_messages.join(", "), code: "TRANSFER_FAILED")
+    end
+  rescue ActiveRecord::RecordNotFound
+    render_api_not_found("User")
+  end
+
   # POST /api/v1/accounts/:id/switch
   # Switch to a different account context
   def switch
-    account = current_user.accounts.find_by!(prefix_id: params[:id])
+    account = current_user.accounts.find_by_prefix_id!(params[:id])
     authorize account
 
     # Update API token metadata to remember the selected account

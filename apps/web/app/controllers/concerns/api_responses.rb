@@ -9,16 +9,16 @@ module ApiResponses
     rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   end
 
-  def render_api_success(data, status: :ok)
-    render json: data, status: status
+  def render_api_success(data = nil, status: :ok, **kwargs)
+    render json: data || kwargs, status: status
   end
 
-  def render_api_created(data)
-    render json: data, status: :created
+  def render_api_created(data = nil, **kwargs)
+    render json: data || kwargs, status: :created
   end
 
-  def render_api_accepted(data)
-    render json: data, status: :accepted
+  def render_api_accepted(data = nil, **kwargs)
+    render json: data || kwargs, status: :accepted
   end
 
   def render_api_bad_request(message, code: nil)

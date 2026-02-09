@@ -1,0 +1,63 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import { getConfig } from '../lib/config';
+import { getHomeArticles } from '../lib/sections';
+
+export async function getStaticPaths() {
+  let pages: Awaited<ReturnType<typeof getCollection<'pages'>>>;
+  try {
+    pages = await getCollection('pages');
+  } catch {
+    return [];
+  }
+  return pages
+    .filter((p) => p.slug !== 'root')
+    .map((page) => ({ params: { page: page.slug }, props: { page } }));
+}
+
+const { page } = Astro.props;
+const { Content } = await page.render();
+const config = getConfig();
+
+// Load articles for blog grid if enabled
+let gridArticles: Awaited<ReturnType<typeof getHomeArticles>> = [];
+if (page.data.blog_grid) {
+  gridArticles = (await getHomeArticles(config))
+    .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf())
+    .slice(0, page.data.blog_grid_limit || 9);
+}
+---
+
+<BaseLayout title={page.data.title} description={page.data.description}>
+  {page.data.image_hero && (
+    <section class="relative">
+      <img
+        src={page.data.image_hero}
+        alt={page.data.title}
+        class="w-full h-64 sm:h-80 lg:h-96 object-cover"
+      />
+    </section>
+  )}
+
+  <article class="prose dark:prose-invert max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <Content />
+  </article>
+
+  {page.data.blog_grid && gridArticles.length > 0 && (
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      {page.data.blog_grid_title && (
+        <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
+          {page.data.blog_grid_title}
+        </h2>
+      )}
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {gridArticles.map((article) => (
+          <ArticleCard article={article} config={config} />
+        ))}
+      </div>
+    </section>
+  )}
+</BaseLayout>

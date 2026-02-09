@@ -96,6 +96,37 @@ export async function publishToLocalFolder(
     logger.log(`Wrote merged site config to data/site-config.json`);
   }
 
+  // Copy custom pages (if custom-pages/ directory exists)
+  const customPagesDir = path.join(projectDir, 'custom-pages');
+  if (existsSync(customPagesDir)) {
+    const pagesDest = path.join(config.path, config.pages_subfolder || 'src/content/pages');
+    const pagesAssetsDest = path.join(config.path, config.assets_subfolder, 'pages');
+
+    const pageFolders = await fs.readdir(customPagesDir, { withFileTypes: true });
+    for (const folder of pageFolders.filter(f => f.isDirectory())) {
+      const pageDir = path.join(customPagesDir, folder.name);
+
+      // Copy index.md or index.mdx → src/content/pages/{slug}.md(x)
+      const indexMdx = path.join(pageDir, 'index.mdx');
+      const indexMd = path.join(pageDir, 'index.md');
+      const sourceFile = existsSync(indexMdx) ? indexMdx : existsSync(indexMd) ? indexMd : null;
+      if (sourceFile) {
+        const ext = path.extname(sourceFile);
+        await fs.mkdir(pagesDest, { recursive: true });
+        await fs.copyFile(sourceFile, path.join(pagesDest, `${folder.name}${ext}`));
+        logger.log(`  → custom page: ${folder.name}${ext}`);
+      }
+
+      // Copy assets/ → public/assets/pages/{slug}/
+      const assetsDir = path.join(pageDir, 'assets');
+      if (existsSync(assetsDir)) {
+        const destAssets = path.join(pagesAssetsDest, folder.name);
+        await fs.cp(assetsDir, destAssets, { recursive: true, force: true });
+        logger.log(`  → custom page assets: pages/${folder.name}/`);
+      }
+    }
+  }
+
   // When templatePath is set (and not soft-copy), ensure content subfolder exists (template may have created it)
   const contentDest = path.join(config.path, config.content_subfolder);
   if (softCopy) {
