@@ -49,7 +49,7 @@ import { createArticleFolder, articleFolderExists, buildPublished, updateArticle
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { renderDiagramsLocal, generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
+import { generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
 import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern } from './lib/workflow';
 import {
@@ -72,12 +72,19 @@ import {
   migrateBackfillPublishedAt,
 } from './lib/migrate';
 import { verifyProject, fixArticles } from './lib/pipeline-verify';
+import { findOrphanedAssets, removeAssets, findLegacyIndexFields, fixLegacyIndexFields } from './lib/assets-cleanup';
 import chalk from 'chalk';
 
 /**
  * Module-level debug state (toggled in interactive menu with 'd')
  */
 let debugEnabled = false;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /**
  * Local actions handled entirely by CLI (no sgen API needed)
@@ -98,12 +105,10 @@ const LOCAL_ACTIONS = [
   { name: 'migrate-content', description: 'Extract both FAQ and JSON-LD from content', usage: 'blogpostgen migrate-content <project>', group: 'utility' },
   { name: 'migrate-published-at', description: 'Backfill published_at from updated_at', usage: 'blogpostgen migrate-published-at <project>', group: 'utility' },
   { name: 'pipeline-verify', description: 'Verify pipeline state & applied actions', usage: 'blogpostgen pipeline-verify <project> [--fix]', group: 'utility' },
+  { name: 'assets-cleanup', description: 'Find and remove unreferenced article assets', usage: 'blogpostgen assets-cleanup <project>', group: 'utility' },
 
   // Publishing group (201-299)
-  { name: 'publish', description: 'Build published articles from enhanced drafts', usage: 'blogpostgen publish <project>', group: 'publish' },
-  { name: 'publish-local', description: 'Copy published articles to local folder (no clean)', usage: 'blogpostgen publish-local <project>', group: 'publish' },
-  { name: 'publish-local-template', description: 'Clean, copy template + articles to local folder', usage: 'blogpostgen publish-local-template <project>', group: 'publish' },
-  { name: 'publish-local-list', description: 'List projects with local folder publishing configured', usage: 'blogpostgen publish-local-list', group: 'publish' },
+  { name: 'publish', description: 'Publish articles to local website folder', usage: 'blogpostgen publish <project>', group: 'publish' },
   { name: 'wb-preview', description: 'Build and preview published articles as website', usage: 'blogpostgen wb-preview <project>', group: 'publish' },
   { name: 'wb-build', description: 'Build website locally (no API server needed)', usage: 'blogpostgen wb-build <project>', group: 'publish' },
 ];
@@ -561,95 +566,86 @@ async function main(): Promise<void> {
       }
     }
 
-    // Handle publish (local action - no API call)
+    // Handle publish (unified: list projects, pick one, auto-detect method)
     if (finalAction === 'publish') {
-      // Project selection
-      const selectedProject = await selectProject();
-      if (!selectedProject) {
-        continue; // Back to action menu
-      }
-
-      if (selectedProject === CREATE_NEW_PROJECT) {
-        logger.log('Please create a project first with project-init.');
-        await pressEnterToContinue();
-        continue;
-      }
-
-      const projectPaths = getProjectPaths(selectedProject);
-
-      try {
-        logger.log(`\nBuilding published articles for ${selectedProject}...`);
-        logger.log('');
-
-        const result = await buildPublished(
-          projectPaths.root,
-          projectPaths.drafts,
-          projectPaths.published,
-          logger,
-          publishableFilter
-        );
-
-        logger.log('');
-        logger.log(`✓ Published ${result.success} article(s)`);
-        logger.log(`  Assets: ${result.assetsCopied} copied, ${result.assetsSkipped} skipped`);
-        logger.log(`  Output: ${projectPaths.published}`);
-        logger.log('');
-      } catch (error) {
-        logger.log('');
-        logger.log(`✗ Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        logger.log('');
-      }
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle publish-local (soft copy) and publish-local-template (clean + template copy)
-    if (finalAction === 'publish-local' || finalAction === 'publish-local-template') {
-      const softCopy = finalAction === 'publish-local';
-      const { publishToLocalFolder } = await import('./lib/local-publish.js');
+      const { listLocalPublishProjects, getLocalPublishTemplate, publishToLocalFolder, getPublishMethod } = await import('./lib/local-publish.js');
       const { loadProjectConfig } = await import('./lib/project-config.js');
 
-      const selectedProject = await selectProject();
-      if (!selectedProject) {
-        continue;
-      }
+      const projects = await listLocalPublishProjects();
 
-      if (selectedProject === CREATE_NEW_PROJECT) {
-        logger.log('Please create a project first with project-init.');
+      if (projects.length === 0) {
+        logger.log('');
+        logger.log('No projects have local folder publishing enabled.');
+        logger.log('');
+        logger.log('To enable, add this to a project\'s index.json:');
+        logger.log('');
+        logger.log(getLocalPublishTemplate());
+        logger.log('');
         await pressEnterToContinue();
         continue;
       }
 
-      const projectPaths = getProjectPaths(selectedProject);
+      // Display project list with method and target path
+      logger.log('');
+      logger.log(chalk.bold('=== Publish to Local Folder ==='));
+      logger.log('');
+      const maxName = Math.max(...projects.map(p => p.projectName.length));
+      for (let i = 0; i < projects.length; i++) {
+        const p = projects[i];
+        const method = getPublishMethod(p.config);
+        const num = `${i + 1}.`.padEnd(4);
+        const name = p.projectName.padEnd(maxName + 2);
+        const tag = `[${method}]`.padEnd(12);
+        logger.log(`  ${num}${name}${tag}→ ${p.config.path}`);
+      }
+      logger.log('');
+
+      // Prompt user to pick a project
+      const rl = (await import('readline')).createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await new Promise<string>(resolve => {
+        rl.question('Select project (number or name, empty to cancel): ', resolve);
+      });
+      rl.close();
+
+      const trimmed = answer.trim();
+      if (!trimmed) {
+        continue;
+      }
+
+      // Resolve selection by number or name
+      let selected: typeof projects[0] | undefined;
+      const num = parseInt(trimmed, 10);
+      if (!isNaN(num) && num >= 1 && num <= projects.length) {
+        selected = projects[num - 1];
+      } else {
+        selected = projects.find(p => p.projectName === trimmed);
+      }
+
+      if (!selected) {
+        logger.log(`Project not found: ${trimmed}`);
+        await pressEnterToContinue();
+        continue;
+      }
+
+      const projectPaths = getProjectPaths(selected.projectName);
       const projectConfig = await loadProjectConfig(projectPaths.root);
-
-      if (!projectConfig?.publish_to_local_folder?.enabled) {
-        logger.log('');
-        logger.log('Local folder publishing is not configured for this project.');
-        logger.log('Edit the project\'s index.json and set publish_to_local_folder.enabled to true.');
-        logger.log('');
-        await pressEnterToContinue();
-        continue;
-      }
+      const method = getPublishMethod(selected.config);
 
       try {
-        const modeLabel = softCopy ? 'soft copy' : 'clean + template';
-        logger.log(`\nCopying published articles to ${projectConfig.publish_to_local_folder.path} (${modeLabel})...`);
+        logger.log(`\nPublishing ${selected.projectName} [${method}] → ${selected.config.path}...`);
         logger.log('');
 
         const result = await publishToLocalFolder(
           projectPaths.root,
-          projectConfig.publish_to_local_folder,
+          selected.config,
           logger,
-          projectConfig,
-          softCopy,
+          projectConfig || undefined,
         );
 
         logger.log('');
-        logger.log(`✓ ${result.articlesPublished} article(s) copied`);
+        logger.log(`✓ ${result.articlesPublished} article(s) published`);
         logger.log(`  Assets: ${result.assetsCopied} copied`);
-        logger.log(`  Target: ${projectConfig.publish_to_local_folder.path}`);
+        logger.log(`  Target: ${selected.config.path}`);
         if (result.errors.length > 0) {
           logger.log(`  Errors: ${result.errors.length}`);
           for (const err of result.errors) {
@@ -659,38 +655,8 @@ async function main(): Promise<void> {
         logger.log('');
       } catch (error) {
         logger.log('');
-        logger.log(`✗ Publish-local failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.log(`✗ Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         logger.log('');
-      }
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle publish-local-list (list projects with local publish configured)
-    if (finalAction === 'publish-local-list') {
-      const { listLocalPublishProjects, getLocalPublishTemplate } = await import('./lib/local-publish.js');
-
-      const projects = await listLocalPublishProjects();
-
-      logger.log('');
-      if (projects.length === 0) {
-        logger.log('No projects have local folder publishing enabled.');
-        logger.log('');
-        logger.log('To enable, add this to a project\'s index.json:');
-        logger.log('');
-        logger.log(getLocalPublishTemplate());
-        logger.log('');
-      } else {
-        logger.log(`${projects.length} project(s) with local folder publishing:`);
-        logger.log('');
-        for (const p of projects) {
-          logger.log(`  ${chalk.bold(p.projectName)}`);
-          logger.log(`    Path:    ${p.config.path}`);
-          logger.log(`    Content: ${p.config.content_subfolder}`);
-          logger.log(`    Assets:  ${p.config.assets_subfolder}`);
-          logger.log('');
-        }
       }
 
       await pressEnterToContinue();
@@ -1084,6 +1050,85 @@ async function main(): Promise<void> {
       continue;
     }
 
+    // Handle assets-cleanup (find and remove unreferenced article assets)
+    if (finalAction === 'assets-cleanup') {
+      const selectedProject = await selectProject();
+      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
+        if (selectedProject === CREATE_NEW_PROJECT) {
+          logger.log('Please create a project first with project-init.');
+          await pressEnterToContinue();
+        }
+        continue;
+      }
+
+      logger.log(`\nScanning assets for: ${selectedProject}\n`);
+
+      try {
+        const result = await findOrphanedAssets(selectedProject);
+
+        logger.log(`Articles: ${result.totalArticles} total, ${result.articlesScanned} with assets`);
+        logger.log(`Orphaned: ${result.orphanedAssets.length} file(s) in ${result.articlesWithOrphans} article(s) (${formatBytes(result.totalOrphanedBytes)})\n`);
+
+        if (result.orphanedAssets.length === 0) {
+          logger.log(chalk.green('✓ No orphaned assets found.'));
+        } else {
+          // Group by assetsDir for display
+          const byAssetsDir = new Map<string, typeof result.orphanedAssets>();
+          for (const asset of result.orphanedAssets) {
+            const list = byAssetsDir.get(asset.assetsDir) || [];
+            list.push(asset);
+            byAssetsDir.set(asset.assetsDir, list);
+          }
+
+          for (const [assetsDir, assets] of byAssetsDir) {
+            logger.log(`  ${assetsDir}/`);
+            for (const asset of assets) {
+              logger.log(`    ${asset.fileName}  (${formatBytes(asset.size)})`);
+            }
+            logger.log('');
+          }
+
+          const shouldRemove = await confirm(
+            `Remove ${result.orphanedAssets.length} orphaned file(s)?`,
+            false
+          );
+
+          if (shouldRemove) {
+            const removed = await removeAssets(result.orphanedAssets);
+            logger.log(chalk.green(`\nRemoved ${removed} file(s).`));
+          } else {
+            logger.log('\nRemoval skipped.');
+          }
+        }
+
+        // Phase 2: Legacy "index" field cleanup
+        const legacyArticles = await findLegacyIndexFields(selectedProject);
+        if (legacyArticles.length > 0) {
+          const removeCount = legacyArticles.filter(a => a.action === 'remove_index').length;
+          const renameCount = legacyArticles.filter(a => a.action === 'rename_index_to_content').length;
+
+          logger.log(`\nLegacy "index" field found in ${legacyArticles.length} article(s):`);
+          if (removeCount) logger.log(`  ${removeCount} with both index+content (will remove index)`);
+          if (renameCount) logger.log(`  ${renameCount} with index only (will rename to content)`);
+
+          for (const article of legacyArticles) {
+            logger.log(`  ${article.articlePath} → ${article.action === 'remove_index' ? 'remove index' : 'rename index→content'}`);
+          }
+
+          const shouldFix = await confirm(`Fix ${legacyArticles.length} article(s)?`, false);
+          if (shouldFix) {
+            const fixed = await fixLegacyIndexFields(legacyArticles);
+            logger.log(chalk.green(`Fixed ${fixed} article(s).`));
+          }
+        }
+      } catch (error: any) {
+        logger.log(chalk.red(`Error: ${error.message}`));
+      }
+
+      await pressEnterToContinue();
+      continue;
+    }
+
     // Handle plan-import (local action - no API call, no AI)
     if (finalAction === 'plan-import') {
       // Project selection
@@ -1417,19 +1462,9 @@ async function main(): Promise<void> {
 
               logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
-              // Handle local-only modes (e.g., render_diagrams, generate_image_hero)
+              // Handle local-only modes (e.g., generate_image_social, verify_assets)
               if (isLocalMode(currentAction)) {
-                if (currentAction === 'render_diagrams') {
-                  const localResult = await renderDiagramsLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} diagrams)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                } else if (currentAction === 'generate_image_social') {
+                if (currentAction === 'generate_image_social') {
                   const localResult = await generateImageSocialLocal(fullPath, logger);
                   if (localResult.success) {
                     logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (free)`);
@@ -2101,17 +2136,7 @@ async function main(): Promise<void> {
                 logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
                 if (isLocalMode(currentAction)) {
-                  if (currentAction === 'render_diagrams') {
-                    const localResult = await renderDiagramsLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} diagrams)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  } else if (currentAction === 'generate_image_social') {
+                  if (currentAction === 'generate_image_social') {
                     const localResult = await generateImageSocialLocal(fullPath, logger);
                     if (localResult.success) {
                       logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (free)`);
@@ -2189,7 +2214,7 @@ async function main(): Promise<void> {
     }
   }
 
-  // Handle local-only modes (e.g., render_diagrams, generate_image_hero) before API call
+  // Handle local-only modes (e.g., generate_image_social, verify_assets) before API call
   // Check both finalFlags.action and finalFlags.mode (CLI uses --mode for enhance)
   const localMode = finalFlags.action || finalFlags.mode;
   if (finalAction === 'enhance' && localMode && isLocalMode(localMode)) {
@@ -2199,18 +2224,7 @@ async function main(): Promise<void> {
       ? path.join(getProjectPaths(resolvedLocal.projectName).content, resolvedLocal.articlePath)
       : null;
 
-    if (localMode === 'render_diagrams' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await renderDiagramsLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: ${localResult.count || 0} diagrams rendered`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
-      }
-    } else if (localMode === 'generate_image_social' && finalPath) {
+    if (localMode === 'generate_image_social' && finalPath) {
       logger.log(`Executing local mode: ${localMode}`);
       const localResult = await generateImageSocialLocal(finalPath, logger);
       if (localResult.success) {
@@ -2246,52 +2260,10 @@ async function main(): Promise<void> {
     }
   }
 
-  // Handle publish action (local - no API needed, but fetches publishableFilter from config)
+  // Handle publish action (unified: auto-detect method from config)
   if (finalAction === 'publish') {
     if (!finalPath) {
       outputError('Error: Project name required. Usage: blogpostgen publish <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-    const projectPaths = getProjectPaths(selectedProject);
-
-    // Check project exists
-    if (!existsSync(projectPaths.root)) {
-      outputError(`Error: Project not found: ${selectedProject}`);
-      process.exit(1);
-    }
-
-    // Fetch publishableFilter from API config if not already set
-    if (!publishableFilter) {
-      const pipelinesResult = await executor.listPipelines();
-      if (pipelinesResult.success && pipelinesResult.publishableFilter) {
-        publishableFilter = pipelinesResult.publishableFilter;
-        setPublishablePattern(pipelinesResult.publishableFilter);
-      }
-    }
-
-    logger.log(`Publishing articles for project: ${selectedProject}`);
-
-    const result = await buildPublished(
-      projectPaths.root,
-      projectPaths.drafts,
-      projectPaths.published,
-      logger,
-      publishableFilter
-    );
-
-    logger.log(`Published ${result.success} article(s)`);
-    logger.log(`Assets: ${result.assetsCopied} copied, ${result.assetsSkipped} skipped`);
-    process.exit(0);
-  }
-
-  // Handle publish-local (soft copy) and publish-local-template (clean + template) actions
-  if (finalAction === 'publish-local' || finalAction === 'publish-local-template') {
-    const softCopy = finalAction === 'publish-local';
-    const cmdName = softCopy ? 'publish-local' : 'publish-local-template';
-    if (!finalPath) {
-      outputError(`Error: Project name required. Usage: blogpostgen ${cmdName} <project>`);
       process.exit(1);
     }
 
@@ -2312,20 +2284,19 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
-    const { publishToLocalFolder } = await import('./lib/local-publish.js');
+    const { publishToLocalFolder, getPublishMethod } = await import('./lib/local-publish.js');
+    const method = getPublishMethod(projectConfig.publish_to_local_folder);
 
-    const modeLabel = softCopy ? 'soft copy' : 'clean + template';
-    logger.log(`Copying published articles to ${projectConfig.publish_to_local_folder.path} (${modeLabel})...`);
+    logger.log(`Publishing ${selectedProject} [${method}] → ${projectConfig.publish_to_local_folder.path}...`);
 
     const localResult = await publishToLocalFolder(
       projectPaths.root,
       projectConfig.publish_to_local_folder,
       logger,
       projectConfig,
-      softCopy,
     );
 
-    logger.log(`${localResult.articlesPublished} article(s) copied`);
+    logger.log(`${localResult.articlesPublished} article(s) published`);
     logger.log(`Assets: ${localResult.assetsCopied} copied`);
     if (localResult.errors.length > 0) {
       logger.log(`Errors: ${localResult.errors.length}`);
@@ -2333,32 +2304,6 @@ async function main(): Promise<void> {
         logger.log(`  ✗ ${err.file}: ${err.error}`);
       }
       process.exit(1);
-    }
-    process.exit(0);
-  }
-
-  // Handle publish-local-list action (local - no API needed)
-  if (finalAction === 'publish-local-list') {
-    const { listLocalPublishProjects, getLocalPublishTemplate } = await import('./lib/local-publish.js');
-
-    const projects = await listLocalPublishProjects();
-
-    if (projects.length === 0) {
-      logger.log('No projects have local folder publishing enabled.');
-      logger.log('');
-      logger.log('To enable, add this to a project\'s index.json:');
-      logger.log('');
-      logger.log(getLocalPublishTemplate());
-    } else {
-      logger.log(`${projects.length} project(s) with local folder publishing:`);
-      logger.log('');
-      for (const p of projects) {
-        logger.log(`  ${p.projectName}`);
-        logger.log(`    Path:    ${p.config.path}`);
-        logger.log(`    Content: ${p.config.content_subfolder}`);
-        logger.log(`    Assets:  ${p.config.assets_subfolder}`);
-        logger.log('');
-      }
     }
     process.exit(0);
   }
@@ -2655,6 +2600,83 @@ async function main(): Promise<void> {
           logger.log(chalk.green(`\nFixed ${fixedCount} article(s). They can now be re-processed by the enhance pipeline.`));
         } else {
           logger.log('\nFix skipped.');
+        }
+      }
+    } catch (error: any) {
+      logger.log(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
+  // Handle assets-cleanup action (local - no API needed)
+  if (finalAction === 'assets-cleanup') {
+    if (!finalPath) {
+      outputError('Error: Project name required. Usage: blogpostgen assets-cleanup <project>');
+      process.exit(1);
+    }
+
+    const selectedProject = finalPath;
+
+    logger.log(`\nScanning assets for: ${selectedProject}\n`);
+
+    try {
+      const result = await findOrphanedAssets(selectedProject);
+
+      logger.log(`Articles: ${result.totalArticles} total, ${result.articlesScanned} with assets`);
+      logger.log(`Orphaned: ${result.orphanedAssets.length} file(s) in ${result.articlesWithOrphans} article(s) (${formatBytes(result.totalOrphanedBytes)})\n`);
+
+      if (result.orphanedAssets.length === 0) {
+        logger.log(chalk.green('✓ No orphaned assets found.'));
+      } else {
+        // Group by assetsDir for display
+        const byAssetsDir = new Map<string, typeof result.orphanedAssets>();
+        for (const asset of result.orphanedAssets) {
+          const list = byAssetsDir.get(asset.assetsDir) || [];
+          list.push(asset);
+          byAssetsDir.set(asset.assetsDir, list);
+        }
+
+        for (const [assetsDir, assets] of byAssetsDir) {
+          logger.log(`  ${assetsDir}/`);
+          for (const asset of assets) {
+            logger.log(`    ${asset.fileName}  (${formatBytes(asset.size)})`);
+          }
+          logger.log('');
+        }
+
+        const shouldRemove = await confirm(
+          `Remove ${result.orphanedAssets.length} orphaned file(s)?`,
+          false
+        );
+
+        if (shouldRemove) {
+          const removed = await removeAssets(result.orphanedAssets);
+          logger.log(chalk.green(`\nRemoved ${removed} file(s).`));
+        } else {
+          logger.log('\nRemoval skipped.');
+        }
+      }
+
+      // Phase 2: Legacy "index" field cleanup
+      const legacyArticles = await findLegacyIndexFields(selectedProject);
+      if (legacyArticles.length > 0) {
+        const removeCount = legacyArticles.filter(a => a.action === 'remove_index').length;
+        const renameCount = legacyArticles.filter(a => a.action === 'rename_index_to_content').length;
+
+        logger.log(`\nLegacy "index" field found in ${legacyArticles.length} article(s):`);
+        if (removeCount) logger.log(`  ${removeCount} with both index+content (will remove index)`);
+        if (renameCount) logger.log(`  ${renameCount} with index only (will rename to content)`);
+
+        for (const article of legacyArticles) {
+          logger.log(`  ${article.articlePath} → ${article.action === 'remove_index' ? 'remove index' : 'rename index→content'}`);
+        }
+
+        const shouldFix = await confirm(`Fix ${legacyArticles.length} article(s)?`, false);
+        if (shouldFix) {
+          const fixed = await fixLegacyIndexFields(legacyArticles);
+          logger.log(chalk.green(`Fixed ${fixed} article(s).`));
         }
       }
     } catch (error: any) {

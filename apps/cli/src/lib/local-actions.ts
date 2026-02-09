@@ -216,7 +216,6 @@ export async function renderDiagramsLocal(
  * List of local-only modes that should bypass API calls
  */
 export const LOCAL_MODES = [
-  'render_diagrams',
   'generate_image_social',
   'verify_assets',
   'verify_links_and_sources',
