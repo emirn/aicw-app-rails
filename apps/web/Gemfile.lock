@@ -449,14 +449,17 @@ GEM
     thruster (0.1.17-aarch64-linux)
     thruster (0.1.17-arm64-darwin)
     thruster (0.1.17-x86_64-linux)
+    tilt (2.7.0)
     timeout (0.6.0)
     tsort (0.2.0)
     turbo-rails (2.0.23)
       actionpack (>= 7.1.0)
       railties (>= 7.1.0)
-    turnout (1.0.0)
-      rack
+    turnout2024 (3.0.2)
+      i18n (>= 0.7, < 2)
+      rack (>= 3, < 4)
       rack-accept (~> 0.4)
+      tilt (>= 2.3, < 3)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.2.0)
@@ -535,7 +538,7 @@ DEPENDENCIES
   stimulus-rails
   thruster
   turbo-rails
-  turnout
+  turnout2024
   tzinfo-data
   vite_rails (~> 3.0)
   web-console
