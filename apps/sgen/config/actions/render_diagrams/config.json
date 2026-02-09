@@ -1,0 +1,7 @@
+{
+  "description": "Render mermaid diagrams in article content to WebP images",
+  "no_ai": true,
+  "output_mode": "text_replace_all",
+  "supports_custom_prompt": false,
+  "supports_custom_config": false
+}
