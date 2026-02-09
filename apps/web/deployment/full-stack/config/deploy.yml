@@ -67,6 +67,7 @@ env:
     APP_HOST: <%= ENV['AICW_RAILS_DOMAIN'] || '' %>
 
   secret:
+    - SECRET_KEY_BASE
     - RAILS_MASTER_KEY
     - GOOGLE_CLIENT_ID
     - GOOGLE_CLIENT_SECRET

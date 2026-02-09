@@ -130,6 +130,7 @@ jobs:
           cat > apps/web/deployment/full-stack/.kamal/secrets <<EOF
           KAMAL_REGISTRY_USERNAME=${{ github.repository_owner }}
           KAMAL_REGISTRY_PASSWORD=${{ secrets.GITHUB_TOKEN }}
+          SECRET_KEY_BASE=${{ secrets.SECRET_KEY_BASE }}
           RAILS_MASTER_KEY=${{ secrets.RAILS_MASTER_KEY }}
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -152,6 +153,7 @@ jobs:
           AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: "true"
           KAMAL_REGISTRY_USERNAME: ${{ github.repository_owner }}
           KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
