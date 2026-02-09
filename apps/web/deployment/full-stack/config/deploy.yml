@@ -60,6 +60,9 @@ env:
     WEBSITE_BUILDER_URL: http://aicw-app-rails-website-builder:4002
     SGEN_SERVICE_URL: http://aicw-app-rails-sgen:3001
 
+    # Tinybird EU region
+    TINYBIRD_API_URL: https://api.eu-central-1.aws.tinybird.co
+
     # Host
     APP_HOST: <%= ENV['AICW_RAILS_DOMAIN'] || '' %>
 
@@ -115,7 +118,7 @@ accessories:
   # website-builder: builds and deploys Astro sites to Cloudflare Pages
   # Internal only — NOT publicly accessible
   website-builder:
-    image: ghcr.io/<%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-website-builder:latest
+    image: ghcr.io/<%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-wbuilder:latest
     host: <%= ENV["AICW_RAILS_SERVER_IP"] %>
     network: kamal
     env:
@@ -140,7 +143,7 @@ accessories:
   # sgen: AI content generation service
   # Internal only — NOT publicly accessible
   sgen:
-    image: ghcr.io/<%= ENV['KAMAL_REGISTRY_USERNAME'] %>/sgen:latest
+    image: ghcr.io/<%= ENV['KAMAL_REGISTRY_USERNAME'] %>/aicw-sgen:latest
     host: <%= ENV["AICW_RAILS_SERVER_IP"] %>
     network: kamal
     env:
