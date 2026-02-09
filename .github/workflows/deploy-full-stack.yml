@@ -3,18 +3,22 @@
 #
 # Trigger: Push to tags matching 'full-v*' (e.g., full-v1.0.0)
 #
-# Required secrets:
-#   - AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: SSH private key for server access
+# Required variables (Settings > Variables):
 #   - AICW_RAILS_SERVER_IP: Lightsail server IP
 #   - AICW_RAILS_DOMAIN: Domain name for SSL
 #   - AICW_RAILS_DEPLOY_USERNAME: SSH username (default: ubuntu)
+#   - CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_AICW_ZONE_ID: Cloudflare IDs
+#   - SUPABASE_URL: Supabase project URL
+#
+# Required secrets (Settings > Secrets):
+#   - AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: SSH private key for server access
 #   - RAILS_MASTER_KEY: Rails master key
 #   - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: Google OAuth
 #   - TINYBIRD_API_KEY: Tinybird analytics
 #   - WEBSITE_BUILDER_API_KEY: Shared API key for website-builder
-#   - CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_AICW_ZONE_ID: Cloudflare
+#   - CLOUDFLARE_API_TOKEN: Cloudflare API token
 #   - OPENROUTER_API_KEY: OpenRouter for sgen
-#   - SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY: Supabase project sync
+#   - SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
 
 name: Deploy Full Stack to AWS
 
@@ -103,7 +107,7 @@ jobs:
           ssh-private-key: ${{ secrets.AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY }}
 
       - name: Add server to known hosts
-        run: ssh-keyscan ${{ secrets.AICW_RAILS_SERVER_IP }} >> ~/.ssh/known_hosts
+        run: ssh-keyscan ${{ vars.AICW_RAILS_SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Cache Kamal gems
         uses: actions/cache@v4
@@ -132,19 +136,19 @@ jobs:
           TINYBIRD_API_KEY=${{ secrets.TINYBIRD_API_KEY }}
           WEBSITE_BUILDER_API_KEY=${{ secrets.WEBSITE_BUILDER_API_KEY }}
           AICW_WEBSITE_BUILD_API_KEY=${{ secrets.WEBSITE_BUILDER_API_KEY }}
-          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL=${{ vars.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_AICW_ZONE_ID=${{ secrets.CLOUDFLARE_AICW_ZONE_ID }}
+          CLOUDFLARE_ACCOUNT_ID=${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AICW_ZONE_ID=${{ vars.CLOUDFLARE_AICW_ZONE_ID }}
           OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
           EOF
 
       - name: Deploy with Kamal
         env:
-          AICW_RAILS_SERVER_IP: ${{ secrets.AICW_RAILS_SERVER_IP }}
-          AICW_RAILS_DOMAIN: ${{ secrets.AICW_RAILS_DOMAIN }}
-          AICW_RAILS_DEPLOY_USERNAME: ${{ secrets.AICW_RAILS_DEPLOY_USERNAME }}
+          AICW_RAILS_SERVER_IP: ${{ vars.AICW_RAILS_SERVER_IP }}
+          AICW_RAILS_DOMAIN: ${{ vars.AICW_RAILS_DOMAIN }}
+          AICW_RAILS_DEPLOY_USERNAME: ${{ vars.AICW_RAILS_DEPLOY_USERNAME }}
           AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: "true"
           KAMAL_REGISTRY_USERNAME: ${{ github.repository_owner }}
           KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
@@ -154,11 +158,11 @@ jobs:
           TINYBIRD_API_KEY: ${{ secrets.TINYBIRD_API_KEY }}
           WEBSITE_BUILDER_API_KEY: ${{ secrets.WEBSITE_BUILDER_API_KEY }}
           AICW_WEBSITE_BUILD_API_KEY: ${{ secrets.WEBSITE_BUILDER_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_AICW_ZONE_ID: ${{ secrets.CLOUDFLARE_AICW_ZONE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_AICW_ZONE_ID: ${{ vars.CLOUDFLARE_AICW_ZONE_ID }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           cd apps/web/deployment/full-stack
@@ -172,7 +176,7 @@ jobs:
 
       - name: Verify deployment
         run: |
-          HEALTH_URL="https://${{ secrets.AICW_RAILS_DOMAIN }}/up"
+          HEALTH_URL="https://${{ vars.AICW_RAILS_DOMAIN }}/up"
           echo "Waiting for deployment to stabilize..."
           sleep 5
 
