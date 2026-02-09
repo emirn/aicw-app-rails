@@ -319,9 +319,9 @@ const defaultConfig: SiteConfig = {
     columns: [],
     socialLinks: { rss: true },
     copyrightText: '{{YEAR}} {{SITE_NAME}}',
-    poweredByText: 'Published with AICW.io',
-    poweredByUrl: 'https://aicw.io',
-    showPoweredBy: true,
+    poweredByText: '',
+    poweredByUrl: '',
+    showPoweredBy: false,
   },
   newsletter: {
     enabled: false,
