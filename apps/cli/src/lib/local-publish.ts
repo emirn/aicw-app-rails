@@ -100,6 +100,13 @@ export async function publishToLocalFolder(
     logger.log(`Wrote merged site config to data/site-config.json`);
   }
 
+  // Clean Astro content cache to prevent stale data-store duplicate warnings
+  const astroDataStore = path.join(config.path, '.astro', 'data-store.json');
+  if (existsSync(astroDataStore)) {
+    await fs.rm(astroDataStore);
+    logger.log('Cleaned Astro data store cache');
+  }
+
   // Copy custom pages (if custom-pages/ directory exists)
   const customPagesDir = path.join(projectDir, 'custom-pages');
   if (existsSync(customPagesDir)) {
