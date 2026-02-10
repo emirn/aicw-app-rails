@@ -16,5 +16,4 @@ class User < ApplicationRecord
   # Validations
   validates :email, presence: true, uniqueness: true,
             'valid_email_2/email': { disposable: true }
-  validates :email, no_email_alias: true, if: -> { self.class::REJECT_PLUS_ALIASES }
 end
