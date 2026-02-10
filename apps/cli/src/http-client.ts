@@ -142,6 +142,18 @@ export class SgenClient {
   }
 
   /**
+   * Generate project branding config via AI
+   */
+  async generateProjectConfig(body: {
+    site_name: string;
+    site_description: string;
+    site_url?: string;
+    color_preference?: string;
+  }): Promise<{ success: boolean; branding?: any; error?: string; cost_usd?: number }> {
+    return this.post('/api/v1/project/generate-config', body, 120000);
+  }
+
+  /**
    * Check if sgen is healthy and reachable
    */
   async healthCheck(): Promise<boolean> {

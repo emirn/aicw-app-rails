@@ -18,6 +18,7 @@ twitter_description: "{{description}}"
 breadcrumbs: "Home/Blog/{{title}}"
 things: "{{keywords}}"
 keywords: "{{keywords}}"
+image_hero: "{{?image_hero}}"
 ---
 
 {{toc}}
@@ -33,7 +34,7 @@ keywords: "{{keywords}}"
 
 const TEMPLATE_FILENAME = 'template_published.md';
 
-const MACRO_REGEX = /\{\{([a-z_][a-z0-9_.]*)\}\}/g;
+const MACRO_REGEX = /\{\{(\??[a-z_][a-z0-9_.]*)\}\}/g;
 
 /**
  * Resolve a dot-notation field path against a data object.
@@ -86,32 +87,37 @@ export class PublishedRenderer {
     }
 
     // Resolve and replace each macro
-    for (const fieldPath of macros) {
+    for (const macro of macros) {
+      const optional = macro.startsWith('?');
+      const fieldPath = optional ? macro.slice(1) : macro;
       const value = resolveFieldPath(articleData, fieldPath);
 
-      if (value === undefined || value === null) {
-        throw new Error(`Template macro '{{${fieldPath}}}' refers to missing article field '${fieldPath}'`);
+      const isMissing = value === undefined || value === null ||
+        (typeof value === 'string' && !value.trim()) ||
+        (Array.isArray(value) && !value.join(', ').trim());
+
+      if (isMissing) {
+        if (!optional) {
+          throw new Error(`Template macro '{{${fieldPath}}}' refers to missing or empty article field '${fieldPath}'`);
+        }
+        // Remove entire lines containing only this optional macro (with surrounding quotes/yaml keys)
+        result = result.replace(new RegExp(`^.*\\{\\{\\?${fieldPath.replace(/\./g, '\\.')}\\}\\}.*\\n?`, 'gm'), '');
+        continue;
       }
 
       let stringValue: string;
       if (typeof value === 'string') {
-        if (!value.trim()) {
-          throw new Error(`Template macro '{{${fieldPath}}}' refers to empty article field '${fieldPath}'`);
-        }
         stringValue = value;
       } else if (Array.isArray(value)) {
         stringValue = value.join(', ');
-        if (!stringValue.trim()) {
-          throw new Error(`Template macro '{{${fieldPath}}}' refers to empty array field '${fieldPath}'`);
-        }
       } else if (typeof value === 'number' || typeof value === 'boolean') {
         stringValue = String(value);
       } else {
-        throw new Error(`Template macro '{{${fieldPath}}}' refers to non-scalar field '${fieldPath}' (use dot notation for nested objects)`);
+        throw new Error(`Template macro '{{${macro}}}' refers to non-scalar field '${fieldPath}' (use dot notation for nested objects)`);
       }
 
-      // Replace all occurrences — escape dots in field path for regex
-      const escaped = fieldPath.replace(/\./g, '\\.');
+      // Replace all occurrences — escape dots and ? in macro for regex
+      const escaped = macro.replace(/\?/g, '\\?').replace(/\./g, '\\.');
       result = result.replace(new RegExp(`\\{\\{${escaped}\\}\\}`, 'g'), stringValue);
     }
 

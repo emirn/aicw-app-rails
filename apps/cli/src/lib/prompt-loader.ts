@@ -171,7 +171,10 @@ export async function initializePromptTemplates(
  */
 export async function mergeProjectTemplateDefaults(
   projectDir: string,
-  options?: { illustrationStyle?: string }
+  options?: {
+    illustrationStyle?: string;
+    branding?: Record<string, unknown>;
+  }
 ): Promise<void> {
   const indexPath = path.join(projectDir, 'index.json');
 
@@ -184,26 +187,38 @@ export async function mergeProjectTemplateDefaults(
     // File doesn't exist or invalid JSON - will be created
   }
 
-  // Load local bundled project template
-  const template = await import('../config/templates/project/config/index.json');
+  if (options?.branding) {
+    // Only keep known IProjectBranding keys to prevent AI-injected extras
+    const allowed = ['badge', 'brand_name', 'site', 'logo', 'colors', 'dark_mode', 'illustration_style'];
+    const filtered: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (key in options.branding) {
+        filtered[key] = (options.branding as Record<string, unknown>)[key];
+      }
+    }
+    existingConfig.branding = filtered;
+  } else {
+    // Load local bundled project template
+    const template = await import('../config/templates/project/config/index.json');
 
-  // Deep-clone and substitute placeholders
-  const projectName = (existingConfig.title as string) || '';
-  const now = new Date().toISOString();
-  const cloned = JSON.parse(
-    JSON.stringify(template)
-      .replace(/\{\{name\}\}/g, projectName)
-      .replace(/\{\{date\}\}/g, now)
-  );
+    // Deep-clone and substitute placeholders
+    const projectName = (existingConfig.title as string) || '';
+    const now = new Date().toISOString();
+    const cloned = JSON.parse(
+      JSON.stringify(template)
+        .replace(/\{\{name\}\}/g, projectName)
+        .replace(/\{\{date\}\}/g, now)
+    );
 
-  // Apply selected illustration style if provided
-  if (options?.illustrationStyle && cloned.branding) {
-    cloned.branding.illustration_style = options.illustrationStyle;
-  }
+    // Apply selected illustration style if provided
+    if (options?.illustrationStyle && cloned.branding) {
+      cloned.branding.illustration_style = options.illustrationStyle;
+    }
 
-  // Merge branding defaults (only if branding doesn't exist in existing config)
-  if (cloned.branding && !existingConfig.branding) {
-    existingConfig.branding = cloned.branding;
+    // Merge branding defaults (only if branding doesn't exist in existing config)
+    if (cloned.branding && !existingConfig.branding) {
+      existingConfig.branding = cloned.branding;
+    }
   }
 
   // Write merged config back
