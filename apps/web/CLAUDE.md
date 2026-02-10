@@ -157,23 +157,6 @@ app/
     └── website_deployment_service.rb
 ```
 
-## Maintenance Mode
-
-Uses the [Turnout](https://github.com/biola/turnout) gem. The `/up` health check is always allowed through.
-
-```bash
-# Enable maintenance mode
-bin/rails maintenance:start
-bin/rails maintenance:start reason="Upgrading database"
-
-# Disable maintenance mode
-bin/rails maintenance:end
-
-# Via Kamal on production
-kamal app exec -i 'bin/rails maintenance:start'
-kamal app exec -i 'bin/rails maintenance:end'
-```
-
 ## SQLite Configuration
 
 SQLite is configured for optimal performance in `config/initializers/sqlite_config.rb`:

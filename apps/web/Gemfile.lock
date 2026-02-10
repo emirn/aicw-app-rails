@@ -293,8 +293,6 @@ GEM
     raabro (1.4.0)
     racc (1.8.1)
     rack (3.2.4)
-    rack-accept (0.4.5)
-      rack (>= 0.4)
     rack-cors (3.0.0)
       logger
       rack (>= 3.0.14)
@@ -449,17 +447,11 @@ GEM
     thruster (0.1.17-aarch64-linux)
     thruster (0.1.17-arm64-darwin)
     thruster (0.1.17-x86_64-linux)
-    tilt (2.7.0)
     timeout (0.6.0)
     tsort (0.2.0)
     turbo-rails (2.0.23)
       actionpack (>= 7.1.0)
       railties (>= 7.1.0)
-    turnout2024 (3.0.2)
-      i18n (>= 0.7, < 2)
-      rack (>= 3, < 4)
-      rack-accept (~> 0.4)
-      tilt (>= 2.3, < 3)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.2.0)
@@ -538,7 +530,6 @@ DEPENDENCIES
   stimulus-rails
   thruster
   turbo-rails
-  turnout2024
   tzinfo-data
   vite_rails (~> 3.0)
   web-console
