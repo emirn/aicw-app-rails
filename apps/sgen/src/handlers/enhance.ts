@@ -20,7 +20,8 @@ import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { resolveProjectMacros, resolveProjectMacrosInText } from '../utils/variables';
-import { ensureNoUnreplacedMacros } from '../utils/guards';
+import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
+import { convertBase64ToWebp } from '../utils/webp-converter';
 
 export async function handleEnhance(
   context: ActionContext,
@@ -56,7 +57,8 @@ export async function handleEnhance(
 
   // Check last_pipeline against expected value from pipelines.json
   const pipelinesConfig = loadPipelinesConfig();
-  const pipelineConfig = context.pipelineName ? pipelinesConfig.pipelines[context.pipelineName] : null;
+  const effectivePipelineName = flags.pipelineName || context.pipelineName;
+  const pipelineConfig = effectivePipelineName ? pipelinesConfig.pipelines[effectivePipelineName] : null;
   const expectedLastPipeline = pipelineConfig?.articleFilter?.last_pipeline ?? 'generate';
 
   const currentPipeline = articleObj.last_pipeline || null;
@@ -74,7 +76,7 @@ export async function handleEnhance(
     } else {
       return {
         success: false,
-        error: `Article last_pipeline is '${currentPipeline}'. Expected: '${expectedLastPipeline}' (from pipeline '${context.pipelineName}'). Use --force to override.`,
+        error: `Article last_pipeline is '${currentPipeline}'. Expected: '${expectedLastPipeline}' (from pipeline '${effectivePipelineName}'). Use --force to override.`,
         errorCode: 'INVALID_LAST_PIPELINE',
         operations: [],
       };
@@ -255,9 +257,13 @@ export async function handleEnhance(
         };
       }
 
-      // Handle generate_image_hero (image generation via Flux)
+      // Handle generate_image_hero (image generation via Recraft)
       if (mode === 'generate_image_hero') {
-        const { generateImage } = await import('../services/image.service');
+        const brandingColors = requireBrandingColors(
+          (context.projectConfig as any)?.branding?.colors,
+          'generate_image_hero'
+        );
+        const { generateRecraftImage } = await import('../services/recraft-image.service');
         const { replaceVariables } = await import('../utils/variables');
 
         // Get article description - required for image prompt
@@ -292,18 +298,24 @@ export async function handleEnhance(
 
         // Replace {{custom}} macro for actions with supports_custom_prompt
         if (cfg?.supports_custom_prompt) {
-          // Use project's custom_prompt if provided, else server's default custom_content
-          const customPrompt = flags.custom_prompt !== undefined
-            ? flags.custom_prompt
-            : (cfg.custom_content ?? '');
+          const customPrompt = flags.custom_prompt ?? '';
           promptTemplate = promptTemplate.replace(/\{\{custom\}\}/gi, customPrompt);
         }
+
+        // Extract headings from content for image prompt context
+        const headings = (normalizedContent || '')
+          .split('\n')
+          .filter(line => /^##\s/.test(line))
+          .map(line => line.replace(/^#+\s*/, '').trim())
+          .slice(0, 5)
+          .join(', ');
 
         // Replace article macros
         let imagePrompt = promptTemplate
           .replace(/\{\{DESCRIPTION\}\}/gi, description)
           .replace(/\{\{TITLE\}\}/gi, article.title)
-          .replace(/\{\{KEYWORDS\}\}/gi, article.keywords || '');
+          .replace(/\{\{KEYWORDS\}\}/gi, article.keywords || '')
+          .replace(/\{\{CONTENT_EXCERPT\}\}/gi, headings);
 
         // Resolve {{project.*}} macros (e.g., {{project.branding.colors.primary}})
         imagePrompt = resolveProjectMacrosInText(
@@ -317,15 +329,23 @@ export async function handleEnhance(
         log.info({ path: context.articlePath, mode }, 'generate_image_hero:generating');
 
         try {
-          const generatedImage = await generateImage({
+          const branding = (context.projectConfig as any)?.branding;
+          const recraftStyle = branding?.illustration_style || 'digital_illustration/pastel_gradient';
+          const generatedImage = await generateRecraftImage({
             prompt: imagePrompt,
             width: 1200,
             height: 630,
+            style: recraftStyle,
+            colors: brandingColors,
+            log,
           });
 
+          // Convert PNG from Recraft API to WebP
+          const webpData = await convertBase64ToWebp(generatedImage.data);
+
           // Build file path for hero image with article path for website mirror structure
-          // e.g., "assets/blog/my-post/hero.png" for article at "blog/my-post"
-          const heroFilename = 'hero.png';
+          // e.g., "assets/blog/my-post/hero.webp" for article at "blog/my-post"
+          const heroFilename = 'hero.webp';
           const articlePath = context.articlePath || '';
           const heroPath = `assets/${articlePath}/${heroFilename}`;
 
@@ -344,11 +364,11 @@ export async function handleEnhance(
             operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
             files: [{
               path: heroPath,
-              content: generatedImage.data,  // base64
+              content: webpData,  // base64 WebP
             }],
           };
         } catch (err) {
-          log.error({ err, path: context.articlePath }, 'generate_image_hero:flux_error');
+          log.error({ err, path: context.articlePath }, 'generate_image_hero:recraft_error');
           return {
             success: false,
             error: err instanceof Error ? err.message : String(err),
@@ -360,6 +380,10 @@ export async function handleEnhance(
 
       // Handle generate_image_social (local Satori rendering)
       if (mode === 'generate_image_social') {
+        requireBrandingColors(
+          (context.projectConfig as any)?.branding?.colors,
+          'generate_image_social'
+        );
         const { SocialImageGenerator } = await import('../utils/social-image-generator');
 
         // Get article metadata
@@ -722,6 +746,10 @@ export async function handleEnhance(
     // For add_diagrams: merge server config variables with custom variables from CLI
     // Also resolve {{project.*}} macros in colors from action config
     if (mode === 'add_diagrams') {
+      requireBrandingColors(
+        (context.projectConfig as any)?.branding?.colors,
+        'add_diagrams'
+      );
       // Debug: trace projectConfig availability
       const projectConfig = context.projectConfig as unknown as Record<string, unknown>;
       log.info({
@@ -1001,7 +1029,8 @@ async function handleEnhanceBatch(
 
   // Filter to articles ready for enhancement using config-driven expected value
   const pipelinesConfig = loadPipelinesConfig();
-  const pipelineConfig = context.pipelineName ? pipelinesConfig.pipelines[context.pipelineName] : null;
+  const effectivePipelineName = flags.pipelineName || context.pipelineName;
+  const pipelineConfig = effectivePipelineName ? pipelinesConfig.pipelines[effectivePipelineName] : null;
   const expectedLP = pipelineConfig?.articleFilter?.last_pipeline ?? 'generate';
 
   const eligibleArticles = articles.filter((a) => {
@@ -1012,7 +1041,7 @@ async function handleEnhanceBatch(
   if (eligibleArticles.length === 0) {
     return {
       success: true,
-      message: `No articles ready for enhancement (need last_pipeline: '${expectedLP}' for pipeline '${context.pipelineName}').`,
+      message: `No articles ready for enhancement (need last_pipeline: '${expectedLP}' for pipeline '${effectivePipelineName}').`,
       operations: [],
       batch: { total: 0, processed: 0, errors: [] },
     };

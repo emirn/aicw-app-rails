@@ -24,7 +24,7 @@ Devise.setup do |config|
   # Configure the e-mail address which will be shown in Devise::Mailer,
   # note that it will be overwritten if you use your own mailer class
   # with default "from" parameter.
-  config.mailer_sender = 'noreply@aichatwatch.com'
+  config.mailer_sender = ENV.fetch("MAIL_FROM", "noreply@aicw.io")
 
   # Configure the class responsible to send e-mails.
   # config.mailer = 'Devise::Mailer'
@@ -164,6 +164,7 @@ Devise.setup do |config|
 
   # ==> Configuration for :rememberable
   # The time the user will be remembered without asking for credentials again.
+  # 900 days — this is a content management service, so a long session is here on purpose.
   config.remember_for = 900.days
 
   # Invalidates all the remember me tokens when the user signs out.

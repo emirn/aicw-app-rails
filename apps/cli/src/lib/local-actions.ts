@@ -176,7 +176,7 @@ export async function renderDiagramsLocal(
         const pngPath = path.join(assetsDir, filename);
         const buffer = Buffer.from(asset.base64, 'base64');
         await fs.writeFile(pngPath, buffer);
-        logger.log(`    Saved: ${filename}`);
+        logger.log(`    Saved: ${pngPath}`);
       }
     }
 
@@ -369,11 +369,11 @@ export async function generateImageHeroLocal(
     const assetsDir = path.join(folderPath, 'assets', resolvedArticlePath);
     await fs.mkdir(assetsDir, { recursive: true });
 
-    const heroFilename = 'hero.png';
+    const heroFilename = 'hero.webp';
     const heroPath = path.join(assetsDir, heroFilename);
     const imageBuffer = Buffer.from(result.image.data, 'base64');
     await fs.writeFile(heroPath, imageBuffer);
-    logger.log(`    Saved: ${heroFilename} (${Math.round(imageBuffer.length / 1024)}KB)`);
+    logger.log(`    Saved: ${heroPath} (${Math.round(imageBuffer.length / 1024)}KB)`);
 
     // Update article meta with image_hero path
     const imageHeroPath = `/assets/${resolvedArticlePath}/${heroFilename}`;
@@ -533,7 +533,7 @@ export async function generateImageSocialLocal(
     const ogPath = path.join(assetsDir, result.image.filename);
     const imageBuffer = Buffer.from(result.image.data, 'base64');
     await fs.writeFile(ogPath, imageBuffer);
-    logger.log(`    Saved: ${result.image.filename} (${Math.round(imageBuffer.length / 1024)}KB)`);
+    logger.log(`    Saved: ${ogPath} (${Math.round(imageBuffer.length / 1024)}KB)`);
 
     // Update meta
     const imageOgPath = `/assets/${resolvedArticlePath}/${result.image.filename}`;

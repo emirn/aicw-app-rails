@@ -170,7 +170,8 @@ export async function initializePromptTemplates(
  * @param projectDir - Absolute path to the project directory
  */
 export async function mergeProjectTemplateDefaults(
-  projectDir: string
+  projectDir: string,
+  options?: { illustrationStyle?: string }
 ): Promise<void> {
   const indexPath = path.join(projectDir, 'index.json');
 
@@ -194,6 +195,11 @@ export async function mergeProjectTemplateDefaults(
       .replace(/\{\{name\}\}/g, projectName)
       .replace(/\{\{date\}\}/g, now)
   );
+
+  // Apply selected illustration style if provided
+  if (options?.illustrationStyle && cloned.branding) {
+    cloned.branding.illustration_style = options.illustrationStyle;
+  }
 
   // Merge branding defaults (only if branding doesn't exist in existing config)
   if (cloned.branding && !existingConfig.branding) {

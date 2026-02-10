@@ -6,7 +6,8 @@
  */
 
 import * as readline from 'readline';
-import { readdirSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
+import * as path from 'path';
 import { USER_PROJECTS_DIR, getProjectPaths } from '../config/user-paths';
 import { resolvePath, projectExists, getArticles, getSeedArticles, getPublishableArticles } from './path-resolver';
 import { META_FILE } from '@blogpostgen/types';
@@ -141,6 +142,92 @@ export async function promptPlanImportSource(): Promise<{ file?: string; paste?:
 
   console.error('Invalid choice.');
   return null;
+}
+
+/**
+ * Illustration style entry parsed from CSV
+ */
+interface IllustrationStyle {
+  style_id: string;
+  description: string;
+  category: string; // base style extracted from style_id
+}
+
+/**
+ * Load illustration styles from bundled CSV
+ */
+function loadIllustrationStyles(): IllustrationStyle[] {
+  const csvPath = path.join(__dirname, '..', 'config', 'illustration-styles.csv');
+  const content = readFileSync(csvPath, 'utf-8');
+  const lines = content.trim().split('\n').slice(1); // skip header
+
+  return lines
+    .filter(line => line.trim())
+    .map(line => {
+      const commaIdx = line.indexOf(',');
+      const style_id = line.slice(0, commaIdx).trim();
+      const description = line.slice(commaIdx + 1).trim();
+      const category = style_id.includes('/') ? style_id.split('/')[0] : style_id;
+      return { style_id, description, category };
+    });
+}
+
+/**
+ * Interactive illustration style picker for project setup.
+ * Shows styles grouped by category with numbered selection.
+ * Returns selected style_id or null if skipped.
+ */
+export async function selectIllustrationStyle(): Promise<string | null> {
+  const styles = loadIllustrationStyles();
+
+  // Group by category
+  const categories = ['digital_illustration', 'vector_illustration', 'realistic_image'];
+  const categoryLabels: Record<string, string> = {
+    digital_illustration: 'Digital Illustration',
+    vector_illustration: 'Vector Illustration',
+    realistic_image: 'Realistic Image',
+  };
+
+  console.error('\n=== Select Illustration Style ===\n');
+
+  const flatList: IllustrationStyle[] = [];
+  let idx = 1;
+
+  for (const cat of categories) {
+    const catStyles = styles.filter(s => s.category === cat);
+    if (catStyles.length === 0) continue;
+
+    console.error(`  ${categoryLabels[cat] || cat}:`);
+    for (const style of catStyles) {
+      const isDefault = style.style_id === 'digital_illustration/pastel_gradient';
+      const suffix = isDefault ? ' (default)' : '';
+      console.error(`    ${String(idx).padStart(3)}. ${style.style_id.padEnd(45)} ${style.description}${suffix}`);
+      flatList.push(style);
+      idx++;
+    }
+    console.error('');
+  }
+
+  const answer = await prompt('Enter number, style ID, or press Enter for default', 'digital_illustration/pastel_gradient');
+
+  if (!answer || answer === 'digital_illustration/pastel_gradient') {
+    return 'digital_illustration/pastel_gradient';
+  }
+
+  // Check if it's a number
+  const num = parseInt(answer, 10);
+  if (!isNaN(num) && num >= 1 && num <= flatList.length) {
+    return flatList[num - 1].style_id;
+  }
+
+  // Check if it matches a style_id directly
+  const matched = styles.find(s => s.style_id === answer);
+  if (matched) {
+    return matched.style_id;
+  }
+
+  console.error(`Unknown style '${answer}', using default.`);
+  return 'digital_illustration/pastel_gradient';
 }
 
 /**

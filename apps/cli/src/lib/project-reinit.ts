@@ -9,9 +9,21 @@
  */
 
 import { promises as fs } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { getProjectPaths } from '../config/user-paths';
 import { IActionConfig } from '@blogpostgen/types';
+
+/** Directory containing CLI-bundled action templates */
+const BUNDLED_DIR = path.join(__dirname, '..', 'config', 'actions');
+
+/**
+ * Read a bundled custom.md template from CLI's config directory
+ */
+function getBundledCustomMd(actionName: string): string | null {
+  const p = path.join(BUNDLED_DIR, actionName, 'custom.md');
+  return existsSync(p) ? readFileSync(p, 'utf-8') : null;
+}
 
 /**
  * Metadata for a created file
@@ -86,22 +98,25 @@ export async function reinitProject(
       }
     }
 
-    // Handle supports_custom_prompt -> custom.md
-    if (cfg.supports_custom_prompt && cfg.custom_content) {
-      const customPath = path.join(actionDir, 'custom.md');
-      const relativePath = path.relative(paths.root, customPath);
+    // Handle supports_custom_prompt -> custom.md (from CLI-bundled templates)
+    if (cfg.supports_custom_prompt) {
+      const defaultContent = getBundledCustomMd(actionName);
+      if (defaultContent) {
+        const customPath = path.join(actionDir, 'custom.md');
+        const relativePath = path.relative(paths.root, customPath);
 
-      if (await fileExists(customPath)) {
-        result.skipped.push(relativePath);
-      } else {
-        await fs.mkdir(actionDir, { recursive: true });
-        await fs.writeFile(customPath, cfg.custom_content);
-        result.created.push({
-          path: relativePath,
-          actionName,
-          description: cfg.description || '',
-          fileType: 'prompt',
-        });
+        if (await fileExists(customPath)) {
+          result.skipped.push(relativePath);
+        } else {
+          await fs.mkdir(actionDir, { recursive: true });
+          await fs.writeFile(customPath, defaultContent);
+          result.created.push({
+            path: relativePath,
+            actionName,
+            description: cfg.description || '',
+            fileType: 'prompt',
+          });
+        }
       }
     }
   }

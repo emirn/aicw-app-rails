@@ -20,10 +20,10 @@ import { generateRecraftImage } from '../services/recraft-image.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { convertBase64ToWebp } from '../utils/webp-converter';
-import { ensureNoUnreplacedMacros } from '../utils/guards';
+import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
 
 const DEFAULT_HERO_PROVIDER: 'flux' | 'recraft' = 'recraft';
-const DEFAULT_RECRAFT_STYLE = 'digital_illustration';
+const DEFAULT_RECRAFT_STYLE = 'digital_illustration/pastel_gradient';
 
 /**
  * Request body for POST /api/v1/image/hero
@@ -34,10 +34,12 @@ export interface HeroImageRequest {
     title: string;
     description: string;
     keywords?: string[];
+    content?: string;       // For extracting headings into {{CONTENT_EXCERPT}}
   };
 
   branding?: {
     colors?: IBrandingColors;
+    illustration_style?: string;
   };
 
   include_paths?: string[];           // Skip if path doesn't match
@@ -172,10 +174,19 @@ export async function handleHeroImage(
   const colors = branding?.colors || {};
   promptTemplate = replaceColorMacros(promptTemplate, colors);
 
+  // Extract headings from content for image prompt context
+  const headings = (article.content || '')
+    .split('\n')
+    .filter(line => /^##\s/.test(line))
+    .map(line => line.replace(/^#+\s*/, '').trim())
+    .slice(0, 5)
+    .join(', ');
+
   const imagePrompt = promptTemplate
     .replace(/\{\{DESCRIPTION\}\}/gi, article.description || '')
     .replace(/\{\{TITLE\}\}/gi, article.title)
-    .replace(/\{\{KEYWORDS\}\}/gi, article.keywords?.join(', ') || '');
+    .replace(/\{\{KEYWORDS\}\}/gi, article.keywords?.join(', ') || '')
+    .replace(/\{\{CONTENT_EXCERPT\}\}/gi, headings);
 
   // Validate no unreplaced macros remain
   ensureNoUnreplacedMacros(imagePrompt, 'generate_image_hero');
@@ -193,12 +204,15 @@ export async function handleHeroImage(
     let generatedImage;
 
     if (provider === 'recraft') {
+      const brandingColors = requireBrandingColors(branding?.colors, 'generate_image_hero');
+      const recraftStyle = branding?.illustration_style || DEFAULT_RECRAFT_STYLE;
       generatedImage = await generateRecraftImage({
         prompt: imagePrompt,
         width,
         height,
-        style: DEFAULT_RECRAFT_STYLE,
-        colors: branding?.colors,
+        style: recraftStyle,
+        colors: brandingColors,
+        log,
       });
     } else {
       generatedImage = await generateImage({

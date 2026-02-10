@@ -65,7 +65,7 @@ export async function routeAction(
   }
 
   // Set pipelineName so handlers can look up config (e.g., articleFilter.last_pipeline)
-  context.pipelineName = action;
+  context.pipelineName = flags.pipelineName || action;
 
   return handler(context, flags, log);
 }

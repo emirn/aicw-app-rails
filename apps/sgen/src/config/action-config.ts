@@ -21,12 +21,9 @@ const loadPerActionConfigs = (): ActionConfigMap => {
 
         // Always use prompt.md (no template field needed)
         const promptPath = join(dirPath, 'prompt.md');
-        const customPath = join(dirPath, 'custom.md');
 
         // Read prompt.md content (reference only)
         const promptContent = existsSync(promptPath) ? readFileSync(promptPath, 'utf8') : null;
-        // Read custom.md content (synced to projects when supports_custom_prompt: true)
-        const customContent = existsSync(customPath) ? readFileSync(customPath, 'utf8') : null;
 
         map[name] = {
           ai_provider: cfg.ai_provider || 'openrouter',
@@ -47,8 +44,6 @@ const loadPerActionConfigs = (): ActionConfigMap => {
           prompt_path: promptPath,
           // Sync fields for CLI auto-sync
           prompt_content: promptContent,
-          custom_content: customContent,
-          custom_relative_path: `config/actions/${name}/custom.md`,
           config_json_content: raw,
           config_json_path: `config/actions/${name}/config.json`,
         } as IActionConfig;

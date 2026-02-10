@@ -40,6 +40,7 @@ import {
   promptMultilineInput,
   resolveConflictsInteractive,
   confirm,
+  selectIllustrationStyle,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
@@ -410,9 +411,14 @@ async function main(): Promise<void> {
           ? sanitizedName
           : undefined;
 
+        // Pick illustration style for hero images
+        const illustrationStyle = await selectIllustrationStyle();
+
         await initializeProject(projectDir, { title: projectName, url: projectUrl });
         logger.log('Applying project template defaults...');
-        await mergeProjectTemplateDefaults(projectDir);
+        await mergeProjectTemplateDefaults(projectDir, {
+          illustrationStyle: illustrationStyle || undefined,
+        });
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
 
@@ -1504,7 +1510,7 @@ async function main(): Promise<void> {
               }
 
               // Execute action via API
-              const result = await executor.executeAction(finalAction, fullPath, { mode: currentAction, ...finalFlags }, { debug: debugEnabled });
+              const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction, ...finalFlags }, { debug: debugEnabled });
 
               if (result.success) {
                 if (result.skipped) {
@@ -1705,7 +1711,10 @@ async function main(): Promise<void> {
 
       // Apply project template defaults (branding, colors)
       logger.log('Applying project template defaults...');
-      await mergeProjectTemplateDefaults(projectDir);
+      const cliStyle = finalFlags.style as string | undefined;
+      await mergeProjectTemplateDefaults(projectDir, {
+        illustrationStyle: cliStyle || undefined,
+      });
 
       // Copy default prompts/write_draft/custom.md from bundled template
       logger.log('Applying default requirements template...');
@@ -1794,9 +1803,14 @@ async function main(): Promise<void> {
           ? sanitizedName
           : undefined;
 
+        // Pick illustration style for hero images
+        const inlineIllustrationStyle = await selectIllustrationStyle();
+
         await initializeProject(projectDir, { title: projectName, url: projectUrl });
         logger.log('Applying project template defaults...');
-        await mergeProjectTemplateDefaults(projectDir);
+        await mergeProjectTemplateDefaults(projectDir, {
+          illustrationStyle: inlineIllustrationStyle || undefined,
+        });
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
 
@@ -2175,7 +2189,7 @@ async function main(): Promise<void> {
                   continue;
                 }
 
-                const result = await executor.executeAction(finalAction, fullPath, { mode: currentAction }, { debug });
+                const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction }, { debug });
 
                 if (result.success) {
                   totalTokens += result.tokensUsed || 0;

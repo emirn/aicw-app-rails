@@ -1,0 +1,24 @@
+<h2 class="text-xl font-semibold tracking-tight text-foreground">Check your email</h2>
+<p class="mt-1 text-sm text-muted-foreground">
+  We sent a 6-digit code to <strong class="text-foreground"><%= @email %></strong>
+</p>
+
+<%# OTP entry form %>
+<%= form_with url: confirm_otp_code_path, method: :post, data: { turbo: false }, class: "mt-6" do |f| %>
+  <div class="space-y-4">
+    <div>
+      <%= f.label :otp_code, "Sign-in code", class: "block text-sm font-medium text-foreground mb-1" %>
+      <%= f.text_field :otp_code, autofocus: true, autocomplete: "one-time-code", inputmode: "numeric", pattern: "[0-9]{6}", maxlength: 6, required: true, class: "w-full rounded-md border border-input bg-background px-3 py-3 text-center text-lg font-mono tracking-[0.3em] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring", placeholder: "000000" %>
+    </div>
+
+    <div>
+      <%= f.submit "Verify and sign in", class: "w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer" %>
+    </div>
+  </div>
+<% end %>
+
+<%# Footer links %>
+<div class="mt-6 flex items-center justify-between text-sm text-muted-foreground">
+  <%= button_to "Resend code", send_otp_code_path, params: { email: @email }, data: { turbo: false }, class: "font-medium text-primary hover:text-primary/80 cursor-pointer" %>
+  <%= link_to "Use a different email", new_user_session_path, class: "font-medium text-primary hover:text-primary/80" %>
+</div>

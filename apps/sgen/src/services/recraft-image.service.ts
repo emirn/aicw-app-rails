@@ -108,6 +108,7 @@ export interface RecraftImageOptions {
   height?: number;
   style?: string;
   colors?: IBrandingColors;
+  log?: { info: Function; error: Function; warn: Function };
 }
 
 /**
@@ -123,6 +124,7 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
     height = 630,
     style = 'digital_illustration',
     colors,
+    log,
   } = options;
 
   const apiKey = config.recraft.apiKey;
@@ -133,10 +135,16 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
   // Find closest supported size
   const [genWidth, genHeight] = findClosestRecraftSize(width, height);
 
+  // Split style on '/' to extract style and substyle (e.g. "digital_illustration/hand_drawn")
+  const [recraftStyle, recraftSubstyle] = style.includes('/')
+    ? style.split('/', 2)
+    : [style, undefined];
+
   // Build request
   const requestBody: Record<string, unknown> = {
     prompt,
-    style,
+    style: recraftStyle,
+    ...(recraftSubstyle && { substyle: recraftSubstyle }),
     size: `${genWidth}x${genHeight}`,
     response_format: 'b64_json',
   };
@@ -145,6 +153,14 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
   const colorControls = buildColorControls(colors);
   if (colorControls.colors || colorControls.background_color) {
     requestBody.controls = colorControls;
+  }
+
+  if (log) {
+    const logBody = {
+      ...requestBody,
+      prompt: prompt.length > 200 ? prompt.substring(0, 200) + '…[truncated]' : prompt,
+    };
+    log.info({ requestBody: logBody }, 'recraft:request');
   }
 
   const response = await fetch('https://external.api.recraft.ai/v1/images/generations', {
@@ -158,10 +174,21 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
 
   if (!response.ok) {
     const errorText = await response.text();
+    if (log) {
+      log.error({ status: response.status, error: errorText.substring(0, 500) }, 'recraft:error');
+    }
     throw new Error(`Recraft API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json() as RecraftResponse;
+
+  if (log) {
+    log.info({
+      status: response.status,
+      hasImage: !!data.data?.[0]?.b64_json,
+      imageBytes: data.data?.[0]?.b64_json?.length || 0,
+    }, 'recraft:response');
+  }
 
   if (!data.data?.[0]?.b64_json) {
     throw new Error('No image data in Recraft response');

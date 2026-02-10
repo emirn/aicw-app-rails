@@ -121,6 +121,9 @@ GEM
     erubi (1.13.1)
     et-orbi (1.4.0)
       tzinfo
+    exception_notification (5.0.1)
+      actionmailer (>= 7.1, < 9)
+      activesupport (>= 7.1, < 9)
     factory_bot (6.5.6)
       activesupport (>= 6.1.0)
     factory_bot_rails (6.5.1)
@@ -467,6 +470,9 @@ GEM
     unicode-emoji (4.2.0)
     uri (1.1.1)
     useragent (0.16.11)
+    valid_email2 (7.0.13)
+      activemodel (>= 6.0)
+      mail (~> 2.5)
     version_gem (1.1.9)
     vite_rails (3.0.20)
       railties (>= 5.1, < 9)
@@ -510,6 +516,7 @@ DEPENDENCIES
   debug
   devise (~> 4.9)
   dotenv-rails
+  exception_notification
   factory_bot_rails (~> 6.4)
   faker (~> 3.2)
   faraday (~> 2.0)
@@ -540,6 +547,7 @@ DEPENDENCIES
   turbo-rails
   turnout2024
   tzinfo-data
+  valid_email2
   vite_rails (~> 3.0)
   web-console
 

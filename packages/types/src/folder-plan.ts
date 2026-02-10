@@ -121,6 +121,24 @@ export interface IProjectBranding {
   /** Brand colors for image generation and website template */
   colors?: IBrandingColors;
   dark_mode?: IBrandingDarkMode;
+  /**
+   * Recraft illustration style for hero images.
+   * Format: "base_style" or "base_style/substyle"
+   * Default: "digital_illustration/pastel_gradient"
+   * Browse styles: https://www.recraft.ai/styles?tag=digital_illustration
+   *
+   * Common values:
+   * - "digital_illustration/pastel_gradient" (default — clean simple illustration style)
+   * - "digital_illustration/hand_drawn"
+   * - "digital_illustration/pixel_art"
+   * - "digital_illustration/2d_art_poster"
+   * - "digital_illustration/pop_art"
+   * - "digital_illustration/grain"
+   * - "digital_illustration/nostalgic_pastel"
+   * - "vector_illustration" (flat vector graphics)
+   * - "realistic_image" (photography-like)
+   */
+  illustration_style?: string;
 }
 
 /**
