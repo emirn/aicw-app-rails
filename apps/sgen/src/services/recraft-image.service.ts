@@ -119,7 +119,7 @@ export interface RecraftImageOptions {
  */
 export async function generateRecraftImage(options: RecraftImageOptions): Promise<GeneratedImage> {
   const {
-    prompt,
+    prompt: rawPrompt,
     width = 1200,
     height = 630,
     style = 'digital_illustration',
@@ -130,6 +130,16 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
   const apiKey = config.recraft.apiKey;
   if (!apiKey) {
     throw new Error('SGEN_RECRAFT_API_KEY environment variable not set');
+  }
+
+  // Truncate prompt to Recraft's 1000-char limit
+  const RECRAFT_PROMPT_LIMIT = 1000;
+  let prompt = rawPrompt;
+  if (prompt.length > RECRAFT_PROMPT_LIMIT) {
+    prompt = prompt.substring(0, RECRAFT_PROMPT_LIMIT - 3).replace(/\s+\S*$/, '') + '...';
+    if (log) {
+      log.warn({ originalLength: rawPrompt.length, truncatedLength: prompt.length }, 'recraft:prompt_truncated');
+    }
   }
 
   // Find closest supported size
