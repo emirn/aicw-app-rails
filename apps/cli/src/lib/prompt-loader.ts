@@ -134,17 +134,14 @@ export function getRequirementsFile(projectDir: string): string {
 }
 
 /**
- * Initialize prompts directory with default template from API
+ * Initialize prompts directory with default template from local bundled file
  *
- * Fetches default config/actions/write_draft/custom.md from sgen API.
- * Fails if API is unavailable (single source of truth).
+ * Copies default config/actions/write_draft/custom.md from CLI's bundled templates.
  *
  * @param projectDir - Absolute path to the project directory
- * @param apiBaseUrl - Base URL of the sgen API (e.g., "http://localhost:3001")
  */
 export async function initializePromptTemplates(
-  projectDir: string,
-  apiBaseUrl: string
+  projectDir: string
 ): Promise<void> {
   const promptsDir = path.join(projectDir, WRITE_DRAFT_PROMPTS_DIR);
   const targetPath = path.join(promptsDir, PROMPT_FILE);
@@ -152,40 +149,28 @@ export async function initializePromptTemplates(
   // Ensure target directory exists
   await fs.mkdir(promptsDir, { recursive: true });
 
-  // Only fetch if target doesn't exist
+  // Only write if target doesn't exist
   if (await fileExists(targetPath)) {
     return;
   }
 
-  // Fetch default template from API (single source of truth)
-  const response = await fetch(`${apiBaseUrl}/api/v1/templates/default-requirements`);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch default template from API: ${response.status} ${response.statusText}. ` +
-      `Ensure sgen service is running at ${apiBaseUrl}`
-    );
-  }
+  // Read from local bundled template
+  const templatePath = path.join(__dirname, '..', 'config', 'actions', 'write_draft', 'custom.md');
+  const template = await fs.readFile(templatePath, 'utf-8');
 
-  const data = (await response.json()) as { success: boolean; template?: string; error?: string };
-  if (!data.success || !data.template) {
-    throw new Error(`API returned invalid template response: ${data.error || 'missing template'}`);
-  }
-
-  await fs.writeFile(targetPath, data.template);
+  await fs.writeFile(targetPath, template);
 }
 
 /**
- * Fetch project template from API and merge branding defaults into project config
+ * Merge branding defaults from local bundled template into project config
  *
- * Fetches the default project template (with branding defaults) and merges
+ * Reads the default project template (with branding defaults) and merges
  * the branding section into the existing project's index.json.
  *
  * @param projectDir - Absolute path to the project directory
- * @param apiBaseUrl - Base URL of the sgen API (e.g., "http://localhost:3001")
  */
 export async function mergeProjectTemplateDefaults(
-  projectDir: string,
-  apiBaseUrl: string
+  projectDir: string
 ): Promise<void> {
   const indexPath = path.join(projectDir, 'index.json');
 
@@ -198,24 +183,21 @@ export async function mergeProjectTemplateDefaults(
     // File doesn't exist or invalid JSON - will be created
   }
 
-  // Fetch project template from API
-  const response = await fetch(`${apiBaseUrl}/api/v1/templates/project`);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch project template from API: ${response.status} ${response.statusText}. ` +
-      `Ensure sgen service is running at ${apiBaseUrl}`
-    );
-  }
+  // Load local bundled project template
+  const template = await import('../config/templates/project/config/index.json');
 
-  const data = (await response.json()) as { success: boolean; template?: Record<string, unknown>; error?: string };
-  if (!data.success || !data.template) {
-    throw new Error(`API returned invalid project template response: ${data.error || 'missing template'}`);
-  }
+  // Deep-clone and substitute placeholders
+  const projectName = (existingConfig.title as string) || '';
+  const now = new Date().toISOString();
+  const cloned = JSON.parse(
+    JSON.stringify(template)
+      .replace(/\{\{name\}\}/g, projectName)
+      .replace(/\{\{date\}\}/g, now)
+  );
 
   // Merge branding defaults (only if branding doesn't exist in existing config)
-  const template = data.template;
-  if (template.branding && !existingConfig.branding) {
-    existingConfig.branding = template.branding;
+  if (cloned.branding && !existingConfig.branding) {
+    existingConfig.branding = cloned.branding;
   }
 
   // Write merged config back

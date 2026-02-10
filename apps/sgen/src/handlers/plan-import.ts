@@ -67,10 +67,6 @@ async function processChunk(
   const vars = {
     website_title: projectConfig.title || '',
     website_url: projectConfig.url || '',
-    website_description: projectConfig.description || 'No description provided',
-    focus_keywords: projectConfig.focus_keywords || 'No keywords provided',
-    focus_instruction: projectConfig.audience || 'General audience',
-    brand_voice: projectConfig.brand_voice || 'Professional and informative',
     plan_text: chunkText,
   };
 

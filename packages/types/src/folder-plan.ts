@@ -151,16 +151,6 @@ export interface IProjectConfig {
   title: string;
   /** Website URL (optional - can be added later) */
   url?: string;
-  /** Website description */
-  description?: string;
-  /** Primary focus keywords (comma-separated) */
-  focus_keywords?: string;
-  /** Target audience description */
-  audience?: string;
-  /** Brand voice/tone description */
-  brand_voice?: string;
-  /** Default target word count for articles */
-  default_target_words?: number;
   /** Project creation timestamp */
   created_at?: string;
   /** Last update timestamp */

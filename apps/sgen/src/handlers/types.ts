@@ -14,6 +14,7 @@ import { IProjectConfig, IArticle, IPromptParts } from '@blogpostgen/types';
  * Uses unified object pattern: `article` contains the full IArticle including content field
  */
 export interface ActionContext {
+  pipelineName?: string;
   projectName?: string;
   articlePath?: string;
   projectConfig?: IProjectConfig;

@@ -5,35 +5,44 @@
  * Pipeline flow: (seed) -> generate -> enhance(-*) -> publish
  *
  * Publishable = last_pipeline matches configurable regex pattern (default: ^enhance)
+ *
+ * The transitions map is built dynamically from pipeline data fetched at startup
+ * via setPipelinesMap(). It inverts articleFilter.last_pipeline relationships:
+ * if pipeline X requires last_pipeline Y, then Y -> X is a valid transition.
  */
 
 // Configurable publishable pattern - set via setPublishablePattern()
 let publishablePattern: RegExp = /^enhance/;
 
+// Dynamic transitions map — built at startup from pipeline config
+let nextPipelinesMap: Record<string, string[]> = {};
+
 /**
- * Map of last_pipeline -> valid next pipelines
- *
- * Workflow:
- *   null (seed) -> generate
- *   generate -> enhance
- *   enhance -> enhance-interlink-articles (optional, terminal for publishing)
- *   enhance-interlink-articles -> (terminal, publishable)
- *
- * Articles are publishable when last_pipeline starts with 'enhance'
+ * Build transitions map from pipeline data.
+ * Inverts articleFilter.last_pipeline: if pipeline X requires last_pipeline Y,
+ * then Y -> X is a valid transition.
  */
-export const NEXT_PIPELINES_MAP: Record<string, string[]> = {
-  'null': ['generate'],  // seed articles
-  'generate': ['enhance'],
-  'enhance': ['enhance-interlink-articles'],  // optional enhancement
-  'enhance-interlink-articles': [],           // terminal (publishable)
-};
+export function setPipelinesMap(pipelines: Array<{ name: string; articleFilter?: { last_pipeline: string | null } | null }>): void {
+  const map: Record<string, string[]> = {};
+  for (const p of pipelines) {
+    const prereq = p.articleFilter?.last_pipeline;
+    const key = prereq === null || prereq === undefined ? 'null' : prereq;
+    if (!map[key]) map[key] = [];
+    map[key].push(p.name);
+  }
+  // Ensure every pipeline name has an entry (terminal pipelines get [])
+  for (const p of pipelines) {
+    if (!map[p.name]) map[p.name] = [];
+  }
+  nextPipelinesMap = map;
+}
 
 /**
  * Get valid next pipelines for a given last_pipeline
  */
 export function getNextPipelines(lastPipeline: string | null): string[] {
   const key = lastPipeline ?? 'null';
-  return NEXT_PIPELINES_MAP[key] || [];
+  return nextPipelinesMap[key] || [];
 }
 
 /**
@@ -41,7 +50,7 @@ export function getNextPipelines(lastPipeline: string | null): string[] {
  */
 export function isValidPipelineTransition(from: string | null, to: string): boolean {
   const key = from ?? 'null';
-  const validNext = NEXT_PIPELINES_MAP[key] || [];
+  const validNext = nextPipelinesMap[key] || [];
   return validNext.includes(to);
 }
 

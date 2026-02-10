@@ -256,17 +256,10 @@ export async function getPublishableArticles(
  * Build website info from project config
  */
 export function buildWebsiteInfo(config: IProjectConfig): Record<string, any> {
-  const info: Record<string, any> = {
+  return {
     url: config.url,
     title: config.title,
   };
-
-  if (config.description) info.description = config.description;
-  if (config.focus_keywords) info.focus_keywords = config.focus_keywords;
-  if (config.audience) info.focus_instruction = config.audience;
-  if (config.brand_voice) info.brand_voice = config.brand_voice;
-
-  return info;
 }
 
 /**

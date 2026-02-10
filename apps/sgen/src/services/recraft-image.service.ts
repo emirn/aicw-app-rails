@@ -1,0 +1,200 @@
+/**
+ * Recraft V3 Image Service
+ *
+ * Generates images using Recraft V3 API.
+ * Default provider for hero images — produces high-quality illustrations
+ * with brand color control at $0.04/image.
+ */
+
+import fetch from 'node-fetch';
+import sharp from 'sharp';
+import { config } from '../config/server-config';
+import { IBrandingColors } from '@blogpostgen/types';
+import { GeneratedImage } from './image.service';
+
+/** Recraft supported sizes (width x height) */
+const RECRAFT_SIZES: [number, number][] = [
+  [1024, 1024],
+  [1365, 1024],
+  [1024, 1365],
+  [1536, 1024],
+  [1024, 1536],
+  [1820, 1024],
+  [1024, 1820],
+  [1024, 2048],
+  [2048, 1024],
+  [1434, 1024],
+  [1024, 1434],
+  [1024, 1280],
+  [1280, 1024],
+  [1024, 1707],
+  [1707, 1024],
+];
+
+interface RecraftResponse {
+  data: Array<{
+    b64_json?: string;
+    url?: string;
+  }>;
+}
+
+/**
+ * Convert hex color string to RGB array [r, g, b]
+ */
+function hexToRgb(hex: string): [number, number, number] {
+  const cleaned = hex.replace('#', '');
+  const num = parseInt(cleaned, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+/**
+ * Find the closest supported Recraft size for the target dimensions.
+ * Prefers sizes with a similar aspect ratio.
+ */
+function findClosestRecraftSize(targetW: number, targetH: number): [number, number] {
+  const targetRatio = targetW / targetH;
+  let best: [number, number] = RECRAFT_SIZES[0];
+  let bestScore = Infinity;
+
+  for (const [w, h] of RECRAFT_SIZES) {
+    const ratio = w / h;
+    // Weighted score: aspect ratio similarity + total pixel difference
+    const ratioDiff = Math.abs(ratio - targetRatio);
+    const pixelDiff = Math.abs(w * h - targetW * targetH) / 1_000_000;
+    const score = ratioDiff * 10 + pixelDiff;
+    if (score < bestScore) {
+      bestScore = score;
+      best = [w, h];
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Build Recraft color controls from branding colors
+ */
+function buildColorControls(colors?: IBrandingColors): {
+  colors?: Array<{ rgb: [number, number, number] }>;
+  background_color?: { rgb: [number, number, number] };
+} {
+  if (!colors) return {};
+
+  const controls: {
+    colors?: Array<{ rgb: [number, number, number] }>;
+    background_color?: { rgb: [number, number, number] };
+  } = {};
+
+  // Collect brand colors for palette (primary, secondary, accent)
+  const palette: Array<{ rgb: [number, number, number] }> = [];
+  if (colors.primary) palette.push({ rgb: hexToRgb(colors.primary) });
+  if (colors.secondary) palette.push({ rgb: hexToRgb(colors.secondary) });
+  if (colors.accent) palette.push({ rgb: hexToRgb(colors.accent) });
+
+  if (palette.length > 0) {
+    controls.colors = palette;
+  }
+
+  if (colors.background) {
+    controls.background_color = { rgb: hexToRgb(colors.background) };
+  }
+
+  return controls;
+}
+
+export interface RecraftImageOptions {
+  prompt: string;
+  width?: number;
+  height?: number;
+  style?: string;
+  colors?: IBrandingColors;
+}
+
+/**
+ * Generate an image using Recraft V3 API
+ *
+ * Picks the closest supported Recraft size, generates at that size,
+ * then resizes with sharp to the exact target dimensions.
+ */
+export async function generateRecraftImage(options: RecraftImageOptions): Promise<GeneratedImage> {
+  const {
+    prompt,
+    width = 1200,
+    height = 630,
+    style = 'digital_illustration',
+    colors,
+  } = options;
+
+  const apiKey = config.recraft.apiKey;
+  if (!apiKey) {
+    throw new Error('SGEN_RECRAFT_API_KEY environment variable not set');
+  }
+
+  // Find closest supported size
+  const [genWidth, genHeight] = findClosestRecraftSize(width, height);
+
+  // Build request
+  const requestBody: Record<string, unknown> = {
+    prompt,
+    style,
+    size: `${genWidth}x${genHeight}`,
+    response_format: 'b64_json',
+  };
+
+  // Add color controls if brand colors provided
+  const colorControls = buildColorControls(colors);
+  if (colorControls.colors || colorControls.background_color) {
+    requestBody.controls = colorControls;
+  }
+
+  const response = await fetch('https://external.api.recraft.ai/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Recraft API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json() as RecraftResponse;
+
+  if (!data.data?.[0]?.b64_json) {
+    throw new Error('No image data in Recraft response');
+  }
+
+  let base64Data = data.data[0].b64_json;
+
+  // Resize to exact target dimensions if generation size differs
+  if (genWidth !== width || genHeight !== height) {
+    const inputBuffer = Buffer.from(base64Data, 'base64');
+    const resizedBuffer = await sharp(inputBuffer)
+      .resize(width, height, { fit: 'cover' })
+      .png()
+      .toBuffer();
+    base64Data = resizedBuffer.toString('base64');
+  }
+
+  // Generate filename from prompt
+  const slug = prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2)
+    .slice(0, 4)
+    .join('-') || 'hero';
+
+  return {
+    data: base64Data,
+    filename: `${slug}.webp`,
+    prompt,
+    model: 'recraft-v3',
+    width,
+    height,
+    costUsd: 0.04,
+  };
+}

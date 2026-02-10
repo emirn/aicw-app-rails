@@ -16,10 +16,14 @@
 import { minimatch } from 'minimatch';
 import { IBrandingColors } from '@blogpostgen/types';
 import { generateImage } from '../services/image.service';
+import { generateRecraftImage } from '../services/recraft-image.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { convertBase64ToWebp } from '../utils/webp-converter';
 import { ensureNoUnreplacedMacros } from '../utils/guards';
+
+const DEFAULT_HERO_PROVIDER: 'flux' | 'recraft' = 'recraft';
+const DEFAULT_RECRAFT_STYLE = 'digital_illustration';
 
 /**
  * Request body for POST /api/v1/image/hero
@@ -42,6 +46,7 @@ export interface HeroImageRequest {
   options?: {
     width?: number;                   // default 1200
     height?: number;                  // default 630
+    provider?: 'flux' | 'recraft';    // default 'recraft'
   };
 }
 
@@ -177,21 +182,36 @@ export async function handleHeroImage(
 
   log.info({ path: article.path }, 'image-hero:generating_image');
 
-  // 4. Generate image directly with Flux (NO Claude call)
+  // 4. Generate image
   const width = options?.width || 1200;
   const height = options?.height || 630;
+  const provider = options?.provider || DEFAULT_HERO_PROVIDER;
+
+  log.info({ path: article.path, provider }, 'image-hero:provider_selected');
 
   try {
-    const generatedImage = await generateImage({
-      prompt: imagePrompt,
-      width,
-      height,
-    });
+    let generatedImage;
+
+    if (provider === 'recraft') {
+      generatedImage = await generateRecraftImage({
+        prompt: imagePrompt,
+        width,
+        height,
+        style: DEFAULT_RECRAFT_STYLE,
+        colors: branding?.colors,
+      });
+    } else {
+      generatedImage = await generateImage({
+        prompt: imagePrompt,
+        width,
+        height,
+      });
+    }
 
     // Convert PNG to WebP for better compression
     const webpData = await convertBase64ToWebp(generatedImage.data);
 
-    log.info({ path: article.path, costUsd: generatedImage.costUsd }, 'image-hero:complete');
+    log.info({ path: article.path, provider, costUsd: generatedImage.costUsd }, 'image-hero:complete');
 
     return {
       success: true,
@@ -205,7 +225,7 @@ export async function handleHeroImage(
       cost_usd: generatedImage.costUsd,
     };
   } catch (err) {
-    log.error({ err, path: article.path }, 'image-hero:flux_error');
+    log.error({ err, path: article.path, provider }, 'image-hero:generation_error');
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),

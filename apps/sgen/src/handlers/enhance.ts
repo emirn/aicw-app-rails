@@ -14,6 +14,7 @@ import { buildUpdatePrompt } from '../utils/prompts';
 import { mergeUpdate, MergeResult, parseLinePatches, applyPatches, extractContentText, parseTextReplacements, applyTextReplacements, fixCitationPattern, deduplicateReplacementsByUrl } from '../utils/articleUpdate';
 import { cleanMarkdownUrls } from '../utils/url-cleaner';
 import { config } from '../config/server-config';
+import { loadPipelinesConfig } from '../config/pipelines-config';
 import { extractMarkdownContent, needsNormalization } from '../utils/json-content-extractor';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
@@ -53,9 +54,13 @@ export async function handleEnhance(
     };
   }
 
-  // Check last_pipeline (must be 'generate' - only generated articles can be enhanced)
+  // Check last_pipeline against expected value from pipelines.json
+  const pipelinesConfig = loadPipelinesConfig();
+  const pipelineConfig = context.pipelineName ? pipelinesConfig.pipelines[context.pipelineName] : null;
+  const expectedLastPipeline = pipelineConfig?.articleFilter?.last_pipeline ?? 'generate';
+
   const currentPipeline = articleObj.last_pipeline || null;
-  const isValidPipeline = currentPipeline === 'generate';
+  const isValidPipeline = currentPipeline === expectedLastPipeline;
 
   if (!isValidPipeline) {
     if (flags.force) {
@@ -64,12 +69,12 @@ export async function handleEnhance(
         path: context.articlePath,
         mode,
         last_pipeline: currentPipeline,
-        expected: 'generate'
+        expected: expectedLastPipeline,
       }, 'enhance:force:bypassing_pipeline_check');
     } else {
       return {
         success: false,
-        error: `Article last_pipeline is '${currentPipeline}'. Expected: 'generate'. Use --force to override.`,
+        error: `Article last_pipeline is '${currentPipeline}'. Expected: '${expectedLastPipeline}' (from pipeline '${context.pipelineName}'). Use --force to override.`,
         errorCode: 'INVALID_LAST_PIPELINE',
         operations: [],
       };
@@ -171,10 +176,9 @@ export async function handleEnhance(
   const websiteInfo: IWebsiteInfo = {
     url: normalizeUrl(context.projectConfig?.url),
     title: context.projectConfig?.title || context.projectName || 'Untitled',
-    description: context.projectConfig?.description || '',
-    focus_keywords: context.projectConfig?.focus_keywords || '',
-    focus_instruction: context.projectConfig?.audience || '',
-    brand_voice: context.projectConfig?.brand_voice,
+    description: '',
+    focus_keywords: '',
+    focus_instruction: '',
   };
 
   // Track prompt for history/debugging (set when AI is called)
@@ -995,13 +999,20 @@ async function handleEnhanceBatch(
   const limit = flags.limit || 0;
   const mode = flags.mode || 'improve_seo';
 
-  // Filter to articles ready for enhancement (last_pipeline: 'generate')
-  const eligibleArticles = articles.filter((a) => a.article.last_pipeline === 'generate');
+  // Filter to articles ready for enhancement using config-driven expected value
+  const pipelinesConfig = loadPipelinesConfig();
+  const pipelineConfig = context.pipelineName ? pipelinesConfig.pipelines[context.pipelineName] : null;
+  const expectedLP = pipelineConfig?.articleFilter?.last_pipeline ?? 'generate';
+
+  const eligibleArticles = articles.filter((a) => {
+    const lp = a.article.last_pipeline ?? null;
+    return lp === expectedLP;
+  });
 
   if (eligibleArticles.length === 0) {
     return {
       success: true,
-      message: `No articles ready for enhancement (need last_pipeline: 'generate').`,
+      message: `No articles ready for enhancement (need last_pipeline: '${expectedLP}' for pipeline '${context.pipelineName}').`,
       operations: [],
       batch: { total: 0, processed: 0, errors: [] },
     };

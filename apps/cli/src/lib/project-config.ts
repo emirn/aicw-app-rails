@@ -196,10 +196,6 @@ export async function initializeProject(
 export function createProjectConfig(websiteInfo: {
   url: string;
   title: string;
-  description?: string;
-  focus_keywords?: string;
-  audience?: string;
-  brand_voice?: string;
 }): IProjectConfig {
   // Determine URL: use provided URL, or derive from domain-like title
   let url = websiteInfo.url;
@@ -213,11 +209,6 @@ export function createProjectConfig(websiteInfo: {
   return {
     url,
     title: websiteInfo.title,
-    description: websiteInfo.description,
-    focus_keywords: websiteInfo.focus_keywords,
-    audience: websiteInfo.audience,
-    brand_voice: websiteInfo.brand_voice,
-    default_target_words: 2000,
   };
 }
 
@@ -265,10 +256,6 @@ export function validateProjectConfig(config: Partial<IProjectConfig>): string[]
 
   if (!config.title) {
     errors.push('Title is required');
-  }
-
-  if (config.default_target_words && config.default_target_words < 100) {
-    errors.push('Default target words must be at least 100');
   }
 
   return errors;

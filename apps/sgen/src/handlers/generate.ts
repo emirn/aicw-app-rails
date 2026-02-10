@@ -95,10 +95,9 @@ export async function handleGenerate(
   const websiteInfo: IWebsiteInfo = {
     url: context.projectConfig?.url || '',
     title: context.projectConfig?.title || context.projectName || 'Untitled',
-    description: context.projectConfig?.description || '',
-    focus_keywords: context.projectConfig?.focus_keywords || '',
-    focus_instruction: context.projectConfig?.audience || '',
-    brand_voice: context.projectConfig?.brand_voice,
+    description: '',
+    focus_keywords: '',
+    focus_instruction: '',
   };
 
   // Track prompt for history/debugging
