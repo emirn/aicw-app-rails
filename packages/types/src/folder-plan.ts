@@ -62,8 +62,6 @@ export interface IBrandingColors {
   primary_text?: string;
   /** Secondary brand color (e.g., "#8B5CF6") */
   secondary?: string;
-  /** Accent color for highlights (e.g., "#F59E0B") */
-  accent?: string;
   /** Background color (e.g., "#FFFFFF") */
   background?: string;
   /** Secondary background color (e.g., "#F8FAFC") */
