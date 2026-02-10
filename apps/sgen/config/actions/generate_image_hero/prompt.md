@@ -1,1 +1,3 @@
-{{custom}}. Scene depicting: {{description}}. CRITICAL: absolutely no text, no words, no letters, no numbers, no typography, no signs, no labels anywhere in the image - any text-like elements must be represented as abstract wavy lines or squiggles only.
+{{custom}}
+
+Professional illustration for a blog article titled "{{TITLE}}". The article covers: {{CONTENT_EXCERPT}}. {{DESCRIPTION}}. Clean modern aesthetic, balanced composition, no text, no watermarks.

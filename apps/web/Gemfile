@@ -72,6 +72,11 @@ gem "faraday", "~> 2.0"
 gem "turnout2024", require: "turnout"
 
 # ============================================
+# Exception Notification
+# ============================================
+gem "exception_notification"
+
+# ============================================
 # Environment Variables
 # ============================================
 gem "dotenv-rails", groups: [:development, :test]

@@ -6,9 +6,10 @@
  */
 
 import * as readline from 'readline';
-import { readdirSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
+import * as path from 'path';
 import { USER_PROJECTS_DIR, getProjectPaths } from '../config/user-paths';
-import { resolvePath, projectExists, getArticles, getSeedArticles, getArticlesAfterPipeline, getPublishableArticles } from './path-resolver';
+import { resolvePath, projectExists, getArticles, getSeedArticles, getPublishableArticles } from './path-resolver';
 import { META_FILE } from '@blogpostgen/types';
 
 
@@ -141,6 +142,92 @@ export async function promptPlanImportSource(): Promise<{ file?: string; paste?:
 
   console.error('Invalid choice.');
   return null;
+}
+
+/**
+ * Illustration style entry parsed from CSV
+ */
+interface IllustrationStyle {
+  style_id: string;
+  description: string;
+  category: string; // base style extracted from style_id
+}
+
+/**
+ * Load illustration styles from bundled CSV
+ */
+function loadIllustrationStyles(): IllustrationStyle[] {
+  const csvPath = path.join(__dirname, '..', 'config', 'illustration-styles.csv');
+  const content = readFileSync(csvPath, 'utf-8');
+  const lines = content.trim().split('\n').slice(1); // skip header
+
+  return lines
+    .filter(line => line.trim())
+    .map(line => {
+      const commaIdx = line.indexOf(',');
+      const style_id = line.slice(0, commaIdx).trim();
+      const description = line.slice(commaIdx + 1).trim();
+      const category = style_id.includes('/') ? style_id.split('/')[0] : style_id;
+      return { style_id, description, category };
+    });
+}
+
+/**
+ * Interactive illustration style picker for project setup.
+ * Shows styles grouped by category with numbered selection.
+ * Returns selected style_id or null if skipped.
+ */
+export async function selectIllustrationStyle(): Promise<string | null> {
+  const styles = loadIllustrationStyles();
+
+  // Group by category
+  const categories = ['digital_illustration', 'vector_illustration', 'realistic_image'];
+  const categoryLabels: Record<string, string> = {
+    digital_illustration: 'Digital Illustration',
+    vector_illustration: 'Vector Illustration',
+    realistic_image: 'Realistic Image',
+  };
+
+  console.error('\n=== Select Illustration Style ===\n');
+
+  const flatList: IllustrationStyle[] = [];
+  let idx = 1;
+
+  for (const cat of categories) {
+    const catStyles = styles.filter(s => s.category === cat);
+    if (catStyles.length === 0) continue;
+
+    console.error(`  ${categoryLabels[cat] || cat}:`);
+    for (const style of catStyles) {
+      const isDefault = style.style_id === 'digital_illustration/pastel_gradient';
+      const suffix = isDefault ? ' (default)' : '';
+      console.error(`    ${String(idx).padStart(3)}. ${style.style_id.padEnd(45)} ${style.description}${suffix}`);
+      flatList.push(style);
+      idx++;
+    }
+    console.error('');
+  }
+
+  const answer = await prompt('Enter number, style ID, or press Enter for default', 'digital_illustration/pastel_gradient');
+
+  if (!answer || answer === 'digital_illustration/pastel_gradient') {
+    return 'digital_illustration/pastel_gradient';
+  }
+
+  // Check if it's a number
+  const num = parseInt(answer, 10);
+  if (!isNaN(num) && num >= 1 && num <= flatList.length) {
+    return flatList[num - 1].style_id;
+  }
+
+  // Check if it matches a style_id directly
+  const matched = styles.find(s => s.style_id === answer);
+  if (matched) {
+    return matched.style_id;
+  }
+
+  console.error(`Unknown style '${answer}', using default.`);
+  return 'digital_illustration/pastel_gradient';
 }
 
 /**
@@ -680,50 +767,34 @@ export async function selectArticlesForGeneration(
 
 /**
  * Select articles ready for enhancement
- * Filters for: last_pipeline: 'generate'
  * Shows oldest articles first (by created_at)
  * Supports: comma-separated numbers, range syntax "N:M", "all", "q"
  *
- * @param projectName - Name of the project
+ * @param articles - Pre-filtered list of articles eligible for the pipeline
  * @returns Array of selected article paths, or null if cancelled
  */
 export async function selectArticlesForEnhancement(
-  projectName: string
+  articles: ArticleForSelection[]
 ): Promise<string[] | null> {
-  // Get all articles with last_pipeline: 'generate' (ready for enhancement)
-  // IMPORTANT: Scan fresh from disk each time - no caching
-  const resolved = resolvePath(projectName);
-  const eligibleArticles = await getArticlesAfterPipeline(resolved, 'generate');
-
-  if (eligibleArticles.length === 0) {
-    console.error('\nNo articles ready for enhancement.\n');
-    console.error('Articles must have: last_pipeline: generate');
+  if (articles.length === 0) {
     return null;
   }
 
-  // Sort by created_at (oldest first) - FULL list for selection
-  const sorted = [...eligibleArticles]
-    .sort((a, b) => {
-      const dateA = a.meta.created_at ? new Date(a.meta.created_at).getTime() : 0;
-      const dateB = b.meta.created_at ? new Date(b.meta.created_at).getTime() : 0;
-      return dateA - dateB;
-    });
-
   // Display subset (max 10)
-  const displayArticles = sorted.slice(0, MAX_OLDEST_ARTICLES_TO_SHOW);
-  const displayCount = Math.min(sorted.length, MAX_OLDEST_ARTICLES_TO_SHOW);
+  const displayArticles = articles.slice(0, MAX_OLDEST_ARTICLES_TO_SHOW);
+  const displayCount = Math.min(articles.length, MAX_OLDEST_ARTICLES_TO_SHOW);
 
-  console.error(`\n=== Articles Ready to Enhance (${displayCount} of ${sorted.length}) ===\n`);
+  console.error(`\n=== Articles Ready to Enhance (${displayCount} of ${articles.length}) ===\n`);
 
   for (let i = 0; i < displayArticles.length; i++) {
     const article = displayArticles[i];
-    const date = article.meta.created_at ? formatDate(article.meta.created_at) : 'Unknown';
-    const title = truncateTitle(article.meta.title || article.path, MAX_TITLE_LENGTH);
+    const date = article.created_at ? formatDate(article.created_at) : 'Unknown';
+    const title = truncateTitle(article.title || article.path, MAX_TITLE_LENGTH);
     console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title}`);
   }
 
-  if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
-    const remaining = sorted.length - MAX_OLDEST_ARTICLES_TO_SHOW;
+  if (articles.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
+    const remaining = articles.length - MAX_OLDEST_ARTICLES_TO_SHOW;
     const nextStart = MAX_OLDEST_ARTICLES_TO_SHOW + 1;
     console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10' for articles ${nextStart}-${nextStart + 9})`);
   }
@@ -731,13 +802,7 @@ export async function selectArticlesForEnhancement(
 
   const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M' or 'N:M:YYYY-MM-DD', 'all', or 'q'");
 
-  // Convert to ArticleForSelection format for date filtering
-  const articlesForSelection: ArticleForSelection[] = sorted.map(a => ({
-    path: a.path,
-    title: a.meta.title || a.path,
-    created_at: a.meta.created_at || '',
-  }));
-  const result = parseArticleSelection(answer, sorted.length, articlesForSelection);
+  const result = parseArticleSelection(answer, articles.length, articles);
 
   // Show warning if any
   if (result.warning) {
@@ -749,11 +814,11 @@ export async function selectArticlesForEnhancement(
   }
 
   if (result.type === 'all') {
-    return sorted.map((a) => a.path);
+    return articles.map((a) => a.path);
   }
 
   // Return paths for selected indices
-  const selected = (result.indices || []).map((idx) => sorted[idx].path);
+  const selected = (result.indices || []).map((idx) => articles[idx].path);
   return selected.length > 0 ? selected : null;
 }
 

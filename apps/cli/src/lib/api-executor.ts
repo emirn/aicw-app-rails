@@ -379,12 +379,19 @@ export class APIExecutor {
       // Handle files[] in response - write generated files (e.g., from render_diagrams)
       if (response.files && response.files.length > 0 && context.projectName) {
         const paths = getProjectPaths(context.projectName);
+        const savedFiles: string[] = [];
         for (const file of response.files) {
           try {
             await this.writeGeneratedFile(paths.content, context.articlePath || '', file);
-            this.logger.log(`Wrote file: ${file.path}`);
+            savedFiles.push(path.join(paths.content, context.articlePath || '', file.path));
           } catch (err) {
             operationErrors.push(`write_file ${file.path}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+        if (savedFiles.length > 0) {
+          this.logger.log('Saved files:');
+          for (const f of savedFiles) {
+            this.logger.log(`  ${f}`);
           }
         }
       }

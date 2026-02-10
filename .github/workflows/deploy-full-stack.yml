@@ -10,6 +10,9 @@
 #   - CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_AICW_ZONE_ID: Cloudflare IDs
 #   - SUPABASE_URL: Supabase project URL
 #
+# Required variables (Settings > Variables):
+#   - AICW_EXCEPTION_RECIPIENTS: Comma-separated emails for exception alerts
+#
 # Required secrets (Settings > Secrets):
 #   - AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY: SSH private key for server access
 #   - RAILS_MASTER_KEY: Rails master key
@@ -19,6 +22,7 @@
 #   - CLOUDFLARE_API_TOKEN: Cloudflare API token
 #   - OPENROUTER_API_KEY: OpenRouter for sgen
 #   - SUPABASE_SERVICE_ROLE_KEY: Supabase service role key
+#   - SMTP_USERNAME / SMTP_PASSWORD: AWS SES SMTP credentials
 
 name: Deploy Full Stack to AWS
 
@@ -143,6 +147,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID=${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_AICW_ZONE_ID=${{ vars.CLOUDFLARE_AICW_ZONE_ID }}
           OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
+          SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          AICW_EXCEPTION_RECIPIENTS=${{ vars.AICW_EXCEPTION_RECIPIENTS }}
           EOF
 
       - name: Deploy with Kamal
@@ -166,6 +173,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_AICW_ZONE_ID: ${{ vars.CLOUDFLARE_AICW_ZONE_ID }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          AICW_EXCEPTION_RECIPIENTS: ${{ vars.AICW_EXCEPTION_RECIPIENTS }}
         run: |
           cd apps/web/deployment/full-stack
           # Reboot accessories (update to latest image), or boot if first time

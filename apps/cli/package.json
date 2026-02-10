@@ -7,7 +7,7 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && cp -r templates dist/",
+    "build": "tsc && cp -r templates dist/ && cp -r src/config dist/",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build"

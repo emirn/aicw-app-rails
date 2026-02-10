@@ -40,6 +40,7 @@ import {
   promptMultilineInput,
   resolveConflictsInteractive,
   confirm,
+  selectIllustrationStyle,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
@@ -51,7 +52,7 @@ import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDef
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
 import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
-import { setPublishablePattern } from './lib/workflow';
+import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
   importPlanFromFile,
   importPlanFromContent,
@@ -329,6 +330,11 @@ async function main(): Promise<void> {
         setPublishablePattern(pipelinesResult.publishableFilter);
       }
 
+      // Build dynamic pipeline transitions map from config
+      if (pipelinesResult.pipelines) {
+        setPipelinesMap(pipelinesResult.pipelines);
+      }
+
       // Build menu: local actions + pipelines from API
       const allActions = [
         ...LOCAL_ACTIONS.map(a => ({ ...a, category: 'local' })),
@@ -405,11 +411,16 @@ async function main(): Promise<void> {
           ? sanitizedName
           : undefined;
 
+        // Pick illustration style for hero images
+        const illustrationStyle = await selectIllustrationStyle();
+
         await initializeProject(projectDir, { title: projectName, url: projectUrl });
-        logger.log('Fetching project template defaults...');
-        await mergeProjectTemplateDefaults(projectDir, baseUrl);
-        logger.log('Fetching default requirements template...');
-        await initializePromptTemplates(projectDir, baseUrl);
+        logger.log('Applying project template defaults...');
+        await mergeProjectTemplateDefaults(projectDir, {
+          illustrationStyle: illustrationStyle || undefined,
+        });
+        logger.log('Applying default requirements template...');
+        await initializePromptTemplates(projectDir);
 
         // Initialize default action configs
         logger.log('Initializing default action configs...');
@@ -1355,7 +1366,7 @@ async function main(): Promise<void> {
           if (filter.last_pipeline === null) {
             selectedPaths = await selectArticlesForGeneration(selectionList);
           } else {
-            const selected = await selectArticlesForEnhancement(selectedProject);
+            const selected = await selectArticlesForEnhancement(selectionList);
             selectedPaths = selected || [];
           }
 
@@ -1499,7 +1510,7 @@ async function main(): Promise<void> {
               }
 
               // Execute action via API
-              const result = await executor.executeAction(finalAction, fullPath, { mode: currentAction, ...finalFlags }, { debug: debugEnabled });
+              const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction, ...finalFlags }, { debug: debugEnabled });
 
               if (result.success) {
                 if (result.skipped) {
@@ -1698,13 +1709,16 @@ async function main(): Promise<void> {
         url: projectUrl,
       });
 
-      // Fetch project template defaults (branding, colors)
-      logger.log('Fetching project template defaults...');
-      await mergeProjectTemplateDefaults(projectDir, baseUrl);
+      // Apply project template defaults (branding, colors)
+      logger.log('Applying project template defaults...');
+      const cliStyle = finalFlags.style as string | undefined;
+      await mergeProjectTemplateDefaults(projectDir, {
+        illustrationStyle: cliStyle || undefined,
+      });
 
-      // Fetch and save default prompts/write_draft/prompt.md from API
-      logger.log('Fetching default requirements template...');
-      await initializePromptTemplates(projectDir, baseUrl);
+      // Copy default prompts/write_draft/custom.md from bundled template
+      logger.log('Applying default requirements template...');
+      await initializePromptTemplates(projectDir);
 
       // Initialize default action configs
       logger.log('Initializing default action configs...');
@@ -1789,11 +1803,16 @@ async function main(): Promise<void> {
           ? sanitizedName
           : undefined;
 
+        // Pick illustration style for hero images
+        const inlineIllustrationStyle = await selectIllustrationStyle();
+
         await initializeProject(projectDir, { title: projectName, url: projectUrl });
-        logger.log('Fetching project template defaults...');
-        await mergeProjectTemplateDefaults(projectDir, baseUrl);
-        logger.log('Fetching default requirements template...');
-        await initializePromptTemplates(projectDir, baseUrl);
+        logger.log('Applying project template defaults...');
+        await mergeProjectTemplateDefaults(projectDir, {
+          illustrationStyle: inlineIllustrationStyle || undefined,
+        });
+        logger.log('Applying default requirements template...');
+        await initializePromptTemplates(projectDir);
 
         // Initialize default action configs
         logger.log('Initializing default action configs...');
@@ -2082,7 +2101,7 @@ async function main(): Promise<void> {
               // Show interactive picker
               selectedPaths = filter.last_pipeline === null
                 ? await selectArticlesForGeneration(selectionList)
-                : await selectArticlesForEnhancement(resolved.projectName) || [];
+                : await selectArticlesForEnhancement(selectionList) || [];
             }
 
             if (selectedPaths.length === 0) {
@@ -2170,7 +2189,7 @@ async function main(): Promise<void> {
                   continue;
                 }
 
-                const result = await executor.executeAction(finalAction, fullPath, { mode: currentAction }, { debug });
+                const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction }, { debug });
 
                 if (result.success) {
                   totalTokens += result.tokensUsed || 0;

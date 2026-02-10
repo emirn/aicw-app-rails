@@ -1,9 +1,9 @@
 /**
- * Prompt Sync - Automatically sync action custom.md files from server
+ * Prompt Sync - Write bundled default custom.md files to projects
  *
- * When CLI fetches action config from server, this module syncs any
- * missing custom.md files to the local project for actions that support
- * custom prompts (supports_custom_prompt: true).
+ * For actions that support custom prompts (supports_custom_prompt: true),
+ * this module writes CLI-bundled default custom.md templates to the local
+ * project if they don't already exist.
  *
  * Note: prompt.md files are NOT synced - they stay on the server.
  * Only custom.md is synced for project customization.
@@ -12,8 +12,20 @@
  */
 
 import { promises as fs } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { IActionConfig } from '@blogpostgen/types';
+
+/** Directory containing CLI-bundled action templates */
+const BUNDLED_DIR = path.join(__dirname, '..', 'config', 'actions');
+
+/**
+ * Read a bundled custom.md template from CLI's config directory
+ */
+function getBundledCustomMd(actionName: string): string | null {
+  const p = path.join(BUNDLED_DIR, actionName, 'custom.md');
+  return existsSync(p) ? readFileSync(p, 'utf-8') : null;
+}
 
 /** Minimum file size to consider a file valid (bytes) */
 const MIN_SIZE = 3;
@@ -39,10 +51,10 @@ async function writeFile(filePath: string, content: string): Promise<void> {
 }
 
 /**
- * Sync missing custom.md files from server config
+ * Sync missing custom.md files from CLI-bundled templates
  *
  * For each action with supports_custom_prompt: true in the config:
- * - If custom.md file doesn't exist locally, write it from server
+ * - If custom.md file doesn't exist locally, write it from CLI's bundled defaults
  *
  * Note: prompt.md files are NOT synced - they stay on the server.
  * config.json files are also no longer synced - configuration comes
@@ -64,12 +76,14 @@ export async function syncActionPrompts(
       continue;
     }
 
-    // Sync custom.md if exists on server (not prompt.md)
-    if (cfg.custom_content && cfg.custom_relative_path) {
-      const localPath = path.join(projectRoot, cfg.custom_relative_path);
+    // Write bundled custom.md if not already present locally
+    const defaultContent = getBundledCustomMd(name);
+    if (defaultContent) {
+      const relativePath = `config/actions/${name}/custom.md`;
+      const localPath = path.join(projectRoot, relativePath);
       if (!(await existsAndValid(localPath))) {
-        await writeFile(localPath, cfg.custom_content);
-        synced.push(cfg.custom_relative_path);
+        await writeFile(localPath, defaultContent);
+        synced.push(relativePath);
       }
     }
 
