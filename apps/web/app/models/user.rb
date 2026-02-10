@@ -10,5 +10,6 @@ class User < ApplicationRecord
   has_many :sent_invitations, class_name: "AccountInvitation", foreign_key: :invited_by_id, dependent: :destroy
 
   # Validations
-  validates :email, presence: true, uniqueness: true
+  validates :email, presence: true, uniqueness: true,
+            'valid_email_2/email': { disposable: true }
 end
