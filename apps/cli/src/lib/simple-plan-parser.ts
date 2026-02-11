@@ -156,6 +156,26 @@ function extractDescription(block: string): string {
 }
 
 /**
+ * Convert a ContentPlan back into the simple text format.
+ * Inverse of simplePlanToPlan() — useful for displaying AI-generated plans.
+ *
+ * @param plan - ContentPlan to format
+ * @returns Plain text in TITLE/URL/KEYWORDS/DESCRIPTION format
+ */
+export function planToSimpleText(plan: ContentPlan): string {
+  return plan.items.map((item) => {
+    const lines: string[] = [];
+    lines.push(`TITLE: ${item.title}`);
+    lines.push(`URL: ${item.slug}`);
+    if (item.target_keywords?.length) {
+      lines.push(`KEYWORDS: ${item.target_keywords.join(', ')}`);
+    }
+    lines.push(`DESCRIPTION: ${item.description}`);
+    return lines.join('\n');
+  }).join('\n---\n');
+}
+
+/**
  * Validate date format (YYYY-MM-DD)
  * @param dateStr - Date string to validate
  * @returns True if valid format

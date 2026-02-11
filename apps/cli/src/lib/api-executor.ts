@@ -29,7 +29,7 @@ import {
 } from './folder-manager';
 import { saveProjectConfig } from './project-config';
 import { getProjectPaths, initializeProjectDirectories } from '../config/user-paths';
-import { IProjectConfig, IArticle, IPromptParts } from '@blogpostgen/types';
+import { IProjectConfig, IArticle, IPromptParts, IContentPlan } from '@blogpostgen/types';
 import {
   loadPromptParts,
   PromptValidationError,
@@ -916,6 +916,29 @@ export class APIExecutor {
 
       default:
         throw new Error(`Unknown operation type: ${(op as any).type}`);
+    }
+  }
+
+  /**
+   * Expand free-form ideas into structured article proposals via AI
+   */
+  async expandIdeas(ideas: string[], websiteInfo: any): Promise<{
+    success: boolean;
+    plan?: IContentPlan;
+    error?: string;
+    tokens_used?: number;
+    cost_usd?: number;
+  }> {
+    try {
+      return await this.client.post('/api/v1/plan/expand-ideas', {
+        ideas,
+        website_info: websiteInfo,
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 

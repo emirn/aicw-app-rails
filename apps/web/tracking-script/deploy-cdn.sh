@@ -23,16 +23,16 @@ set -e
 # =============================================================================
 
 # Configuration
-S3_BUCKET="t.aicw.io"
+S3_BUCKET="t-eu-central-1.aicw.io"
 S3_REGION="eu-central-1"
 CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
 SCRIPT_NAME="aicw-view.min.js"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SOURCE_FILE="$SCRIPT_DIR/public-src/generated/aicw-view.min.js"
-VERSION_FILE="$SCRIPT_DIR/public-src/generated/.version"
-BACKUP_DIR="$SCRIPT_DIR/public-src/generated/backups"
+SOURCE_FILE="$SCRIPT_DIR/dist/aicw-view.min.js"
+VERSION_FILE="$SCRIPT_DIR/dist/.version"
+BACKUP_DIR="$SCRIPT_DIR/backups"
 MAX_BACKUPS=10
 
 # Load .env file if it exists
@@ -106,8 +106,8 @@ echo ""
 # =============================================================================
 log_info "📋 Step 1/5: Building tracking script..."
 
-cd "$PROJECT_ROOT"
-npm run tracker:build
+cd "$SCRIPT_DIR"
+npm run build
 
 # Verify output file exists
 if [[ ! -f "$SOURCE_FILE" ]]; then
@@ -181,17 +181,6 @@ aws s3 cp "$GZIP_FILE" "s3://${S3_BUCKET}/${SCRIPT_NAME}" \
 
 log_success "   ✓ Uploaded to s3://${S3_BUCKET}/${SCRIPT_NAME}"
 
-# Also upload versioned copy for rollback
-if [[ -n "$VERSION" ]]; then
-    aws s3 cp "$GZIP_FILE" "s3://${S3_BUCKET}/versions/aicw-view.min.${VERSION}.js" \
-        --region "$S3_REGION" \
-        --content-type "application/javascript" \
-        --content-encoding "gzip" \
-        --cache-control "public, max-age=31536000, immutable" \
-        --metadata-directive REPLACE > /dev/null 2>&1
-    log_gray "   ✓ Versioned copy: s3://${S3_BUCKET}/versions/aicw-view.min.${VERSION}.js"
-fi
-
 # Clean up temp file
 rm -f "$GZIP_FILE"
 echo ""
@@ -240,16 +229,9 @@ echo ""
 # Done!
 # =============================================================================
 print_separator
-if [[ -n "$VERSION" ]]; then
-    log_success "✅ CDN deployment complete! (v$VERSION)"
-else
-    log_success "✅ CDN deployment complete!"
-fi
+log_success "✅ CDN deployment complete!"
 echo ""
 echo "   URL: https://t.aicw.io/${SCRIPT_NAME}"
-if [[ -n "$VERSION" ]]; then
-    echo "   Version: $VERSION"
-fi
 echo ""
 echo "   Quick version check:"
 echo "     curl -s --compressed https://t.aicw.io/${SCRIPT_NAME} | head -c 50"

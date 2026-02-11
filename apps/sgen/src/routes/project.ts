@@ -91,6 +91,14 @@ function validateBranding(
     log.warn({ style }, 'AI selected unknown illustration style — allowing but flagging');
   }
 
+  // Validate typography (optional — warn if present but incomplete)
+  const typography = branding.typography as Record<string, unknown> | undefined;
+  if (typography && typeof typography === 'object') {
+    if (!typography.fontFamily || !typography.googleFonts) {
+      log.warn({ typography }, 'Typography missing fontFamily or googleFonts — template defaults will apply');
+    }
+  }
+
   return errors;
 }
 

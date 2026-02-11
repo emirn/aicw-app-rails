@@ -1,0 +1,7 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "openai/gpt-4o",
+  "output_mode": "text_replace_all",
+  "description": "Expand free-form ideas into structured article proposals",
+  "forcible": false
+}

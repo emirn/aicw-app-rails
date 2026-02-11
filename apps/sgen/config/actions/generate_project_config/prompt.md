@@ -55,7 +55,12 @@ Generate a JSON object matching the IProjectBranding schema below. Every field m
       "border": string              // Dark mode border color (#RRGGBB)
     }
   },
-  "illustration_style": string  // Pick from the allowed styles list below
+  "illustration_style": string, // Pick from the allowed styles list below
+  "typography": {
+    "fontFamily": string,         // Body text font (CSS font-family with fallbacks, e.g. "Inter, system-ui, sans-serif")
+    "headingFontFamily": string,  // Heading font (can differ from body for contrast, e.g. "Playfair Display, serif")
+    "googleFonts": string[]       // Google Fonts specs to load (e.g. ["Inter:wght@400;500;600;700", "Playfair Display:wght@400;700"])
+  }
 }
 ```
 
@@ -64,6 +69,37 @@ Generate a JSON object matching the IProjectBranding schema below. Every field m
 Pick the ONE style that best matches the brand personality and audience. Only choose from this list:
 
 {{illustration_styles}}
+
+### Font Selection Guidelines
+
+Pick fonts from this curated Google Fonts list. Always include CSS fallbacks.
+
+**Sans-Serif (modern, clean):**
+- Inter — clean, modern, highly readable (great for tech/SaaS)
+- DM Sans — geometric, clean, modern
+- Open Sans — friendly, highly readable
+- Lato — warm, professional
+- Poppins — geometric, modern, bold
+- Nunito — rounded, friendly, approachable
+- Work Sans — clean, professional
+- Raleway — elegant, thin
+- Source Sans 3 — technical, clean
+- Roboto — versatile, neutral
+- Montserrat — geometric, strong headings
+
+**Serif (traditional, authoritative):**
+- Merriweather — highly readable, warm
+- Playfair Display — elegant, editorial (best for headings only)
+- Lora — elegant, readable
+- Source Serif 4 — clean, modern serif
+- Libre Baskerville — classic, authoritative
+
+**Font pairing rules:**
+- Same font for body+headings (e.g., Inter/Inter) — safe, cohesive
+- Serif headings + sans body (e.g., Playfair Display/Inter) — editorial, premium feel
+- Match brand personality: Legal/finance → serif. Tech/SaaS → geometric sans. Creative → display fonts. Health/edu → rounded sans.
+- Always include weight specs in googleFonts (e.g., "Inter:wght@400;500;600;700")
+- Always include CSS fallbacks: sans-serif fonts end with "system-ui, sans-serif", serif fonts end with "serif"
 
 ### Color Design Guidelines
 

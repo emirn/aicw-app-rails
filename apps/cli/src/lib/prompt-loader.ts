@@ -171,7 +171,7 @@ export async function initializePromptTemplates(
  */
 export async function mergeProjectTemplateDefaults(
   projectDir: string,
-  options?: { illustrationStyle?: string }
+  options?: { illustrationStyle?: string; branding?: any }
 ): Promise<void> {
   const indexPath = path.join(projectDir, 'index.json');
 
@@ -196,14 +196,16 @@ export async function mergeProjectTemplateDefaults(
       .replace(/\{\{date\}\}/g, now)
   );
 
-  // Apply selected illustration style if provided
-  if (options?.illustrationStyle && cloned.branding) {
-    cloned.branding.illustration_style = options.illustrationStyle;
-  }
-
-  // Merge branding defaults (only if branding doesn't exist in existing config)
-  if (cloned.branding && !existingConfig.branding) {
+  if (options?.branding) {
+    // Use AI-generated branding directly
+    existingConfig.branding = options.branding;
+  } else if (cloned.branding && !existingConfig.branding) {
+    // Fall back to template defaults (existing behavior)
     existingConfig.branding = cloned.branding;
+    if (options?.illustrationStyle) {
+      existingConfig.branding = { ...existingConfig.branding as object };
+      (existingConfig.branding as any).illustration_style = options.illustrationStyle;
+    }
   }
 
   // Write merged config back

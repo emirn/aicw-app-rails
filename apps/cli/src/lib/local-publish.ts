@@ -83,6 +83,10 @@ export async function publishToLocalFolder(
     if (projectConfig?.branding && !(effectiveSettings as any).branding) {
       effectiveSettings = { ...effectiveSettings, branding: projectConfig.branding };
     }
+    // Auto-inject typography from branding into root-level typography for template
+    if (projectConfig?.branding?.typography && !(effectiveSettings as any).typography) {
+      effectiveSettings = { ...effectiveSettings, typography: projectConfig.branding.typography };
+    }
 
     // Deep-merge template_settings on top of defaults
     const merged = Object.keys(effectiveSettings).length > 0
