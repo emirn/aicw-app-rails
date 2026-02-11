@@ -3,8 +3,8 @@
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "rm -f .astro/data-store.json && astro dev",
+    "build": "rm -f .astro/data-store.json && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
