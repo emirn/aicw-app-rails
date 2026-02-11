@@ -83,7 +83,6 @@ export interface HeroImageResponse {
 export const DEFAULT_HERO_COLORS: IBrandingColors = {
   primary: '#3B82F6',
   secondary: '#8B5CF6',
-  accent: '#F59E0B',
   background: '#1E293B',
 };
 
@@ -131,7 +130,6 @@ export function replaceColorMacros(template: string, colors: IBrandingColors): s
   return template
     .replace(/\{\{primary_color\}\}/gi, finalColors.primary!)
     .replace(/\{\{secondary_color\}\}/gi, finalColors.secondary!)
-    .replace(/\{\{accent_color\}\}/gi, finalColors.accent!)
     .replace(/\{\{background_color\}\}/gi, finalColors.background!);
 }
 

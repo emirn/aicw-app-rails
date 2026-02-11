@@ -85,11 +85,10 @@ function buildColorControls(colors?: IBrandingColors): {
     background_color?: { rgb: [number, number, number] };
   } = {};
 
-  // Collect brand colors for palette (primary, secondary, accent)
+  // Collect brand colors for palette (primary, secondary)
   const palette: Array<{ rgb: [number, number, number] }> = [];
   if (colors.primary) palette.push({ rgb: hexToRgb(colors.primary) });
   if (colors.secondary) palette.push({ rgb: hexToRgb(colors.secondary) });
-  if (colors.accent) palette.push({ rgb: hexToRgb(colors.accent) });
 
   if (palette.length > 0) {
     controls.colors = palette;
