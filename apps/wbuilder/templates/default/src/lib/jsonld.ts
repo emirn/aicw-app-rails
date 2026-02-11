@@ -75,7 +75,7 @@ export function generateBlogPosting(
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: data.title,
-    datePublished: data.date?.toISOString(),
+    datePublished: data.published_at.toISOString(),
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': canonicalUrl,
@@ -90,8 +90,8 @@ export function generateBlogPosting(
 
   if (data.updated_at) {
     blogPosting.dateModified = data.updated_at.toISOString();
-  } else if (data.date) {
-    blogPosting.dateModified = data.date.toISOString();
+  } else {
+    blogPosting.dateModified = data.published_at.toISOString();
   }
 
   const authorName = data.author || getDefaultAuthor(config);

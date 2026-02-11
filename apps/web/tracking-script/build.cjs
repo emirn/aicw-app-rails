@@ -10,14 +10,13 @@
  *
  * HOW TO RUN:
  * -----------
- * npm run tracker:build
+ * npm run build
  *
  * WHAT IT DOES:
  * -------------
- * - Validates: script/public-src/aicw-view.js (syntax check)
+ * - Validates: src/aicw-view.js (syntax check)
  * - Minifies: using terser with compression and mangling
- * - Writes: script/public-src/generated/aicw-view.js
- * - Copies: to ../aicw.io/assets/js/
+ * - Writes: dist/aicw-view.min.js
  */
 
 const fs = require('fs');

@@ -27,7 +27,8 @@ export type ActionMode =
   | 'validate_links'
   | 'generate_image_hero'
   | 'generate_image_social'
-  | 'generate_project_config';
+  | 'generate_project_config'
+  | 'expand_ideas';
 
 export type OutputMode =
   | 'text_replace_all'

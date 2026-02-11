@@ -109,6 +109,18 @@ export interface IBrandingLogo {
 }
 
 /**
+ * Typography configuration for branding (Google Fonts + CSS font-family)
+ */
+export interface IBrandingTypography {
+  /** Body font CSS family (e.g., "Inter, system-ui, sans-serif") */
+  fontFamily?: string;
+  /** Heading font CSS family (e.g., "Playfair Display, serif") */
+  headingFontFamily?: string;
+  /** Google Fonts specs (e.g., ["Inter:wght@400;500;600;700"]) */
+  googleFonts?: string[];
+}
+
+/**
  * Project-level branding configuration
  */
 export interface IProjectBranding {
@@ -137,6 +149,8 @@ export interface IProjectBranding {
    * - "realistic_image" (photography-like)
    */
   illustration_style?: string;
+  /** Typography settings (Google Fonts, font families) */
+  typography?: IBrandingTypography;
 }
 
 /**

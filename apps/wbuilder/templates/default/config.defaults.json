@@ -55,7 +55,7 @@
   },
   "header": {
     "style": "pill",
-    "showSearch": false,
+    "showSearch": true,
     "navLinks": [
       { "label": "Home", "url": "/" },
       { "label": "Contacts", "url": "/contacts/" }
@@ -142,6 +142,11 @@
     "widgetCode": "",
     "customHeadCode": "",
     "customBodyCode": ""
+  },
+  "search": {
+    "enabled": true,
+    "placeholder": "Search articles...",
+    "showInHeader": true
   },
   "aicw": {
     "enabled": false,

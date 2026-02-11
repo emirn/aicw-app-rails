@@ -41,6 +41,7 @@ import {
   resolveConflictsInteractive,
   confirm,
   selectIllustrationStyle,
+  promptInput,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
@@ -62,7 +63,7 @@ import {
   executeResolvedImport,
   parsePlanFile,
 } from './lib/plan-importer';
-import { simplePlanToPlan } from './lib/simple-plan-parser';
+import { simplePlanToPlan, planToSimpleText } from './lib/simple-plan-parser';
 import { syncActionPrompts } from './lib/prompt-sync';
 import {
   migrateToUnifiedFormat,
@@ -96,6 +97,7 @@ const LOCAL_ACTIONS = [
   { name: 'project-reinit', description: 'Add missing default configs to project', usage: 'blogpostgen project-reinit <project>', group: 'project' },
   { name: 'article-seed', description: 'Create seed article ready for generation', usage: 'blogpostgen article-seed <project> --title <title>', group: 'project' },
   { name: 'plan-import', description: 'Import content plan from plain text file', usage: 'blogpostgen plan-import <project> --file <path>', group: 'project' },
+  { name: 'ideas', description: 'AI-expand ideas into content plan and import', usage: 'blogpostgen ideas <project>', group: 'project' },
   { name: 'status', description: 'Show project or article status', usage: 'blogpostgen status [path]', group: 'project' },
 
   // Utility group (101-199)
@@ -403,22 +405,69 @@ async function main(): Promise<void> {
       }
 
       try {
-        logger.log(`Creating project '${sanitizedName}'...`);
-
         // Derive URL from project name if it looks like a domain (contains a dot)
-        // Store just the domain without https:// prefix (sgen will normalize)
         const projectUrl = sanitizedName.includes('.')
           ? sanitizedName
           : undefined;
 
-        // Pick illustration style for hero images
-        const illustrationStyle = await selectIllustrationStyle();
+        // Prompt for site description (multiline)
+        logger.log('');
+        const siteDescription = await promptMultilineInput(
+          'Describe your website (what it\'s about, target audience, tone).\nThis helps AI generate branding (colors, fonts, style).\nPress Enter twice when done:'
+        );
 
+        // Prompt for color preference (optional, single line)
+        const colorPreference = await promptInput(
+          'Color preference (optional, e.g. "modern blue and purple")'
+        );
+
+        // Try AI-powered branding generation
+        let aiBranding: any = null;
+        if (siteDescription) {
+          logger.log('');
+          logger.log('Generating branding with AI...');
+          const configResult = await executor.generateProjectConfig({
+            site_name: projectName,
+            site_description: siteDescription,
+            site_url: projectUrl,
+            color_preference: colorPreference || undefined,
+          });
+
+          if (configResult.success && configResult.branding) {
+            logger.log('');
+            logger.log('Generated branding:');
+            logger.log(JSON.stringify(configResult.branding, null, 2));
+            if (configResult.cost_usd) {
+              logger.log(`  (cost: $${configResult.cost_usd.toFixed(4)})`);
+            }
+            logger.log('');
+
+            const useAi = await confirm('Use these AI-generated settings?');
+            if (useAi) {
+              aiBranding = configResult.branding;
+            } else {
+              logger.log('AI branding declined, falling back to manual selection.');
+            }
+          } else {
+            logger.log(`AI branding generation failed: ${configResult.error || 'Unknown error'}`);
+            logger.log('Falling back to manual selection.');
+          }
+        }
+
+        // Fallback: manual illustration style picker
+        let illustrationStyle: string | null = null;
+        if (!aiBranding) {
+          illustrationStyle = await selectIllustrationStyle();
+        }
+
+        logger.log(`Creating project '${sanitizedName}'...`);
         await initializeProject(projectDir, { title: projectName, url: projectUrl });
+
         logger.log('Applying project template defaults...');
         await mergeProjectTemplateDefaults(projectDir, {
-          illustrationStyle: illustrationStyle || undefined,
+          ...(aiBranding ? { branding: aiBranding } : { illustrationStyle: illustrationStyle || undefined }),
         });
+
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
 
@@ -433,13 +482,20 @@ async function main(): Promise<void> {
           }
         }
 
+        const indexJsonPath = path.join(projectDir, 'index.json');
+        const customMdPath = path.join(projectDir, 'config', 'actions', 'write_draft', 'custom.md');
+
         logger.log('');
         logger.log(`✓ Project '${sanitizedName}' created!`);
-        logger.log(`  Settings: ${path.join(projectDir, 'index.json')}`);
+        logger.log('');
+        logger.log('Review your settings:');
+        logger.log(`  Branding: ${indexJsonPath}`);
+        logger.log(`  Writing voice: ${customMdPath}`);
         logger.log('');
         logger.log('Next steps:');
-        logger.log(`  1. Edit prompt templates in: ${path.join(projectDir, 'config', 'actions')}/`);
-        logger.log(`  2. Then run: blogpostgen -i generate`);
+        logger.log(`  1. Review branding in index.json`);
+        logger.log(`  2. Edit writing voice in custom.md`);
+        logger.log(`  3. Then run: blogpostgen -i generate`);
         logger.log('');
         await pressEnterToContinue();
         continue;
@@ -1138,6 +1194,159 @@ async function main(): Promise<void> {
         }
       } catch (error: any) {
         logger.log(chalk.red(`Error: ${error.message}`));
+      }
+
+      await pressEnterToContinue();
+      continue;
+    }
+
+    // Handle ideas (AI-expand ideas into content plan and import)
+    if (finalAction === 'ideas') {
+      // Step 1: Select project
+      const selectedProject = await selectProject();
+      if (!selectedProject) {
+        continue;
+      }
+
+      if (selectedProject === CREATE_NEW_PROJECT) {
+        logger.log('Please create a project first with project-init.');
+        await pressEnterToContinue();
+        continue;
+      }
+
+      // Step 2: Get ideas input
+      const ideasText = await promptMultilineInput('Enter your article ideas (one per line, free-form):');
+      if (!ideasText) {
+        await pressEnterToContinue();
+        continue;
+      }
+
+      // Parse ideas: split by newline, filter empty
+      const ideas = ideasText.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (ideas.length === 0) {
+        logger.log('No ideas provided.');
+        await pressEnterToContinue();
+        continue;
+      }
+
+      const projectPaths = getProjectPaths(selectedProject);
+
+      try {
+        // Step 3: Read project config for website context
+        const { loadProjectConfig } = await import('./lib/project-config.js');
+        const projectConfig = await loadProjectConfig(projectPaths.root);
+        if (!projectConfig) {
+          logger.log('Project config (index.json) not found. Run project-init first.');
+          await pressEnterToContinue();
+          continue;
+        }
+
+        // Build website_info from project config
+        const websiteInfo = {
+          title: projectConfig.title || selectedProject,
+          url: projectConfig.url || '',
+          description: (projectConfig as any).description || '',
+          focus_keywords: (projectConfig as any).focus_keywords || '',
+          focus_instruction: (projectConfig as any).focus_instruction || '',
+        };
+
+        logger.log(`\nExpanding ${ideas.length} idea(s) for ${selectedProject} via AI...`);
+
+        // Step 4: Call sgen expand-ideas endpoint
+        const result = await executor.expandIdeas(ideas, websiteInfo);
+
+        if (!result.success || !result.plan) {
+          logger.log(`\nExpansion failed: ${result.error || 'Unknown error'}`);
+          await pressEnterToContinue();
+          continue;
+        }
+
+        // Step 5: Display expanded plan
+        const planText = planToSimpleText(result.plan);
+        logger.log('');
+        logger.log(chalk.bold('=== Expanded Content Plan ==='));
+        logger.log('');
+        logger.log(planText);
+        logger.log('');
+        if (result.tokens_used) {
+          logger.log(`Tokens used: ${result.tokens_used}`);
+        }
+        if (result.cost_usd) {
+          logger.log(`Cost: $${result.cost_usd.toFixed(4)}`);
+        }
+        logger.log('');
+
+        // Step 6: Confirm import
+        const shouldImport = await confirm(`Import ${result.plan.items.length} article(s) as drafts?`, true);
+        if (!shouldImport) {
+          logger.log('Import cancelled.');
+          await pressEnterToContinue();
+          continue;
+        }
+
+        // Step 7: Parse the plan text back through simplePlanToPlan for import
+        const parseResult = simplePlanToPlan(planText, 'AI-expanded ideas');
+
+        // Step 8: Analyze conflicts
+        const preview = await analyzeImport(projectPaths.root, parseResult.plan);
+
+        // Step 9: Display preview
+        displayImportPreview(preview);
+
+        // Step 10: Resolve conflicts interactively
+        const conflicts = preview.filter((p) => p.conflict !== 'new');
+        const resolved = new Map<string, string | 'skip' | 'fail'>();
+
+        if (conflicts.length > 0) {
+          const interactiveResolved = await resolveConflictsInteractive(
+            conflicts.map((c) => ({
+              title: c.title,
+              articlePath: c.articlePath,
+              conflict: c.conflict as 'seed_replace' | 'skip',
+              existingPipeline: c.existingPipeline,
+            }))
+          );
+          for (const [key, value] of interactiveResolved) {
+            resolved.set(key, value);
+          }
+        }
+
+        // Step 11: Execute import
+        const importResult = await executeResolvedImport(
+          projectPaths.root,
+          parseResult.plan,
+          preview,
+          resolved,
+          {}
+        );
+
+        // Step 12: Print results
+        logger.log('');
+        logger.log('Import results:');
+        logger.log(`  Created: ${importResult.created} article(s)`);
+        if (importResult.updated > 0) {
+          logger.log(`  Updated: ${importResult.updated} seed article(s)`);
+        }
+        if (importResult.skipped > 0) {
+          logger.log(`  Skipped: ${importResult.skipped} article(s)`);
+        }
+        if (importResult.failed > 0) {
+          logger.log(`  Failed: ${importResult.failed} article(s)`);
+          for (const f of importResult.failures) {
+            logger.log(`    - ${f.path}: ${f.reason}`);
+          }
+        }
+        if (importResult.errors.length > 0) {
+          logger.log(`  Errors: ${importResult.errors.length}`);
+          for (const err of importResult.errors) {
+            logger.log(`    - ${err.path}: ${err.error}`);
+          }
+        }
+        logger.log('');
+      } catch (error) {
+        logger.log('');
+        logger.log(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.log('');
       }
 
       await pressEnterToContinue();

@@ -24,6 +24,19 @@ interface PlanGenerateResponse {
   cost_usd?: number;
 }
 
+interface ExpandIdeasRequest {
+  ideas: string[];
+  website_info: IWebsiteInfo;
+}
+
+interface ExpandIdeasResponse {
+  success: boolean;
+  plan?: IContentPlan;
+  error?: string;
+  tokens_used?: number;
+  cost_usd?: number;
+}
+
 export default async function planRoutes(app: FastifyInstance) {
   app.post<{ Body: PlanGenerateRequest }>('/generate', async (request, reply) => {
     const {
@@ -131,6 +144,97 @@ export default async function planRoutes(app: FastifyInstance) {
         success: false,
         error: err instanceof Error ? err.message : 'Plan generation failed',
       } as PlanGenerateResponse;
+    }
+  });
+
+  app.post<{ Body: ExpandIdeasRequest }>('/expand-ideas', async (request, reply) => {
+    const { ideas, website_info } = request.body;
+
+    // Validate input
+    if (!ideas || !Array.isArray(ideas) || ideas.length === 0) {
+      reply.code(400);
+      return {
+        success: false,
+        error: 'At least one idea is required',
+      } as ExpandIdeasResponse;
+    }
+
+    const websiteValidation = validateWebsiteInfo(website_info);
+    if (!websiteValidation.valid) {
+      reply.code(400);
+      return {
+        success: false,
+        error: `Invalid website_info: ${formatValidationErrors(websiteValidation.errors)}`,
+      } as ExpandIdeasResponse;
+    }
+
+    try {
+      const cfg = ensureActionConfigForMode('expand_ideas');
+
+      const ideasText = ideas.map((idea: string) => `- ${idea}`).join('\n');
+
+      const vars = {
+        website_title: website_info.title || 'Untitled Website',
+        website_url: website_info.url || '',
+        website_description: website_info.description || 'No description provided',
+        focus_keywords: website_info.focus_keywords || 'No keywords provided',
+        ideas_text: ideasText,
+      };
+
+      app.log.info({
+        url: website_info.url,
+        ideas_count: ideas.length,
+      }, 'plan/expand-ideas:start');
+
+      const prompt = renderTemplateAbsolutePath(cfg.prompt_path!, vars);
+
+      const { content, tokens, rawContent, debugInfo, usageStats } = await callAI(prompt, {
+        provider: cfg.ai_provider || 'openrouter',
+        modelId: cfg.ai_model_id || 'openai/gpt-4o',
+        baseUrl: cfg.ai_base_url,
+      });
+
+      // Validate JSON response
+      if (typeof content !== 'object' || !content.items) {
+        app.log.error({ content }, 'Invalid expand-ideas response from AI');
+        throw new Error('AI returned invalid plan structure (expected IContentPlan with items array)');
+      }
+
+      const plan: IContentPlan = {
+        website: content.website || {
+          url: website_info.url,
+          title: website_info.title,
+        },
+        total_articles: content.total_articles || content.items.length,
+        items: content.items || [],
+        summary: content.summary,
+        clusters: content.clusters,
+      };
+
+      if (!Array.isArray(plan.items) || plan.items.length === 0) {
+        throw new Error('Expanded plan must contain at least one article item');
+      }
+
+      app.log.info({
+        items: plan.items.length,
+        tokens,
+        cost_usd: usageStats.cost_usd,
+      }, 'plan/expand-ideas:done');
+
+      return {
+        success: true,
+        plan,
+        tokens_used: tokens,
+        cost_usd: usageStats.cost_usd,
+        debug: debugInfo ? buildDebugInfo(prompt, debugInfo.model_used, debugInfo.generation_time_ms, rawContent) : undefined,
+      } as ExpandIdeasResponse;
+    } catch (err: any) {
+      app.log.error({ err, message: err?.message, stack: err?.stack }, 'plan/expand-ideas:error');
+      reply.code(500);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Idea expansion failed',
+      } as ExpandIdeasResponse;
     }
   });
 }
