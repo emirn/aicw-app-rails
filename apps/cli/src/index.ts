@@ -41,7 +41,6 @@ import {
   resolveConflictsInteractive,
   confirm,
   selectIllustrationStyle,
-  promptInput,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
@@ -412,106 +411,14 @@ async function main(): Promise<void> {
           ? sanitizedName
           : undefined;
 
-        // --- AI branding generation ---
-        let brandingConfig: Record<string, unknown> | undefined;
-        const useAI = await confirm('Generate branding (colors, style) with AI?');
-
-        if (useAI) {
-          const siteDescription = await promptInput('What is this website about?');
-          if (!siteDescription) {
-            logger.log('Description is required for AI branding generation.');
-            await pressEnterToContinue();
-            continue;
-          }
-          const colorPref = await promptInput('Color preference (optional, press Enter to skip)');
-
-          let accepted = false;
-          while (!accepted) {
-            logger.log('\nGenerating branding with AI...');
-            const result = await executor.generateProjectConfig({
-              site_name: projectName,
-              site_description: siteDescription,
-              site_url: projectUrl,
-              color_preference: colorPref || undefined,
-            });
-
-            if (!result.success || !result.branding) {
-              logger.log(`AI branding failed: ${result.error || 'Unknown error'}`);
-              const retry = await confirm('Retry?');
-              if (!retry) break;
-              continue;
-            }
-
-            const b = result.branding;
-            logger.log('\n=== Generated Branding ===');
-            logger.log(`  Brand:       ${b.brand_name || '-'}`);
-            logger.log(`  Tagline:     ${b.site?.tagline || '-'}`);
-            logger.log(`  Badge:       ${b.badge || '-'}`);
-            logger.log(`  Style:       ${b.illustration_style || '-'}`);
-            logger.log(`  Primary:     ${b.colors?.primary || '-'}`);
-            logger.log(`  Secondary:   ${b.colors?.secondary || '-'}`);
-            logger.log(`  Accent:      ${b.colors?.accent || '-'}`);
-            if (result.cost_usd !== undefined) {
-              logger.log(`  Cost:        $${result.cost_usd.toFixed(4)}`);
-            }
-            logger.log('');
-
-            const accept = await confirm('Accept this branding?');
-            if (accept) {
-              brandingConfig = b;
-              accepted = true;
-            } else {
-              const retry = await confirm('Retry with AI?');
-              if (!retry) break;
-            }
-          }
-        }
-
-        // If no AI branding, fall back to manual illustration style picker
-        let illustrationStyle: string | undefined;
-        if (!brandingConfig) {
-          const selected = await selectIllustrationStyle();
-          illustrationStyle = selected || undefined;
-        }
-
-        // --- Site structure questions ---
-        logger.log('\n=== Site Structure ===\n');
-
-        const wantCustomPages = await confirm('Add /terms and /privacy pages?');
-        const blogInSubfolder = await confirm('Put articles under /blog/ path? (No = root path)');
-        const wantHomepageContent = await confirm('Show content on homepage? (No = just article list)');
+        // Pick illustration style for hero images
+        const illustrationStyle = await selectIllustrationStyle();
 
         await initializeProject(projectDir, { title: projectName, url: projectUrl });
         logger.log('Applying project template defaults...');
         await mergeProjectTemplateDefaults(projectDir, {
-          illustrationStyle,
-          branding: brandingConfig,
+          illustrationStyle: illustrationStyle || undefined,
         });
-
-        // Store site structure preferences in template_settings
-        const { promises: fsPromises } = await import('fs');
-        const indexJsonPath = path.join(projectDir, 'index.json');
-        const existingCfg = JSON.parse(await fsPromises.readFile(indexJsonPath, 'utf-8'));
-        if (!existingCfg.publish_to_local_folder) {
-          existingCfg.publish_to_local_folder = { enabled: false, path: '', content_subfolder: 'articles', assets_subfolder: 'assets' };
-        }
-        const ts = existingCfg.publish_to_local_folder.template_settings || {};
-
-        if (wantCustomPages) {
-          ts.custom_pages = { terms: true, privacy: true };
-        }
-        if (blogInSubfolder) {
-          ts.blog_prefix = '/blog';
-        }
-        if (wantHomepageContent) {
-          ts.hero = { enabled: true, showOnAllPages: false };
-        } else {
-          ts.hero = { enabled: false };
-        }
-
-        existingCfg.publish_to_local_folder.template_settings = ts;
-        await fsPromises.writeFile(indexJsonPath, JSON.stringify(existingCfg, null, 2) + '\n');
-
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
 
