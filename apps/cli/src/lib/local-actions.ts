@@ -281,10 +281,17 @@ export async function generateImageHeroLocal(
 
     const { meta, folderPath } = articleData;
 
-    // Check if hero image already exists
+    // Check if hero image already exists AND the file is actually on disk
     if (meta.image_hero) {
-      logger.log('    Hero image already exists, skipping');
-      return { success: true, count: 0 };
+      const heroRelPath = meta.image_hero.replace(/^\//, '');
+      const heroAbsPath = path.join(folderPath, 'assets', heroRelPath.replace(/^assets\//, ''));
+      try {
+        await fs.access(heroAbsPath);
+        logger.log('    Hero image already exists, skipping');
+        return { success: true, count: 0 };
+      } catch {
+        logger.log(`    Warning: image_hero references missing file: ${meta.image_hero}, regenerating...`);
+      }
     }
 
     const projectPaths = getProjectPaths(resolved.projectName);
