@@ -67,11 +67,6 @@ gem "rack-cors"
 gem "faraday", "~> 2.0"
 
 # ============================================
-# Maintenance Mode
-# ============================================
-gem "turnout2024", require: "turnout"
-
-# ============================================
 # Exception Notification
 # ============================================
 gem "exception_notification"
