@@ -42,6 +42,13 @@ async function prompt(question: string, defaultValue?: string): Promise<string> 
 }
 
 /**
+ * Prompt user for text input (exported for reuse)
+ */
+export async function promptInput(question: string, defaultValue?: string): Promise<string> {
+  return prompt(question, defaultValue);
+}
+
+/**
  * Prompt for yes/no confirmation
  */
 export async function confirm(question: string, defaultYes: boolean = true): Promise<boolean> {

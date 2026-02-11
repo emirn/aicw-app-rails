@@ -1,0 +1,84 @@
+style_id,description
+digital_illustration,Digital illustration (base style)
+digital_illustration/pastel_gradient,Clean pastel gradients — soft and modern (default)
+digital_illustration/hand_drawn,Hand-drawn sketch look with organic lines
+digital_illustration/pixel_art,Retro pixel art style
+digital_illustration/2d_art_poster,Bold flat 2D poster art
+digital_illustration/2d_art_poster_2,Alternative 2D poster style with richer detail
+digital_illustration/pop_art,Vibrant pop art with bold outlines
+digital_illustration/grain,Textured grain overlay — vintage feel
+digital_illustration/grain_20,Lighter grain texture
+digital_illustration/nostalgic_pastel,Warm pastel tones with a nostalgic mood
+digital_illustration/hand_drawn_outline,Hand-drawn outlines without fills
+digital_illustration/handmade_3d,Clay-like handmade 3D objects
+digital_illustration/infantile_sketch,Simple childlike sketch style
+digital_illustration/engraving_color,Colored engraving with fine line detail
+digital_illustration/child_book,Children's book illustration style
+digital_illustration/cover,Magazine/book cover style artwork
+digital_illustration/crosshatch,Cross-hatched pen drawing technique
+digital_illustration/digital_engraving,Precise digital engraving lines
+digital_illustration/expressionism,Expressive loose brushwork
+digital_illustration/freehand_details,Freehand with intricate detailing
+digital_illustration/graphic_intensity,High-contrast graphic style
+digital_illustration/hard_comics,Bold comic book style
+digital_illustration/long_shadow,Flat design with long drop shadows
+digital_illustration/modern_folk,Modern take on folk art patterns
+digital_illustration/multicolor,Rich multicolor palette
+digital_illustration/neon_calm,Neon accents on calm backgrounds
+digital_illustration/noir,Dark moody noir aesthetic
+digital_illustration/outline_details,Detailed outlines with minimal fills
+digital_illustration/pastel_sketch,Soft pastel pencil sketch
+digital_illustration/plastic,Glossy plastic 3D-rendered look
+digital_illustration/pop_renaissance,Renaissance art meets pop culture
+digital_illustration/seamless,Seamless tileable pattern
+digital_illustration/street_art,Street art / graffiti inspired
+digital_illustration/tablet_sketch,Digital tablet sketch feel
+digital_illustration/urban_glow,Urban scenes with neon glow
+digital_illustration/urban_sketching,Loose urban sketching style
+digital_illustration/young_adult_book,Young adult book cover art
+digital_illustration/young_adult_book_2,Alternative young adult illustration
+digital_illustration/antiquarian,Antique book plate illustration
+digital_illustration/bold_fantasy,Bold fantasy art with rich colors
+vector_illustration,Flat vector graphics (base style)
+vector_illustration/bold_stroke,Thick bold strokes
+vector_illustration/chemistry,Scientific / chemistry diagram style
+vector_illustration/colored_stencil,Stencil art with flat colors
+vector_illustration/cosmics,Space and cosmic themed vectors
+vector_illustration/cutout,Paper cutout collage style
+vector_illustration/depressive,Muted tones with melancholic mood
+vector_illustration/editorial,Clean editorial illustration
+vector_illustration/emotional_flat,Flat vectors with emotional expressiveness
+vector_illustration/engraving,Engraved line art vectors
+vector_illustration/line_art,Clean minimal line art
+vector_illustration/line_circuit,Circuit board line patterns
+vector_illustration/linocut,Linocut print style
+vector_illustration/marker_outline,Marker-drawn outlines
+vector_illustration/mosaic,Mosaic tile pattern style
+vector_illustration/naivector,Naive / primitive vector art
+vector_illustration/roundish_flat,Rounded soft flat shapes
+vector_illustration/seamless,Seamless tileable vector pattern
+vector_illustration/segmented_colors,Color-segmented flat areas
+vector_illustration/sharp_contrast,High contrast sharp vectors
+vector_illustration/thin,Thin delicate line vectors
+vector_illustration/vector_photo,Photo-realistic vector rendering
+vector_illustration/vivid_shapes,Vivid colorful geometric shapes
+realistic_image,Photo-realistic image (base style)
+realistic_image/b_and_w,Black and white photography
+realistic_image/enterprise,Corporate / enterprise photography
+realistic_image/evening_light,Warm evening golden hour light
+realistic_image/faded_nostalgia,Faded vintage photo look
+realistic_image/forest_life,Natural forest environment
+realistic_image/hard_flash,Direct flash photography
+realistic_image/hdr,High dynamic range photography
+realistic_image/motion_blur,Motion blur action shots
+realistic_image/mystic_naturalism,Mystical natural scenes
+realistic_image/natural_light,Soft natural lighting
+realistic_image/natural_tones,Earth-toned natural palette
+realistic_image/organic_calm,Calm organic compositions
+realistic_image/real_life_glow,Warm glowing real-life scenes
+realistic_image/retro_realism,Retro-styled realistic photos
+realistic_image/retro_snapshot,Retro camera snapshot aesthetic
+realistic_image/studio_portrait,Professional studio portrait
+realistic_image/urban_drama,Dramatic urban photography
+realistic_image/village_realism,Rural village realistic scenes
+realistic_image/warm_folk,Warm folk-inspired photography

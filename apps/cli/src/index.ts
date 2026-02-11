@@ -435,6 +435,7 @@ async function main(): Promise<void> {
 
         logger.log('');
         logger.log(`✓ Project '${sanitizedName}' created!`);
+        logger.log(`  Settings: ${path.join(projectDir, 'index.json')}`);
         logger.log('');
         logger.log('Next steps:');
         logger.log(`  1. Edit prompt templates in: ${path.join(projectDir, 'config', 'actions')}/`);
@@ -667,6 +668,9 @@ async function main(): Promise<void> {
       } catch (error) {
         logger.log('');
         logger.log(`✗ Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        logger.log(`  Project folder: ${projectPaths.root}`);
+        logger.log(`  Config file:    ${projectPaths.root}/index.json`);
+        logger.log(`  Settings:       ${JSON.stringify(selected.config, null, 2)}`);
         logger.log('');
       }
 
@@ -1733,6 +1737,7 @@ async function main(): Promise<void> {
 
       logger.log('');
       logger.log(`✓ Project '${sanitizedName}' created!`);
+      logger.log(`  Settings: ${path.join(projectDir, 'index.json')}`);
       logger.log('');
       logger.log('Next steps:');
       logger.log(`  1. Edit prompt templates in: ${path.join(projectDir, 'config', 'actions')}/`);
@@ -1827,6 +1832,7 @@ async function main(): Promise<void> {
 
         logger.log('');
         logger.log(`✓ Project '${sanitizedName}' created!`);
+        logger.log(`  Settings: ${path.join(projectDir, 'index.json')}`);
         logger.log('');
         logger.log('Next steps:');
         logger.log(`  1. Edit prompt templates in: ${path.join(projectDir, 'config', 'actions')}/`);
@@ -2308,23 +2314,31 @@ async function main(): Promise<void> {
 
     logger.log(`Publishing ${selectedProject} [${method}] → ${projectConfig.publish_to_local_folder.path}...`);
 
-    const localResult = await publishToLocalFolder(
-      projectPaths.root,
-      projectConfig.publish_to_local_folder,
-      logger,
-      projectConfig,
-    );
+    try {
+      const localResult = await publishToLocalFolder(
+        projectPaths.root,
+        projectConfig.publish_to_local_folder,
+        logger,
+        projectConfig,
+      );
 
-    logger.log(`${localResult.articlesPublished} article(s) published`);
-    logger.log(`Assets: ${localResult.assetsCopied} copied`);
-    if (localResult.errors.length > 0) {
-      logger.log(`Errors: ${localResult.errors.length}`);
-      for (const err of localResult.errors) {
-        logger.log(`  ✗ ${err.file}: ${err.error}`);
+      logger.log(`${localResult.articlesPublished} article(s) published`);
+      logger.log(`Assets: ${localResult.assetsCopied} copied`);
+      if (localResult.errors.length > 0) {
+        logger.log(`Errors: ${localResult.errors.length}`);
+        for (const err of localResult.errors) {
+          logger.log(`  ✗ ${err.file}: ${err.error}`);
+        }
+        process.exit(1);
       }
+      process.exit(0);
+    } catch (error) {
+      outputError(`Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      outputError(`  Project folder: ${projectPaths.root}`);
+      outputError(`  Config file:    ${projectPaths.root}/index.json`);
+      outputError(`  Settings:       ${JSON.stringify(projectConfig.publish_to_local_folder, null, 2)}`);
       process.exit(1);
     }
-    process.exit(0);
   }
 
   // Handle wb-preview action (local - no API needed)
