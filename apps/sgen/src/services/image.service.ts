@@ -87,7 +87,7 @@ function generateFilename(prompt: string): string {
     .slice(0, 4);
 
   const slug = words.join('-') || 'hero';
-  return `${slug}.webp`;
+  return `${slug}.png`;
 }
 
 /**

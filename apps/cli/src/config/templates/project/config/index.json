@@ -42,6 +42,8 @@
                 "background_secondary": "#1F2937",
                 "border": "#374151"
             }
-        }
+        },
+        "illustration_style": "digital_illustration/pastel_gradient",
+        "illustration_style_comment": "Hero image style for Recraft AI. Browse styles: https://www.recraft.ai/styles?tag=digital_illustration — Format: 'base_style' or 'base_style/substyle'. Examples: 'digital_illustration/pastel_gradient' (default), 'digital_illustration/hand_drawn', 'digital_illustration/pixel_art', 'digital_illustration/pop_art', 'digital_illustration/grain', 'digital_illustration', 'vector_illustration', 'realistic_image'"
     }
 }

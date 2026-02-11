@@ -7,13 +7,19 @@ Rails.application.routes.draw do
   # Email preview in development
   mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
 
-  # Devise authentication routes
-  # Skip password routes (Google OAuth only for now)
-  devise_for :users, skip: [:passwords], controllers: {
-    omniauth_callbacks: "users/omniauth_callbacks",
-    sessions: "users/sessions",
-    registrations: "users/registrations"
+  # Devise — OmniAuth only (password auth replaced by OTP)
+  devise_for :users, skip: [:sessions, :registrations, :passwords], controllers: {
+    omniauth_callbacks: "users/omniauth_callbacks"
   }
+
+  # Custom OTP auth routes
+  devise_scope :user do
+    get    "users/sign_in",   to: "users/otp_sessions#new",       as: :new_user_session
+    delete "users/sign_out",  to: "users/otp_sessions#destroy",   as: :destroy_user_session
+    post   "users/otp/send",  to: "users/otp_sessions#send_code", as: :send_otp_code
+    get    "users/otp/verify", to: "users/otp_sessions#verify",   as: :verify_otp_code
+    post   "users/otp/verify", to: "users/otp_sessions#confirm",  as: :confirm_otp_code
+  end
 
   # API routes
   namespace :api do

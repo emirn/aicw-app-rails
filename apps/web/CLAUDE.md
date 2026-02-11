@@ -47,7 +47,7 @@ bin/rails db:seed
 bin/dev
 ```
 
-### Environment Variables
+### Environment Variables (Development)
 
 Required:
 - `TINYBIRD_API_KEY` - Tinybird API token
@@ -57,6 +57,55 @@ Required:
 
 Optional (production):
 - `DATABASE_PATH` - Custom path for production database (default: storage/production.sqlite3)
+
+### Deployment Environment Variables
+
+All deployment env vars are configured in GitHub repo settings and wired through `.github/workflows/deploy-full-stack.yml` into Kamal's `deploy.yml`.
+
+#### GitHub Repository Variables (Settings > Variables > Actions)
+
+Non-sensitive configuration values (visible in logs).
+
+| Variable | Value / Example | Purpose |
+|---|---|---|
+| `AICW_RAILS_SERVER_IP` | `1.2.3.4` | Lightsail server IP |
+| `AICW_RAILS_DOMAIN` | `app.aicw.io` | Production domain (SSL cert + proxy) |
+| `AICW_RAILS_DEPLOY_USERNAME` | `ubuntu` | SSH user for Kamal deploy |
+| `CLOUDFLARE_ACCOUNT_ID` | `abc123...` | Cloudflare account ID (website builder) |
+| `CLOUDFLARE_AICW_ZONE_ID` | `def456...` | Cloudflare zone ID for aicw.io DNS |
+| `SUPABASE_URL` | `https://xxx.supabase.co` | Supabase project URL (analytics sync) |
+| `AICW_EXCEPTION_RECIPIENTS` | `you@example.com` | Comma-separated emails for exception alerts |
+
+#### GitHub Repository Secrets (Settings > Secrets > Actions)
+
+Sensitive values (masked in logs).
+
+| Secret | Source | Purpose |
+|---|---|---|
+| `AICW_RAILS_DEPLOY_SSH_PRIVATE_KEY` | SSH key for server | Kamal SSH access |
+| `SECRET_KEY_BASE` | `bin/rails secret` | Rails cookie/session signing |
+| `RAILS_MASTER_KEY` | `config/master.key` | Decrypt Rails credentials |
+| `GOOGLE_CLIENT_ID` | Google Cloud Console | OAuth login |
+| `GOOGLE_CLIENT_SECRET` | Google Cloud Console | OAuth login |
+| `TINYBIRD_API_KEY` | Tinybird dashboard | Analytics queries |
+| `WEBSITE_BUILDER_API_KEY` | Self-generated shared key | Auth between Rails and website-builder |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard | Pages deployment + DNS |
+| `OPENROUTER_API_KEY` | OpenRouter dashboard | AI model access (sgen) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard | Backend project sync |
+| `SMTP_USERNAME` | AWS SES (IAM SMTP creds) | Email delivery |
+| `SMTP_PASSWORD` | AWS SES (IAM SMTP creds) | Email delivery |
+
+Note: `GITHUB_TOKEN` is provided automatically by GitHub Actions — no setup needed.
+
+#### Hardcoded in deploy.yml (no config needed)
+
+These are set directly in `apps/web/deployment/full-stack/config/deploy.yml`:
+
+- `RAILS_ENV=production`, `RAILS_LOG_TO_STDOUT=true`, `RAILS_SERVE_STATIC_FILES=true`, `SOLID_QUEUE_IN_PUMA=true`
+- `WEBSITE_BUILDER_URL` / `SGEN_SERVICE_URL` — Docker-internal URLs
+- `TINYBIRD_API_URL` — EU region endpoint
+- `SMTP_SERVER` — AWS SES endpoint (`email-smtp.us-east-1.amazonaws.com`)
+- `PORT` / `NODE_ENV` — for sgen and website-builder accessories
 
 ### Key URLs
 

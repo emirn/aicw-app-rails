@@ -43,6 +43,9 @@ export const config = {
     openrouterBaseUrl: env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
     openaiBaseUrl: env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
   },
+  recraft: {
+    apiKey: env.SGEN_RECRAFT_API_KEY || '',
+  },
   prompts: {
     maxChars: Number(env.PROMPT_MAX_CHARS) || 100000,
   },

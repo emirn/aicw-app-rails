@@ -39,6 +39,34 @@ import {
 import { loadActionPrompt, loadActionCustomContent } from './action-config-loader';
 
 /**
+ * Validate that project branding has required color fields configured.
+ * Returns error message or null if valid.
+ */
+function validateBrandingColors(config: IProjectConfig, projectDir: string): string | null {
+  const branding = config.branding;
+  if (!branding?.colors) {
+    return `Project branding colors are not configured.\n\nPlease edit: ${path.join(projectDir, 'index.json')}`;
+  }
+
+  const colors = branding.colors;
+  const required = ['primary', 'secondary', 'background', 'text_primary'] as const;
+  const missing: string[] = [];
+
+  for (const key of required) {
+    const val = colors[key];
+    if (!val || typeof val !== 'string' || val.trim() === '') {
+      missing.push(key);
+    }
+  }
+
+  if (missing.length > 0) {
+    return `Project branding has empty or missing colors: ${missing.join(', ')}.\n\nPlease edit: ${path.join(projectDir, 'index.json')}`;
+  }
+
+  return null;
+}
+
+/**
  * Context sent to API
  * Uses unified article object pattern: article contains all metadata and content
  */
@@ -288,6 +316,25 @@ export class APIExecutor {
   }
 
   /**
+   * Generate project branding config via AI
+   */
+  async generateProjectConfig(body: {
+    site_name: string;
+    site_description: string;
+    site_url?: string;
+    color_preference?: string;
+  }): Promise<{ success: boolean; branding?: any; error?: string; cost_usd?: number }> {
+    try {
+      return await this.client.generateProjectConfig(body);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * Legacy: list commands (maps to actions)
    */
   async listCommands(): Promise<{
@@ -379,12 +426,19 @@ export class APIExecutor {
       // Handle files[] in response - write generated files (e.g., from render_diagrams)
       if (response.files && response.files.length > 0 && context.projectName) {
         const paths = getProjectPaths(context.projectName);
+        const savedFiles: string[] = [];
         for (const file of response.files) {
           try {
             await this.writeGeneratedFile(paths.content, context.articlePath || '', file);
-            this.logger.log(`Wrote file: ${file.path}`);
+            savedFiles.push(path.join(paths.content, context.articlePath || '', file.path));
           } catch (err) {
             operationErrors.push(`write_file ${file.path}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+        if (savedFiles.length > 0) {
+          this.logger.log('Saved files:');
+          for (const f of savedFiles) {
+            this.logger.log(`  ${f}`);
           }
         }
       }
@@ -489,9 +543,15 @@ export class APIExecutor {
               `Run 'project-init' first or check that the project exists.`
             );
           }
+
+          // Validate branding colors are configured (preflight check)
+          const brandingError = validateBrandingColors(context.projectConfig, resolved.projectDir);
+          if (brandingError) {
+            throw new Error(brandingError);
+          }
         } catch (err) {
           // Re-throw our validation errors
-          if (err instanceof Error && err.message.includes('Project config')) {
+          if (err instanceof Error && (err.message.includes('Project config') || err.message.includes('branding'))) {
             throw err;
           }
           this.logger.log(`Path resolution warning: ${err instanceof Error ? err.message : String(err)}`);
@@ -532,6 +592,12 @@ export class APIExecutor {
           `Project config (index.json) is required but not found for project '${resolved.projectName}'. ` +
           `Run 'project-init' first or check that the project exists.`
         );
+      }
+
+      // Validate branding colors are configured (preflight check)
+      const brandingError = validateBrandingColors(context.projectConfig, resolved.projectDir);
+      if (brandingError) {
+        throw new Error(brandingError);
       }
 
       // For generate action, load prompt parts from project

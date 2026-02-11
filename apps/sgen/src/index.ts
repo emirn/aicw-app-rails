@@ -8,9 +8,9 @@ import planRoutes from './routes/plan';
 import pipelinesRoutes from './routes/pipelines';
 import pricingRoutes from './routes/pricing';
 import cliRoutes from './routes/cli';
-import templateRoutes from './routes/templates';
 import imageRoutes from './routes/image';
 import diagramRoutes from './routes/diagrams';
+import projectRoutes from './routes/project';
 import { validateActionConfig } from './config/action-config';
 import { truncateError, truncateString } from './utils/log-truncate';
 import { closeDiagramRenderer } from './utils/diagram-renderer';
@@ -69,9 +69,9 @@ app.register(planRoutes, { prefix: '/api/v1/plan' });
 app.register(pipelinesRoutes, { prefix: '/api/v1/pipelines' });
 app.register(pricingRoutes, { prefix: '/api/v1/pricing' });
 app.register(cliRoutes, { prefix: '/api/v1/cli' });
-app.register(templateRoutes, { prefix: '/api/v1/templates' });
 app.register(imageRoutes, { prefix: '/api/v1/image' });
 app.register(diagramRoutes, { prefix: '/api/v1/diagrams' });
+app.register(projectRoutes, { prefix: '/api/v1/project' });
 
 // Enhanced health check with dependency verification
 app.get('/health', async (request, reply) => {

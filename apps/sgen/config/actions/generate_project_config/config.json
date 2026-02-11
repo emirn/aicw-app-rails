@@ -1,0 +1,8 @@
+{
+  "ai_provider": "openrouter",
+  "ai_model_id": "anthropic/claude-sonnet-4",
+  "output_mode": "text_replace_all",
+  "description": "Generate project branding config from user description",
+  "forcible": false,
+  "no_ai": false
+}

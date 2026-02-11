@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join, isAbsolute } from 'path';
 import { config } from '../config/server-config';
+import { IBrandingColors } from '@blogpostgen/types';
 
 export const getPromptMaxChars = () => config.prompts.maxChars;
 
@@ -20,6 +21,23 @@ export function ensureTemplateExistsNonEmpty(pathOrRelative: string) {
 
 export function ensureNonEmptyText(label: string, text: string) {
   if (!text || text.trim().length === 0) throw new Error(`${label} is empty`);
+}
+
+/**
+ * Require branding colors for visual actions (image hero, social image, diagrams).
+ * Returns the validated colors object so callers can use it directly.
+ */
+export function requireBrandingColors(
+  colors: IBrandingColors | undefined,
+  action: string
+): IBrandingColors {
+  if (!colors || !colors.primary) {
+    throw new Error(
+      `Branding colors required for "${action}" but not set. ` +
+      `Set branding.colors (at least "primary") in project config.`
+    );
+  }
+  return colors;
 }
 
 /**

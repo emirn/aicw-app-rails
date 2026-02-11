@@ -1,0 +1,1 @@
+{{custom}}. Scene depicting: {{description}}. CRITICAL: absolutely no text, no words, no letters, no numbers, no typography, no signs, no labels anywhere in the image - any text-like elements must be represented as abstract wavy lines or squiggles only.

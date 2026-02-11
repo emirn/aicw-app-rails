@@ -66,9 +66,15 @@ env:
     # Host
     APP_HOST: <%= ENV['AICW_RAILS_DOMAIN'] || '' %>
 
+    # Email (SMTP)
+    SMTP_SERVER: email-smtp.us-east-1.amazonaws.com
+    EXCEPTION_RECIPIENTS: <%= ENV['AICW_EXCEPTION_RECIPIENTS'] || '' %>
+
   secret:
     - SECRET_KEY_BASE
     - RAILS_MASTER_KEY
+    - SMTP_USERNAME
+    - SMTP_PASSWORD
     - GOOGLE_CLIENT_ID
     - GOOGLE_CLIENT_SECRET
     - TINYBIRD_API_KEY
