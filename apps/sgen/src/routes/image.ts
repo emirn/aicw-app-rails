@@ -18,7 +18,7 @@ export default async function imageRoutes(app: FastifyInstance) {
    * Request body:
    * {
    *   article: { path, title, description, keywords? },
-   *   branding?: { colors?: { primary, secondary, accent, background } },
+   *   branding?: { colors?: { primary, secondary, background } },
    *   include_paths?: string[],  // Glob patterns for paths to include
    *   custom_prompt_template?: string,  // Custom prompt with {{color}} macros
    *   options?: { width?, height? }
