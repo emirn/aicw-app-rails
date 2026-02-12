@@ -42,7 +42,11 @@ import {
   confirm,
   selectIllustrationStyle,
   promptInput,
+  selectOption,
+  promptWebsiteConfig,
+  parseArticleSelection,
 } from './lib/interactive-prompts';
+import { displayBrandingPreview } from './lib/branding-preview';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
 import path from 'path';
@@ -50,7 +54,7 @@ import { initializeProject } from './lib/project-config';
 import { createArticleFolder, articleFolderExists, buildPublished, updateArticleMeta, addAppliedAction, getArticleMeta } from './lib/folder-manager';
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
-import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
 import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
@@ -98,6 +102,7 @@ const LOCAL_ACTIONS = [
   { name: 'article-seed', description: 'Create seed article ready for generation', usage: 'blogpostgen article-seed <project> --title <title>', group: 'project' },
   { name: 'plan-import', description: 'Import content plan from plain text file', usage: 'blogpostgen plan-import <project> --file <path>', group: 'project' },
   { name: 'ideas', description: 'AI-expand ideas into content plan and import', usage: 'blogpostgen ideas <project>', group: 'project' },
+  { name: 'page-add', description: 'Add a custom page to project', usage: 'blogpostgen page-add <project>', group: 'project' },
   { name: 'status', description: 'Show project or article status', usage: 'blogpostgen status [path]', group: 'project' },
 
   // Utility group (101-199)
@@ -221,7 +226,7 @@ ACTIONS:
 GLOBAL OPTIONS:
   -i, --interactive  Enable interactive mode (prompts for missing args)
   --base <url>       Sgen API base URL (default: http://localhost:3001)
-  --range N:M        Batch select: start at article N, process M articles (e.g., --range 1:50)
+  --range "N:M [date:YYYY-MM-DD] [url:path/]"  Batch select with optional filters (e.g., --range "1:50 url:blog/")
   --debug            Enable debug output
   -h, --help         Show this help
 
@@ -421,11 +426,14 @@ async function main(): Promise<void> {
           'Color preference (optional, e.g. "modern blue and purple")'
         );
 
-        // Try AI-powered branding generation
+        // Try AI-powered branding generation with reiteration loop
         let aiBranding: any = null;
         if (siteDescription) {
           logger.log('');
           logger.log('Generating branding with AI...');
+          let totalCost = 0;
+          let currentBranding: any = null;
+
           const configResult = await executor.generateProjectConfig({
             site_name: projectName,
             site_description: siteDescription,
@@ -434,19 +442,59 @@ async function main(): Promise<void> {
           });
 
           if (configResult.success && configResult.branding) {
-            logger.log('');
-            logger.log('Generated branding:');
-            logger.log(JSON.stringify(configResult.branding, null, 2));
-            if (configResult.cost_usd) {
-              logger.log(`  (cost: $${configResult.cost_usd.toFixed(4)})`);
-            }
-            logger.log('');
+            currentBranding = configResult.branding;
+            totalCost += configResult.cost_usd || 0;
 
-            const useAi = await confirm('Use these AI-generated settings?');
-            if (useAi) {
-              aiBranding = configResult.branding;
-            } else {
-              logger.log('AI branding declined, falling back to manual selection.');
+            // Reiteration loop
+            let decided = false;
+            while (!decided) {
+              displayBrandingPreview(currentBranding);
+              if (totalCost > 0) {
+                logger.log(`  Total cost so far: $${totalCost.toFixed(4)}`);
+                logger.log('');
+              }
+
+              const choice = await selectOption('What would you like to do?', [
+                'Accept this branding',
+                'Regenerate with feedback',
+                'Decline (choose manually)',
+              ]);
+
+              if (choice === 0) {
+                // Accept
+                aiBranding = currentBranding;
+                decided = true;
+              } else if (choice === 1) {
+                // Regenerate with feedback
+                const comments = await promptInput('What would you like to change?');
+                if (!comments) {
+                  logger.log('No feedback provided, keeping current branding.');
+                  continue;
+                }
+
+                logger.log('');
+                logger.log('Regenerating branding with your feedback...');
+                const regenResult = await executor.generateProjectConfig({
+                  site_name: projectName,
+                  site_description: siteDescription,
+                  site_url: projectUrl,
+                  color_preference: colorPreference || undefined,
+                  previous_config: currentBranding,
+                  user_comments: comments,
+                });
+
+                if (regenResult.success && regenResult.branding) {
+                  currentBranding = regenResult.branding;
+                  totalCost += regenResult.cost_usd || 0;
+                } else {
+                  logger.log(`Regeneration failed: ${regenResult.error || 'Unknown error'}`);
+                  logger.log('Keeping previous branding.');
+                }
+              } else {
+                // Decline or cancelled
+                logger.log('AI branding declined, falling back to manual selection.');
+                decided = true;
+              }
             }
           } else {
             logger.log(`AI branding generation failed: ${configResult.error || 'Unknown error'}`);
@@ -460,13 +508,33 @@ async function main(): Promise<void> {
           illustrationStyle = await selectIllustrationStyle();
         }
 
+        // Website configuration prompts
+        logger.log('');
+        logger.log('Now let\'s configure your website...');
+        const websiteConfig = await promptWebsiteConfig(sanitizedName);
+
         logger.log(`Creating project '${sanitizedName}'...`);
-        await initializeProject(projectDir, { title: projectName, url: projectUrl });
+        const publishConfig = websiteConfig.localPublish
+          ? { ...websiteConfig.localPublish, template_settings: {} }
+          : undefined;
+        await initializeProject(projectDir, {
+          title: projectName,
+          url: projectUrl,
+          ...(publishConfig ? { publish_to_local_folder: publishConfig } : {}),
+        });
 
         logger.log('Applying project template defaults...');
         await mergeProjectTemplateDefaults(projectDir, {
           ...(aiBranding ? { branding: aiBranding } : { illustrationStyle: illustrationStyle || undefined }),
+          templateSettings: websiteConfig.templateSettings,
         });
+
+        // Create section subfolders in drafts for full-website mode
+        if (!websiteConfig.isBlogOnly && websiteConfig.templateSettings.sections) {
+          for (const section of websiteConfig.templateSettings.sections as Array<{ path: string }>) {
+            mkdirSync(path.join(projectDir, 'drafts', section.path), { recursive: true });
+          }
+        }
 
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
@@ -629,6 +697,132 @@ async function main(): Promise<void> {
         continue;
       } catch (error) {
         logger.log(`Failed to create article: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        await pressEnterToContinue();
+        continue;
+      }
+    }
+
+    // Handle page-add (local action - create custom page)
+    if (finalAction === 'page-add') {
+      const selectedProject = await selectProject();
+      if (!selectedProject) {
+        continue;
+      }
+
+      if (selectedProject === CREATE_NEW_PROJECT) {
+        logger.log('Please create a project first with project-init.');
+        await pressEnterToContinue();
+        continue;
+      }
+
+      const projectPaths = getProjectPaths(selectedProject);
+      const customPagesDir = path.join(projectPaths.root, 'custom-pages');
+
+      // Prompt for URL path (slug)
+      let slug = '';
+      while (!slug) {
+        const rawSlug = await promptInput('Enter URL path (e.g. "about", "privacy-policy")');
+        if (!rawSlug) {
+          break; // User cancelled
+        }
+        const cleaned = rawSlug.toLowerCase().replace(/^\/+|\/+$/g, '');
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(cleaned)) {
+          logger.log('Invalid URL path. Use lowercase letters, numbers, and hyphens only. Must start and end with a letter or number.');
+          continue;
+        }
+        const pageDir = path.join(customPagesDir, cleaned);
+        if (existsSync(pageDir)) {
+          logger.log(`Page "${cleaned}" already exists at: ${pageDir}`);
+          continue;
+        }
+        slug = cleaned;
+      }
+
+      if (!slug) {
+        continue;
+      }
+
+      // Prompt for title (required)
+      let title = '';
+      while (!title) {
+        const rawTitle = await promptInput('Enter page title');
+        if (!rawTitle) {
+          break;
+        }
+        title = rawTitle.trim();
+        if (!title) {
+          logger.log('Title is required.');
+        }
+      }
+
+      if (!title) {
+        continue;
+      }
+
+      // Prompt for description (optional)
+      const description = await promptInput('Enter page description (optional, press Enter to skip)');
+
+      // Choose content method
+      const contentMethod = await selectOption('How would you like to add content?', [
+        'Paste markdown now',
+        'Create template (edit later)',
+      ]);
+
+      let bodyContent = '';
+      if (contentMethod === 0) {
+        const pasted = await promptMultilineInput('Paste your markdown content (empty line + Enter to finish)');
+        if (pasted) bodyContent = pasted.trim();
+      }
+
+      if (!bodyContent) {
+        bodyContent = `# ${title}\n\nYour content here.\n`;
+      }
+
+      // Ask about blog grid
+      const includeBlogGrid = await confirm('Include blog article grid on this page?', false);
+
+      // Build frontmatter
+      const frontmatter: string[] = [
+        '---',
+        `title: "${title.replace(/"/g, '\\"')}"`,
+      ];
+
+      if (description) {
+        frontmatter.push(`description: "${description.replace(/"/g, '\\"')}"`);
+      }
+
+      frontmatter.push('header_show_link: true');
+      frontmatter.push('footer_show_link: true');
+
+      if (includeBlogGrid) {
+        frontmatter.push('blog_grid: true');
+        frontmatter.push('blog_grid_title: "Latest Articles"');
+        frontmatter.push('blog_grid_limit: 9');
+      }
+
+      frontmatter.push('---');
+
+      const fileContent = frontmatter.join('\n') + '\n\n' + bodyContent + '\n';
+
+      // Create directory and file
+      const pageDir = path.join(customPagesDir, slug);
+      const assetsDir = path.join(pageDir, 'assets');
+
+      try {
+        mkdirSync(assetsDir, { recursive: true });
+        writeFileSync(path.join(pageDir, 'index.md'), fileContent, 'utf-8');
+
+        logger.log('');
+        logger.log(`✓ Custom page created:`);
+        logger.log(`  ${path.join(pageDir, 'index.md')}`);
+        logger.log(`  ${assetsDir}/`);
+        logger.log('');
+        logger.log('Run publish to deploy this page to your website.');
+        logger.log('');
+        await pressEnterToContinue();
+        continue;
+      } catch (error) {
+        logger.log(`Failed to create page: ${error instanceof Error ? error.message : 'Unknown error'}`);
         await pressEnterToContinue();
         continue;
       }
@@ -2107,40 +2301,15 @@ async function main(): Promise<void> {
 
           // Handle --range flag for batch processing
           if (finalFlags.range && typeof finalFlags.range === 'string') {
-            const rangeMatch = finalFlags.range.match(/^(\d+):(\d+)(?::(\d{4}-\d{2}-\d{2}))?$/);
-            if (rangeMatch) {
-              const startNum = parseInt(rangeMatch[1], 10);
-              const count = parseInt(rangeMatch[2], 10);
-              const dateFilter = rangeMatch[3];
-
-              // Apply date filter if provided
-              let filteredList = selectionList;
-              if (dateFilter) {
-                const maxDate = new Date(dateFilter + 'T23:59:59Z');
-                filteredList = selectionList.filter(a =>
-                  new Date(a.created_at) <= maxDate
-                );
-                logger.log(`Date filter: ${filteredList.length} articles with created_at <= ${dateFilter}`);
-              }
-
-              if (startNum < 1 || startNum > filteredList.length) {
-                logger.log(`Range start ${startNum} is out of range (1-${filteredList.length})`);
-                process.exit(1);
-              }
-
-              const startIdx = startNum - 1;
-              const endIdx = Math.min(startIdx + count, filteredList.length);
-              selectedPaths = filteredList.slice(startIdx, endIdx).map((a) => a.path);
-
-              // Warning if truncated
-              if (startIdx + count > filteredList.length) {
-                const actualCount = endIdx - startIdx;
-                logger.log(`Note: Requested ${count} articles from ${startNum}, processing ${actualCount} available (${startNum}-${startNum + actualCount - 1})`);
-              }
-            } else {
-              logger.log(`Invalid range format: ${finalFlags.range}. Expected format: N:M or N:M:YYYY-MM-DD (e.g., 1:50 or 1:50:2026-12-31)`);
+            const result = parseArticleSelection(finalFlags.range, selectionList.length, selectionList);
+            if (result.warning) logger.log(result.warning);
+            if (result.type === 'quit' || (result.type === 'indices' && (result.indices?.length || 0) === 0)) {
+              logger.log('No articles matched the range/filter. Exiting.');
               process.exit(1);
             }
+            selectedPaths = result.type === 'all'
+              ? selectionList.map(a => a.path)
+              : (result.indices || []).map(idx => selectionList[idx].path);
           } else {
             // Show interactive picker
             selectedPaths = await selectArticlesForGeneration(selectionList);
@@ -2278,40 +2447,15 @@ async function main(): Promise<void> {
 
             // Handle --range flag for batch processing
             if (finalFlags.range && typeof finalFlags.range === 'string') {
-              const rangeMatch = finalFlags.range.match(/^(\d+):(\d+)(?::(\d{4}-\d{2}-\d{2}))?$/);
-              if (rangeMatch) {
-                const startNum = parseInt(rangeMatch[1], 10);
-                const count = parseInt(rangeMatch[2], 10);
-                const dateFilter = rangeMatch[3];
-
-                // Apply date filter if provided
-                let filteredList = selectionList;
-                if (dateFilter) {
-                  const maxDate = new Date(dateFilter + 'T23:59:59Z');
-                  filteredList = selectionList.filter(a =>
-                    new Date(a.created_at) <= maxDate
-                  );
-                  logger.log(`Date filter: ${filteredList.length} articles with created_at <= ${dateFilter}`);
-                }
-
-                if (startNum < 1 || startNum > filteredList.length) {
-                  logger.log(`Range start ${startNum} is out of range (1-${filteredList.length})`);
-                  process.exit(1);
-                }
-
-                const startIdx = startNum - 1;
-                const endIdx = Math.min(startIdx + count, filteredList.length);
-                selectedPaths = filteredList.slice(startIdx, endIdx).map((a) => a.path);
-
-                // Warning if truncated
-                if (startIdx + count > filteredList.length) {
-                  const actualCount = endIdx - startIdx;
-                  logger.log(`Note: Requested ${count} articles from ${startNum}, processing ${actualCount} available (${startNum}-${startNum + actualCount - 1})`);
-                }
-              } else {
-                logger.log(`Invalid range format: ${finalFlags.range}. Expected format: N:M or N:M:YYYY-MM-DD (e.g., 1:50 or 1:50:2026-12-31)`);
+              const result = parseArticleSelection(finalFlags.range, selectionList.length, selectionList);
+              if (result.warning) logger.log(result.warning);
+              if (result.type === 'quit' || (result.type === 'indices' && (result.indices?.length || 0) === 0)) {
+                logger.log('No articles matched the range/filter. Exiting.');
                 process.exit(1);
               }
+              selectedPaths = result.type === 'all'
+                ? selectionList.map(a => a.path)
+                : (result.indices || []).map(idx => selectionList[idx].path);
             } else {
               // Show interactive picker
               selectedPaths = filter.last_pipeline === null

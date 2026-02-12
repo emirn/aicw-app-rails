@@ -188,11 +188,10 @@ export async function selectIllustrationStyle(): Promise<string | null> {
   const styles = loadIllustrationStyles();
 
   // Group by category
-  const categories = ['digital_illustration', 'vector_illustration', 'realistic_image'];
+  const categories = ['digital_illustration', 'vector_illustration'];
   const categoryLabels: Record<string, string> = {
     digital_illustration: 'Digital Illustration',
     vector_illustration: 'Vector Illustration',
-    realistic_image: 'Realistic Image',
   };
 
   console.error('\n=== Select Illustration Style ===\n');
@@ -600,110 +599,167 @@ interface SelectionResult {
 }
 
 /**
- * Parse article selection input
- * Supports: comma-separated numbers, range syntax "N:M" or "N:M:YYYY-MM-DD", "all", "q"
+ * Extract keyword filters (date:, url:) from input string.
+ * Returns the base command (range/number/all) with filters removed.
+ */
+function extractFilters(input: string): {
+  baseInput: string;
+  dateFilter?: string;
+  urlFilter?: string;
+} {
+  let dateFilter: string | undefined;
+  let urlFilter: string | undefined;
+
+  // Extract date:YYYY-MM-DD
+  const dateMatch = input.match(/\bdate:(\d{4}-\d{2}-\d{2})\b/);
+  if (dateMatch) dateFilter = dateMatch[1];
+
+  // Extract url:PATTERN (everything until next space or end)
+  const urlMatch = input.match(/\burl:(\S+)/);
+  if (urlMatch) urlFilter = urlMatch[1];
+
+  // Remove filters from input to get base command
+  const baseInput = input
+    .replace(/\bdate:\d{4}-\d{2}-\d{2}\b/, '')
+    .replace(/\burl:\S+/, '')
+    .trim();
+
+  return { baseInput, dateFilter, urlFilter };
+}
+
+/**
+ * Apply date and url filters to article list.
+ * Returns a working list with original indices preserved.
+ */
+function applyFilters(
+  articles: ArticleForSelection[] | undefined,
+  totalArticles: number,
+  dateFilter?: string,
+  urlFilter?: string
+): { workingList: { originalIndex: number; article: ArticleForSelection }[]; indices: number[]; warning?: string } {
+  let workingList = articles
+    ? articles.map((article, idx) => ({ originalIndex: idx, article }))
+    : Array.from({ length: totalArticles }, (_, idx) => ({ originalIndex: idx, article: null as any }));
+
+  const warnings: string[] = [];
+
+  if (dateFilter && articles) {
+    const maxDate = new Date(dateFilter + 'T23:59:59Z');
+    workingList = workingList.filter(item => new Date(item.article.created_at) <= maxDate);
+    warnings.push(`Date filter: ${workingList.length} articles with created_at <= ${dateFilter}`);
+  }
+
+  if (urlFilter && articles) {
+    workingList = workingList.filter(item => item.article.path.includes(urlFilter));
+    warnings.push(`URL filter: ${workingList.length} articles matching path "${urlFilter}"`);
+  }
+
+  return {
+    workingList,
+    indices: workingList.map(item => item.originalIndex),
+    warning: warnings.length > 0 ? warnings.join('; ') : undefined,
+  };
+}
+
+/**
+ * Slice a range from filtered results.
+ * startNum is 1-based, count is number of items to take.
+ */
+function sliceRange(
+  filtered: { workingList: { originalIndex: number }[]; warning?: string },
+  startNum: number,
+  count: number
+): SelectionResult {
+  const effectiveTotal = filtered.workingList.length;
+
+  if (effectiveTotal === 0) {
+    return { type: 'indices', indices: [], warning: filtered.warning || 'No articles match filters' };
+  }
+
+  if (startNum < 1 || startNum > effectiveTotal) {
+    return {
+      type: 'indices',
+      indices: [],
+      warning: `${filtered.warning ? filtered.warning + '; ' : ''}Start index ${startNum} is out of range (1-${effectiveTotal})`,
+    };
+  }
+
+  if (count === 0) {
+    return { type: 'indices', indices: [] };
+  }
+
+  const startIdx = startNum - 1;
+  const actualEnd = Math.min(startIdx + count, effectiveTotal);
+  const indices = filtered.workingList.slice(startIdx, actualEnd).map(item => item.originalIndex);
+
+  let warning = filtered.warning;
+  if (startIdx + count > effectiveTotal) {
+    const truncMsg = `Requested ${count} from ${startNum}, only ${actualEnd - startIdx} available`;
+    warning = warning ? `${warning}; ${truncMsg}` : truncMsg;
+  }
+
+  return { type: 'indices', indices, warning };
+}
+
+/**
+ * Parse article selection input.
+ * Supports: comma-separated numbers, range "N:M", keyword filters "date:YYYY-MM-DD url:path/",
+ * "all", single number with filters, and "q" to quit.
  *
  * @param input - User input string
  * @param totalArticles - Total number of available articles
- * @param articles - Optional array of articles for date filtering
+ * @param articles - Optional array of articles for filtering
  * @returns SelectionResult with type and indices
  */
-function parseArticleSelection(
+export function parseArticleSelection(
   input: string,
   totalArticles: number,
   articles?: ArticleForSelection[]
 ): SelectionResult {
-  const trimmed = input.trim().toLowerCase();
+  const trimmed = input.trim();
 
   // Quit
-  if (!trimmed || trimmed === 'q') {
+  if (!trimmed || trimmed.toLowerCase() === 'q') {
     return { type: 'quit' };
   }
 
-  // All
-  if (trimmed === 'all') {
-    return { type: 'all' };
+  // Extract keyword filters: date:YYYY-MM-DD and url:PATTERN
+  const { baseInput, dateFilter, urlFilter } = extractFilters(trimmed);
+  const baseLower = baseInput.toLowerCase();
+
+  // All (with optional filters)
+  if (baseLower === 'all') {
+    if (!dateFilter && !urlFilter) {
+      return { type: 'all' };
+    }
+    const filtered = applyFilters(articles, totalArticles, dateFilter, urlFilter);
+    return { type: 'indices', indices: filtered.indices, warning: filtered.warning };
   }
 
-  // Range syntax: N:M or N:M:YYYY-MM-DD where N=start (1-based), M=count
-  const rangeMatch = trimmed.match(/^(\d+):(\d+)(?::(\d{4}-\d{2}-\d{2}))?$/);
+  // Range syntax: N:M (with optional keyword filters)
+  const rangeMatch = baseLower.match(/^(\d+):(\d+)$/);
   if (rangeMatch) {
-    const startNum = parseInt(rangeMatch[1], 10);  // 1-based
+    const startNum = parseInt(rangeMatch[1], 10);
     const count = parseInt(rangeMatch[2], 10);
-    const dateFilter = rangeMatch[3];
-
-    // Apply date filter if provided and articles available
-    let workingList: { originalIndex: number; article: ArticleForSelection }[] = [];
-
-    if (dateFilter && articles) {
-      const maxDate = new Date(dateFilter + 'T23:59:59Z');
-      workingList = articles
-        .map((article, idx) => ({ originalIndex: idx, article }))
-        .filter(item => new Date(item.article.created_at) <= maxDate);
-
-      // If no articles match the date filter
-      if (workingList.length === 0) {
-        return {
-          type: 'indices',
-          indices: [],
-          warning: `No articles found with created_at <= ${dateFilter}`,
-        };
-      }
-    } else {
-      // No date filter - use all articles
-      workingList = articles
-        ? articles.map((article, idx) => ({ originalIndex: idx, article }))
-        : Array.from({ length: totalArticles }, (_, idx) => ({ originalIndex: idx, article: null as any }));
-    }
-
-    const effectiveTotal = workingList.length;
-
-    // Validate start against filtered list
-    if (startNum < 1 || startNum > effectiveTotal) {
-      return {
-        type: 'indices',
-        indices: [],
-        warning: `Start index ${startNum} is out of range (1-${effectiveTotal})`,
-      };
-    }
-
-    // Zero count means no articles
-    if (count === 0) {
-      return { type: 'indices', indices: [] };
-    }
-
-    // Calculate range on filtered list
-    const startIdx = startNum - 1;  // Convert to 0-based
-    const requestedEnd = startIdx + count;
-    const actualEnd = Math.min(requestedEnd, effectiveTotal);
-
-    // Map back to original indices
-    const indices: number[] = [];
-    for (let i = startIdx; i < actualEnd; i++) {
-      indices.push(workingList[i].originalIndex);
-    }
-
-    // Build warning message
-    let warning: string | undefined;
-    if (dateFilter && articles) {
-      warning = `Date filter: ${effectiveTotal} articles with created_at <= ${dateFilter}`;
-    }
-    if (requestedEnd > effectiveTotal) {
-      const actualCount = actualEnd - startIdx;
-      const truncMsg = `Requested ${count} articles from ${startNum}, only ${actualCount} available`;
-      warning = warning ? `${warning}; ${truncMsg}` : truncMsg;
-    }
-
-    return { type: 'indices', indices, warning };
+    const filtered = applyFilters(articles, totalArticles, dateFilter, urlFilter);
+    return sliceRange(filtered, startNum, count);
   }
 
-  // Comma-separated numbers (existing behavior)
+  // Single number with filters: N date:... url:...
+  const singleMatch = baseLower.match(/^(\d+)$/);
+  if (singleMatch && (dateFilter || urlFilter)) {
+    const num = parseInt(singleMatch[1], 10);
+    const filtered = applyFilters(articles, totalArticles, dateFilter, urlFilter);
+    return sliceRange(filtered, num, 1);
+  }
+
+  // Comma-separated numbers (existing behavior, no filter support)
   const indices: number[] = [];
-  const nums = trimmed.split(',').map((s) => parseInt(s.trim(), 10));
+  const nums = baseLower.split(',').map((s) => parseInt(s.trim(), 10));
 
   for (const num of nums) {
     if (!isNaN(num) && num >= 1 && num <= totalArticles) {
-      indices.push(num - 1);  // Convert to 0-based
+      indices.push(num - 1);
     }
   }
 
@@ -747,29 +803,54 @@ export async function selectArticlesForGeneration(
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
     const remaining = sorted.length - MAX_OLDEST_ARTICLES_TO_SHOW;
     const nextStart = MAX_OLDEST_ARTICLES_TO_SHOW + 1;
-    console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10' for articles ${nextStart}-${nextStart + 9})`);
+    console.error(`\n  ... and ${remaining} more (use '${nextStart}:10', or add filters: 'date:YYYY-MM-DD', 'url:path/')`);
   }
   console.error('');
 
-  const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M' or 'N:M:YYYY-MM-DD', 'all', or 'q'");
+  while (true) {
+    const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
 
-  const result = parseArticleSelection(answer, sorted.length, sorted);
+    const result = parseArticleSelection(answer, sorted.length, sorted);
 
-  // Show warning if any
-  if (result.warning) {
-    console.error(`Warning: ${result.warning}`);
+    if (result.warning) {
+      console.error(`  ${result.warning}`);
+    }
+
+    if (result.type === 'quit') {
+      return [];
+    }
+
+    // Resolve selected paths
+    let selectedPaths: string[];
+    if (result.type === 'all') {
+      selectedPaths = sorted.map(a => a.path);
+    } else {
+      selectedPaths = (result.indices || []).map(idx => sorted[idx].path);
+    }
+
+    if (selectedPaths.length === 0) {
+      console.error('\nNo articles matched. Try again.\n');
+      continue;
+    }
+
+    // Show selected articles for confirmation
+    console.error(`\n  Selected ${selectedPaths.length} article(s):`);
+    for (let i = 0; i < selectedPaths.length; i++) {
+      const idx = result.type === 'all' ? i : result.indices![i];
+      const a = sorted[idx];
+      const date = formatDate(a.created_at);
+      const title = truncateTitle(a.title, MAX_TITLE_LENGTH);
+      console.error(`    ${String(i + 1).padStart(3)}. ${date.padEnd(14)} ${title}`);
+    }
+    console.error('');
+
+    const confirmAnswer = await prompt('Proceed? (Y/n)');
+    if (!confirmAnswer || confirmAnswer.trim().toLowerCase() === 'y' || confirmAnswer.trim() === '') {
+      return selectedPaths;
+    }
+    // User typed something else → loop back
+    console.error('');
   }
-
-  if (result.type === 'quit') {
-    return [];
-  }
-
-  if (result.type === 'all') {
-    return sorted.map((a) => a.path);
-  }
-
-  // Return paths for selected indices
-  return (result.indices || []).map((idx) => sorted[idx].path);
 }
 
 /**
@@ -803,30 +884,54 @@ export async function selectArticlesForEnhancement(
   if (articles.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
     const remaining = articles.length - MAX_OLDEST_ARTICLES_TO_SHOW;
     const nextStart = MAX_OLDEST_ARTICLES_TO_SHOW + 1;
-    console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10' for articles ${nextStart}-${nextStart + 9})`);
+    console.error(`\n  ... and ${remaining} more (use '${nextStart}:10', or add filters: 'date:YYYY-MM-DD', 'url:path/')`);
   }
   console.error('');
 
-  const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M' or 'N:M:YYYY-MM-DD', 'all', or 'q'");
+  while (true) {
+    const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
 
-  const result = parseArticleSelection(answer, articles.length, articles);
+    const result = parseArticleSelection(answer, articles.length, articles);
 
-  // Show warning if any
-  if (result.warning) {
-    console.error(`Warning: ${result.warning}`);
+    if (result.warning) {
+      console.error(`  ${result.warning}`);
+    }
+
+    if (result.type === 'quit') {
+      return null;
+    }
+
+    // Resolve selected paths
+    let selectedPaths: string[];
+    if (result.type === 'all') {
+      selectedPaths = articles.map(a => a.path);
+    } else {
+      selectedPaths = (result.indices || []).map(idx => articles[idx].path);
+    }
+
+    if (selectedPaths.length === 0) {
+      console.error('\nNo articles matched. Try again.\n');
+      continue;
+    }
+
+    // Show selected articles for confirmation
+    console.error(`\n  Selected ${selectedPaths.length} article(s):`);
+    for (let i = 0; i < selectedPaths.length; i++) {
+      const idx = result.type === 'all' ? i : result.indices![i];
+      const a = articles[idx];
+      const date = a.created_at ? formatDate(a.created_at) : 'Unknown';
+      const title = truncateTitle(a.title || a.path, MAX_TITLE_LENGTH);
+      console.error(`    ${String(i + 1).padStart(3)}. ${date.padEnd(14)} ${title}`);
+    }
+    console.error('');
+
+    const confirmAnswer = await prompt('Proceed? (Y/n)');
+    if (!confirmAnswer || confirmAnswer.trim().toLowerCase() === 'y' || confirmAnswer.trim() === '') {
+      return selectedPaths;
+    }
+    // User typed something else → loop back
+    console.error('');
   }
-
-  if (result.type === 'quit') {
-    return null;
-  }
-
-  if (result.type === 'all') {
-    return articles.map((a) => a.path);
-  }
-
-  // Return paths for selected indices
-  const selected = (result.indices || []).map((idx) => articles[idx].path);
-  return selected.length > 0 ? selected : null;
 }
 
 /**
@@ -937,31 +1042,60 @@ export async function selectArticlesForForceEnhance(
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
     const remaining = sorted.length - MAX_OLDEST_ARTICLES_TO_SHOW;
     const nextStart = MAX_OLDEST_ARTICLES_TO_SHOW + 1;
-    console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10')`);
+    console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10', or filter 'all url:blog/')`);
   }
   console.error('');
 
-  // Step 1: Select articles
-  const answer = await prompt("Select articles (e.g., '1,3,5'), range 'N:M', 'all', or 'q'");
-  const result = parseArticleSelection(answer, sorted.length);
+  // Build selection list for filter support
+  const selectionList: ArticleForSelection[] = sorted.map(a => ({
+    path: a.path,
+    title: a.meta.title || a.path,
+    created_at: a.meta.created_at || new Date().toISOString(),
+  }));
 
-  if (result.warning) {
-    console.error(`Warning: ${result.warning}`);
-  }
-
-  if (result.type === 'quit') {
-    return null;
-  }
-
+  // Step 1: Select articles (with confirmation loop)
   let selectedPaths: string[];
-  if (result.type === 'all') {
-    selectedPaths = sorted.map((a) => a.path);
-  } else {
-    selectedPaths = (result.indices || []).map((idx) => sorted[idx].path);
-  }
 
-  if (selectedPaths.length === 0) {
-    return null;
+  while (true) {
+    const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
+    const result = parseArticleSelection(answer, sorted.length, selectionList);
+
+    if (result.warning) {
+      console.error(`  ${result.warning}`);
+    }
+
+    if (result.type === 'quit') {
+      return null;
+    }
+
+    if (result.type === 'all') {
+      selectedPaths = sorted.map((a) => a.path);
+    } else {
+      selectedPaths = (result.indices || []).map((idx) => sorted[idx].path);
+    }
+
+    if (selectedPaths.length === 0) {
+      console.error('\nNo articles matched. Try again.\n');
+      continue;
+    }
+
+    // Show selected articles for confirmation
+    console.error(`\n  Selected ${selectedPaths.length} article(s):`);
+    for (let i = 0; i < selectedPaths.length; i++) {
+      const idx = result.type === 'all' ? i : result.indices![i];
+      const a = sorted[idx];
+      const date = a.meta.updated_at ? formatDate(a.meta.updated_at) : 'Unknown';
+      const title = truncateTitle(a.meta.title || a.path, MAX_TITLE_LENGTH);
+      console.error(`    ${String(i + 1).padStart(3)}. ${date.padEnd(14)} ${title}`);
+    }
+    console.error('');
+
+    const confirmAnswer = await prompt('Proceed? (Y/n)');
+    if (!confirmAnswer || confirmAnswer.trim().toLowerCase() === 'y' || confirmAnswer.trim() === '') {
+      break;
+    }
+    // User typed something else → loop back
+    console.error('');
   }
 
   // Step 2: Select action to apply
@@ -1089,6 +1223,253 @@ export async function resolveConflictsInteractive(
   }
 
   return resolved;
+}
+
+/**
+ * Numbered option picker.
+ * Returns 0-based index of selected option, or null if cancelled.
+ */
+export async function selectOption(question: string, options: string[]): Promise<number | null> {
+  console.error(`\n${question}\n`);
+  for (let i = 0; i < options.length; i++) {
+    console.error(`  ${i + 1}) ${options[i]}`);
+  }
+  console.error('');
+
+  const answer = await prompt('Enter choice');
+
+  if (!answer || answer.toLowerCase() === 'q') {
+    return null;
+  }
+
+  const num = parseInt(answer, 10);
+  if (!isNaN(num) && num >= 1 && num <= options.length) {
+    return num - 1;
+  }
+
+  console.error('Invalid selection.');
+  return null;
+}
+
+/**
+ * Prompt for website type (full website with hero vs blog-only)
+ * Returns hero config, optional sections, and isBlogOnly flag.
+ */
+export async function promptWebsiteType(): Promise<{
+  hero: { enabled: boolean };
+  sections?: Array<Record<string, unknown>>;
+  isBlogOnly: boolean;
+}> {
+  const choice = await selectOption('What type of website is this?', [
+    'Blog-only (all articles at root, e.g. example.com/article-name)',
+    'Full website (articles under /blog/, custom pages at root)',
+  ]);
+
+  if (choice === 1) {
+    // Start with default blog section
+    const sections: Array<Record<string, unknown>> = [{
+      id: 'blog', label: 'Blog', path: 'blog',
+      showInNav: true, showOnHome: true, sectionTitle: 'BLOG', layout: 'grid',
+    }];
+
+    // Loop: ask to add more sections
+    let addMore = await confirm('Add another section (e.g. "Tools", "Reviews")?', false);
+    while (addMore) {
+      const label = await promptInput('Section label (e.g. "AI Tools")');
+      if (label) {
+        const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        sections.push({
+          id, label, path: id,
+          showInNav: true, showOnHome: true,
+          sectionTitle: label.toUpperCase(), layout: 'grid',
+        });
+      }
+      addMore = await confirm('Add another section?', false);
+    }
+
+    return { hero: { enabled: true }, sections, isBlogOnly: false };
+  }
+  // Default: blog-only
+  return { hero: { enabled: false }, isBlogOnly: true };
+}
+
+/**
+ * Prompt for legal pages configuration.
+ * Returns footerLegalColumn config or null if skipped.
+ */
+export async function promptLegalPages(): Promise<Record<string, unknown> | null> {
+  const choice = await selectOption('Legal pages setup:', [
+    'Standard pages (/privacy/, /terms/)',
+    'External URLs (enter custom links)',
+    'Skip (no legal pages)',
+  ]);
+
+  if (choice === 0) {
+    return {
+      label: 'Legal',
+      links: [
+        { label: 'Privacy Policy', href: '/privacy/' },
+        { label: 'Terms of Service', href: '/terms/' },
+      ],
+    };
+  }
+
+  if (choice === 1) {
+    const privacyUrl = await prompt('Privacy Policy URL', 'INSERT-LINK-HERE');
+    const termsUrl = await prompt('Terms of Service URL', 'INSERT-LINK-HERE');
+    return {
+      label: 'Legal',
+      links: [
+        { label: 'Privacy Policy', href: privacyUrl || 'INSERT-LINK-HERE' },
+        { label: 'Terms of Service', href: termsUrl || 'INSERT-LINK-HERE' },
+      ],
+    };
+  }
+
+  // Skip
+  return null;
+}
+
+/**
+ * Prompt for CTA button in header.
+ * Returns ctaButton config, navLink, and footerLink objects or null.
+ */
+export async function promptCtaButton(): Promise<{
+  ctaButton: { label: string; href: string };
+  navLink: { label: string; href: string };
+  footerLink: { label: string; href: string };
+} | null> {
+  const addCta = await confirm('Add a Contact Us button in the header?', false);
+  if (!addCta) return null;
+
+  const label = await prompt('Button label', 'Contact Us');
+  const href = await prompt('Button URL', 'INSERT-LINK-HERE');
+  const finalLabel = label || 'Contact Us';
+  const finalHref = href || 'INSERT-LINK-HERE';
+
+  return {
+    ctaButton: { label: finalLabel, href: finalHref },
+    navLink: { label: finalLabel, href: finalHref },
+    footerLink: { label: finalLabel, href: finalHref },
+  };
+}
+
+/**
+ * Prompt for local publishing setup.
+ * Returns publish config or null if skipped.
+ */
+export async function promptLocalPublishing(
+  projectName: string
+): Promise<{
+  enabled: boolean;
+  path: string;
+  content_subfolder: string;
+  assets_subfolder: string;
+  templatePath: string;
+} | null> {
+  const setup = await confirm('Set up local publishing with template?', true);
+  if (!setup) return null;
+
+  // Suggest path based on project name
+  const suggestedPath = projectName.includes('.')
+    ? path.resolve(USER_PROJECTS_DIR, '..', '..', 'sites', projectName)
+    : '';
+
+  const publishPath = await prompt(
+    'Output directory (absolute path to site folder)',
+    suggestedPath
+  );
+
+  if (!publishPath) return null;
+
+  // Resolve default template path (bundled with CLI)
+  const defaultTemplatePath = path.resolve(__dirname, '..', '..', '..', '..', 'wbuilder', 'templates', 'default');
+
+  return {
+    enabled: true,
+    path: publishPath,
+    content_subfolder: 'src/content/articles',
+    assets_subfolder: 'public/assets',
+    templatePath: defaultTemplatePath,
+  };
+}
+
+/**
+ * Orchestrate all website config prompts.
+ * Returns templateSettings, localPublish config, and isBlogOnly flag.
+ */
+export async function promptWebsiteConfig(projectName: string): Promise<{
+  templateSettings: Record<string, unknown>;
+  localPublish: {
+    enabled: boolean;
+    path: string;
+    content_subfolder: string;
+    assets_subfolder: string;
+    templatePath: string;
+  } | null;
+  isBlogOnly: boolean;
+}> {
+  const websiteType = await promptWebsiteType();
+  const legalPages = await promptLegalPages();
+  const ctaResult = await promptCtaButton();
+  const localPublish = await promptLocalPublishing(projectName);
+
+  // Nav links depend on website type
+  const navLinks: Array<{ label: string; href: string }> = [];
+  if (websiteType.isBlogOnly) {
+    // Blog-only: just Home link (home IS the blog)
+    navLinks.push({ label: 'Home', href: '/' });
+  } else {
+    // Full website: section links
+    for (const section of websiteType.sections || []) {
+      navLinks.push({ label: section.label as string, href: `/${section.path as string}/` });
+    }
+  }
+  if (ctaResult) {
+    navLinks.push(ctaResult.navLink);
+  }
+
+  const header: Record<string, unknown> = {
+    navLinks,
+  };
+  if (ctaResult) {
+    header.ctaButton = ctaResult.ctaButton;
+  }
+
+  // Build complete footer config
+  const footerColumns: Array<Record<string, unknown>> = [];
+
+  // Quick links column
+  const quickLinks: Array<{ label: string; href: string }> = [];
+  if (websiteType.isBlogOnly) {
+    quickLinks.push({ label: 'Home', href: '/' });
+  } else {
+    for (const section of websiteType.sections || []) {
+      quickLinks.push({ label: section.label as string, href: `/${section.path as string}/` });
+    }
+  }
+  if (ctaResult) {
+    quickLinks.push(ctaResult.footerLink);
+  }
+  footerColumns.push({ label: 'Quick Links', links: quickLinks });
+
+  // Legal column
+  if (legalPages) {
+    footerColumns.push(legalPages);
+  }
+
+  const footer: Record<string, unknown> = {
+    columns: footerColumns,
+  };
+
+  const templateSettings: Record<string, unknown> = {
+    hero: websiteType.hero,
+    ...(websiteType.sections ? { sections: websiteType.sections } : {}),
+    header,
+    footer,
+  };
+
+  return { templateSettings, localPublish, isBlogOnly: websiteType.isBlogOnly };
 }
 
 /**
