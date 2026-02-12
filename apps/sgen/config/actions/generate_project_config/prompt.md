@@ -34,7 +34,6 @@ Generate a JSON object matching the IProjectBranding schema below. Every field m
     "primary": string,          // Primary brand color (#RRGGBB) — main buttons, links, headers
     "primary_text": string,     // Text on primary color background (#RRGGBB) — must have WCAG AA 4.5:1 contrast with primary
     "secondary": string,        // Secondary brand color (#RRGGBB) — complementary to primary
-    "accent": string,           // Accent/highlight color (#RRGGBB) — calls to action, badges
     "background": string,       // Page background (#RRGGBB) — usually white or near-white
     "background_secondary": string, // Secondary background (#RRGGBB) — cards, sidebars, code blocks
     "text_primary": string,     // Main body text color (#RRGGBB) — must have WCAG AA contrast with background
@@ -105,7 +104,7 @@ Pick fonts from this curated Google Fonts list. Always include CSS fallbacks.
 
 - **WCAG Accessibility**: Ensure primary_text has at least 4.5:1 contrast ratio with primary. Ensure text_primary has at least 4.5:1 contrast with background.
 - **Industry conventions**: Legal/finance → navy/gold. Health → green/blue. Tech → blue/purple. Food → warm reds/oranges. Creative → bold/vibrant. Education → calming blues/greens.
-- **Color harmony**: Primary and secondary should be complementary or analogous. Accent should pop against both light and dark backgrounds.
+- **Color harmony**: Primary and secondary should be complementary or analogous.
 - **Dark mode**: Dark backgrounds should be dark grays (#111827 range), not pure black. Text should be slightly off-white for readability.
 - **Honor user preferences**: If the user specified color preferences, use those as the starting point and build a cohesive palette around them.
 

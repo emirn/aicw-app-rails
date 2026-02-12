@@ -21,7 +21,6 @@ export interface SiteConfig {
     colors: {
       primary: string;
       secondary: string;
-      accent?: string;
       primary_text?: string;
       background: string;
       background_secondary: string;
@@ -273,7 +272,6 @@ const defaultConfig: SiteConfig = {
     colors: {
       primary: '',
       secondary: '',
-      accent: '',
       primary_text: '',
       background: '',
       background_secondary: '',

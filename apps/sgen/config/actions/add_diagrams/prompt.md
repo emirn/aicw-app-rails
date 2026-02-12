@@ -57,13 +57,12 @@ Next paragraph...           <-- This is NOT part of the table
 Use these brand colors in all diagrams via Mermaid's `%%{init:...}%%` directive:
 - Primary: {{project.branding.colors.primary}} (main nodes, arrows)
 - Secondary: {{project.branding.colors.secondary}} (secondary elements)
-- Accent: {{project.branding.colors.accent}} (highlights, important items)
 
 **IMPORTANT**: Do NOT set diagram background color - it must remain transparent for rendering.
 
 Example for flowchart:
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '{{project.branding.colors.primary}}', 'primaryTextColor': '{{project.branding.colors.primary_text}}', 'primaryBorderColor': '{{project.branding.colors.primary}}', 'lineColor': '{{project.branding.colors.secondary}}', 'secondaryColor': '{{project.branding.colors.secondary}}', 'tertiaryColor': '{{project.branding.colors.accent}}', 'background': 'transparent'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '{{project.branding.colors.primary}}', 'primaryTextColor': '{{project.branding.colors.primary_text}}', 'primaryBorderColor': '{{project.branding.colors.primary}}', 'lineColor': '{{project.branding.colors.secondary}}', 'secondaryColor': '{{project.branding.colors.secondary}}', 'tertiaryColor': '{{project.branding.colors.secondary}}', 'background': 'transparent'}}}%%
 graph TD
     A[Start] --> B[Process]
 ```

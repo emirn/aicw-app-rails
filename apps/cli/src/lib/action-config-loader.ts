@@ -15,7 +15,6 @@ import { minimatch } from 'minimatch';
 export interface ActionColors {
   primary?: string;
   secondary?: string;
-  accent?: string;
   background?: string;
 }
 
@@ -37,7 +36,6 @@ export interface ActionPathConfig {
 export const DEFAULT_HERO_COLORS: ActionColors = {
   primary: '#3B82F6',
   secondary: '#8B5CF6',
-  accent: '#F59E0B',
   background: '#1E293B',
 };
 
@@ -141,7 +139,6 @@ export function replaceColorMacros(template: string, colors: ActionColors): stri
   return template
     .replace(/\{\{primary_color\}\}/g, finalColors.primary!)
     .replace(/\{\{secondary_color\}\}/g, finalColors.secondary!)
-    .replace(/\{\{accent_color\}\}/g, finalColors.accent!)
     .replace(/\{\{background_color\}\}/g, finalColors.background!);
 }
 
