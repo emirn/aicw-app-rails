@@ -26,7 +26,7 @@ const placeholder = config.search?.placeholder || 'Search articles...';
   <!-- Modal Content -->
   <div class="fixed inset-0 flex items-start justify-center pt-[10vh] px-4">
     <div
-      class="w-full max-w-2xl bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] rounded-2xl shadow-2xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)] overflow-hidden"
+      class="w-full max-w-2xl max-h-[85vh] flex flex-col bg-[var(--color-bg-primary)] dark:bg-[var(--color-dark-bg-primary)] rounded-2xl shadow-2xl border border-[var(--color-border)] dark:border-[var(--color-dark-border)] overflow-hidden"
     >
       <!-- Search Header -->
       <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
@@ -48,7 +48,7 @@ const placeholder = config.search?.placeholder || 'Search articles...';
       </div>
 
       <!-- Pagefind Search Container -->
-      <div id="pagefind-container" class="p-4" data-placeholder={placeholder}></div>
+      <div id="pagefind-container" class="p-4 overflow-y-auto flex-1 min-h-0" data-placeholder={placeholder}></div>
     </div>
   </div>
 </div>
@@ -74,17 +74,32 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     --pagefind-ui-tag: var(--color-dark-bg-secondary);
   }
 
-  /* ── Search icon ── */
+  /* ── Form layout — flex row so input fills width ── */
+  .pagefind-ui__form {
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* ── Search icon (magnifying glass) ── */
   .pagefind-ui__form::before {
-    opacity: 0.4 !important;
+    opacity: 0.6 !important;
+    position: absolute !important;
+    left: 0.75rem !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
   }
 
   /* ── Search input ── */
   .pagefind-ui__search-input {
+    flex: 1 !important;
+    width: 100% !important;
     font-size: 1rem !important;
-    padding: 0.75rem 1rem 0.75rem 2.5rem !important;
+    padding: 0.75rem 3.5rem 0.75rem 2.5rem !important;
     background: var(--color-bg-secondary) !important;
     border: 1px solid var(--color-border) !important;
     border-radius: 0.5rem !important;
@@ -95,7 +110,7 @@ const placeholder = config.search?.placeholder || 'Search articles...';
   .pagefind-ui__search-input:focus {
     outline: none !important;
     border-color: var(--color-primary) !important;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
   }
 
   [data-theme="dark"] .pagefind-ui__search-input {
@@ -105,38 +120,41 @@ const placeholder = config.search?.placeholder || 'Search articles...';
   }
 
   [data-theme="dark"] .pagefind-ui__search-input:focus {
-    border-color: var(--color-primary) !important;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 70%, var(--color-dark-border)) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
   }
 
-  /* ── Clear button ── */
+  /* ── Clear button — positioned inside input on the right ── */
   .pagefind-ui__search-clear {
-    padding: 0.25rem 0.75rem !important;
-    font-size: 0.75rem !important;
-    font-weight: 500 !important;
-    border-radius: 9999px !important;
-    border: 1px solid var(--color-border) !important;
-    background: var(--color-bg-secondary) !important;
-    color: var(--color-text-secondary) !important;
-    cursor: pointer !important;
-    transition: background 0.15s, color 0.15s !important;
+    position: absolute !important;
+    right: 0.5rem !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
+    padding: 0.2rem 0.6rem !important;
+    font-size: 0.7rem !important;
+    font-weight: 500 !important;
+    border-radius: 0.25rem !important;
+    border: none !important;
+    background: var(--color-bg-primary) !important;
+    color: var(--color-text-muted) !important;
+    cursor: pointer !important;
+    transition: background 0.15s, color 0.15s !important;
+    z-index: 1 !important;
+    line-height: 1.4 !important;
   }
 
   .pagefind-ui__search-clear:hover {
-    background: var(--color-bg-primary) !important;
+    background: var(--color-border) !important;
     color: var(--color-text-primary) !important;
   }
 
   [data-theme="dark"] .pagefind-ui__search-clear {
-    border-color: var(--color-dark-border) !important;
-    background: var(--color-dark-bg-secondary) !important;
-    color: var(--color-dark-text-secondary) !important;
+    background: var(--color-dark-bg-primary) !important;
+    color: var(--color-dark-text-muted) !important;
   }
 
   [data-theme="dark"] .pagefind-ui__search-clear:hover {
-    background: var(--color-dark-bg-primary) !important;
+    background: var(--color-dark-border) !important;
     color: var(--color-dark-text-primary) !important;
   }
 
@@ -158,7 +176,7 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     font-size: 0.8125rem !important;
     color: var(--color-text-muted) !important;
     height: auto !important;
-    padding: 0 !important;
+    padding: 0.5rem 0 0.25rem !important;
   }
 
   [data-theme="dark"] .pagefind-ui__message {
@@ -172,14 +190,38 @@ const placeholder = config.search?.placeholder || 'Search articles...';
 
   /* ── Results area ── */
   .pagefind-ui__results-area {
-    margin-top: 0.5rem !important;
+    margin-top: 0.25rem !important;
   }
 
-  /* ── Results container (scrollable) ── */
+  /* ── Results container — parent #pagefind-container handles scroll now ── */
   .pagefind-ui__results {
-    max-height: 55vh;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
     padding-right: 0.25rem;
+  }
+
+  /* Scrollbar styling for pagefind container */
+  #pagefind-container::-webkit-scrollbar {
+    width: 4px;
+  }
+  #pagefind-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  #pagefind-container::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+  [data-theme="dark"] #pagefind-container::-webkit-scrollbar-thumb {
+    background: var(--color-dark-border);
+  }
+
+  /* ── Hide image thumbnails (including Svelte-scoped variants) ── */
+  .pagefind-ui__result-thumb,
+  [class*="pagefind-ui__result-thumb"] {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
   }
 
   /* ── Result cards ── */
@@ -187,7 +229,7 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     background: var(--color-bg-secondary) !important;
     border: 1px solid var(--color-border) !important;
     border-radius: 0.75rem !important;
-    padding: 0.875rem 1rem !important;
+    padding: 0.75rem 1rem !important;
     margin-bottom: 0.5rem !important;
     transition: border-color 0.15s, box-shadow 0.15s !important;
     list-style: none !important;
@@ -215,8 +257,9 @@ const placeholder = config.search?.placeholder || 'Search articles...';
 
   /* ── Result title ── */
   .pagefind-ui__result-title {
-    font-size: 1rem !important;
+    font-size: 0.9375rem !important;
     font-weight: 600 !important;
+    margin-bottom: 0.125rem !important;
   }
 
   /* ── Result link ── */
@@ -238,12 +281,17 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     color: var(--color-primary) !important;
   }
 
-  /* ── Result excerpt ── */
+  /* ── Result excerpt — clamp to 2 lines ── */
   .pagefind-ui__result-excerpt {
-    font-size: 0.875rem !important;
+    font-size: 0.8125rem !important;
     color: var(--color-text-secondary) !important;
-    line-height: 1.6 !important;
+    line-height: 1.5 !important;
     min-width: 0 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   [data-theme="dark"] .pagefind-ui__result-excerpt {
@@ -266,6 +314,12 @@ const placeholder = config.search?.placeholder || 'Search articles...';
 
   .pagefind-ui__result-nested .pagefind-ui__result-link:hover {
     color: var(--color-primary) !important;
+  }
+
+  /* ── Sub-result excerpts — clamp to 1 line ── */
+  .pagefind-ui__result-nested .pagefind-ui__result-excerpt {
+    -webkit-line-clamp: 1 !important;
+    font-size: 0.75rem !important;
   }
 
   [data-theme="dark"] .pagefind-ui__result-nested {
@@ -297,7 +351,7 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     color: var(--color-dark-text-muted) !important;
   }
 
-  /* ── Load more button ── */
+  /* ── Load more button (centered) ── */
   .pagefind-ui__button {
     font-size: 0.875rem !important;
     font-weight: 500 !important;
@@ -309,6 +363,9 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     cursor: pointer !important;
     transition: background 0.15s, color 0.15s !important;
     margin-top: 0.5rem !important;
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
   }
 
   .pagefind-ui__button:hover {
@@ -331,10 +388,14 @@ const placeholder = config.search?.placeholder || 'Search articles...';
   import { PagefindUI } from '@pagefind/default-ui';
 
   let pagefindInstance: PagefindUI | null = null;
+  let initialized = false;
+  let listenersAttached = false;
 
   function initializeSearch() {
+    if (initialized) return;
     const container = document.getElementById('pagefind-container');
     if (!container) return;
+    initialized = true;
 
     const placeholder = container.dataset.placeholder || 'Search...';
 
@@ -379,14 +440,10 @@ const placeholder = config.search?.placeholder || 'Search articles...';
     }
   }
 
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', initializeSearch);
+  function attachListeners() {
+    if (listenersAttached) return;
+    listenersAttached = true;
 
-  // Also initialize on Astro page transitions
-  document.addEventListener('astro:page-load', initializeSearch);
-
-  // Event listeners
-  document.addEventListener('DOMContentLoaded', () => {
     // Close button
     document.getElementById('search-close-btn')?.addEventListener('click', closeSearch);
 
@@ -415,6 +472,18 @@ const placeholder = config.search?.placeholder || 'Search articles...';
 
     // Listen for custom event from search trigger
     document.addEventListener('open-search', openSearch);
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeSearch();
+    attachListeners();
+  });
+
+  // Also initialize on Astro page transitions
+  document.addEventListener('astro:page-load', () => {
+    initializeSearch();
+    attachListeners();
   });
 
   // Make functions available globally for other components

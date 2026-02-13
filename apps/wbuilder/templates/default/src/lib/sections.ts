@@ -30,6 +30,47 @@ export async function getArticlesBySection(sectionId: string) {
   return articles.filter((a) => getSectionFromSlug(a.slug) === sectionId);
 }
 
+/** Title-case a hyphenated id: "legal-ai-tools" → "Legal Ai Tools" */
+function titleCase(id: string): string {
+  return id.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Scan published articles for subfolder prefixes, create default SectionConfig
+ * for any not already in config, and merge with explicit sections (config wins).
+ */
+export async function discoverAllSections(config?: SiteConfig): Promise<SectionConfig[]> {
+  const configured = getSections(config);
+  const configuredIds = new Set(configured.map((s) => s.id));
+
+  const articles = await getPublishedArticles();
+  const discoveredIds = new Set<string>();
+  for (const article of articles) {
+    const sectionId = getSectionFromSlug(article.slug);
+    if (sectionId && !configuredIds.has(sectionId)) {
+      discoveredIds.add(sectionId);
+    }
+  }
+
+  const autoSections: SectionConfig[] = [...discoveredIds].sort().map((id) => ({
+    id,
+    label: titleCase(id),
+    path: id,
+    showInNav: true,
+    showOnHome: true,
+    sectionTitle: id.replace(/-/g, ' ').toUpperCase(),
+    layout: 'grid' as const,
+  }));
+
+  return [...configured, ...autoSections];
+}
+
+/** Like getLocalSections but includes auto-discovered sections */
+export async function getAllLocalSections(config?: SiteConfig): Promise<SectionConfig[]> {
+  const all = await discoverAllSections(config);
+  return all.filter((s) => !isExternalUrl(s.path));
+}
+
 /**
  * Get articles for the home page.
  * When sections configured: only return articles from showOnHome:true sections + root-level articles.
@@ -71,9 +112,9 @@ export function getSectionUrl(section: SectionConfig): string {
  * Section links with showInNav:true are inserted after "Home".
  * Deduplicates by URL.
  */
-export function getEffectiveNavLinks(config: SiteConfig): Array<{ label: string; url: string; className?: string }> {
+export function getEffectiveNavLinks(config: SiteConfig, sections?: SectionConfig[]): Array<{ label: string; url: string; className?: string }> {
   const manualLinks = config.header.navLinks || [];
-  const sections = getSections(config);
+  sections = sections || getSections(config);
 
   const sectionNavLinks = sections
     .filter((s) => s.showInNav)

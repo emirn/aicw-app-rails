@@ -134,7 +134,7 @@ function parseSimpleArticle(block: string, index: number): ParseArticleResult {
  * @returns Field value or undefined
  */
 function extractField(block: string, fieldName: string): string | undefined {
-  const regex = new RegExp(`^${fieldName}:\\s*(.+)$`, 'im');
+  const regex = new RegExp(`^>?\\s*${fieldName}:\\s*(.+)$`, 'im');
   const match = block.match(regex);
   return match?.[1]?.trim();
 }
