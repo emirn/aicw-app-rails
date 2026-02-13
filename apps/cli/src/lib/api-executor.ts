@@ -21,7 +21,6 @@ import {
   projectNameFromUrl,
 } from './path-resolver';
 import {
-  saveArticle,
   saveArticleWithAction,
   saveArticleWithPipeline,
   createArticleFolder,
@@ -892,10 +891,18 @@ export class APIExecutor {
             prompt  // Pass prompt for history archive
           );
         } else {
-          // Legacy fallback - deprecated, just update content
-          const newStatus = op.article.status || 'draft';
-          const fromStatus = op.article.status === 'draft' ? 'briefed' : 'draft';
-          await saveArticle(folderPath, content || '', newStatus, fromStatus);
+          // No last_pipeline set (e.g., generate handler no longer bakes it in)
+          // Use saveArticleWithPipeline with null to preserve existing pipeline
+          // and still save metadata (title, description, keywords from AI)
+          const archivePhase = op.action_name || 'update';
+          await saveArticleWithPipeline(
+            folderPath,
+            content || '',
+            null,
+            archivePhase,
+            meta as IArticle,
+            prompt
+          );
         }
 
         // Write index_failed.md if content extraction failed

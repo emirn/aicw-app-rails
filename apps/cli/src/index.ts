@@ -575,8 +575,8 @@ async function main(): Promise<void> {
         continue;
       }
 
-      // Generate slug from title
-      const slug = (filledArgs.slug as string) || title
+      // Generate path from title
+      const articlePath = (filledArgs.path as string) || title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
@@ -585,8 +585,8 @@ async function main(): Promise<void> {
       const projectPaths = getProjectPaths(selectedProject);
 
       // Check if article already exists
-      if (await articleFolderExists(projectPaths.drafts, slug)) {
-        logger.log(`Article '${slug}' already exists in ${selectedProject}`);
+      if (await articleFolderExists(projectPaths.drafts, articlePath)) {
+        logger.log(`Article '${articlePath}' already exists in ${selectedProject}`);
         await pressEnterToContinue();
         continue;
       }
@@ -619,10 +619,10 @@ async function main(): Promise<void> {
       ].join('\n');
 
       try {
-        await createArticleFolder(projectPaths.drafts, slug, meta, briefContent);
+        await createArticleFolder(projectPaths.drafts, articlePath, meta, briefContent);
         logger.log('');
-        logger.log(`✓ Seed article created: ${slug}`);
-        logger.log(`  ${path.join(projectPaths.drafts, slug)}`);
+        logger.log(`✓ Seed article created: ${articlePath}`);
+        logger.log(`  ${path.join(projectPaths.drafts, articlePath)}`);
         logger.log('');
         logger.log('Next: Run generate to write the full article.');
         logger.log('');
@@ -2381,6 +2381,23 @@ async function main(): Promise<void> {
                   logger.log(`  File: ${absoluteFilePath}`);
                   articleSuccess = false;
                   break;
+                }
+              }
+
+              // After all actions succeed, verify all pipeline actions are applied before updating last_pipeline
+              if (articleSuccess) {
+                const folderPath = path.join(getProjectPaths(resolved.projectName).content, articlePath);
+                const articleMeta = await getArticleMeta(folderPath);
+                const appliedActions = articleMeta?.applied_actions || [];
+                const missingActions = actions.filter(action => !appliedActions.includes(action));
+
+                if (missingActions.length > 0) {
+                  logger.log(`  ⚠ Pipeline incomplete: missing actions [${missingActions.join(', ')}]`);
+                  logger.log(`  → last_pipeline NOT updated (still: ${articleMeta?.last_pipeline || 'null'})`);
+                  articleSuccess = false;
+                } else {
+                  // All actions applied - safe to update last_pipeline
+                  await updateArticleMeta(folderPath, { last_pipeline: finalAction });
                 }
               }
 
