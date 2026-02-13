@@ -2,14 +2,14 @@
 import type { GetStaticPaths } from 'astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getConfig } from '../../lib/config';
-import { getLocalSections, getArticlesBySection } from '../../lib/sections';
+import { getAllLocalSections, getArticlesBySection } from '../../lib/sections';
 import ArticleCard from '../../components/ArticleCard.astro';
 import ArticleListItem from '../../components/ArticleListItem.astro';
 import Pagination from '../../components/Pagination.astro';
 
 export const getStaticPaths = (async () => {
   const config = getConfig();
-  const sections = getLocalSections(config);
+  const sections = await getAllLocalSections(config);
 
   // No sections configured = no pages generated
   if (sections.length === 0) return [];

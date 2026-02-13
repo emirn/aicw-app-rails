@@ -1,6 +1,6 @@
 ---
 import type { SiteConfig } from '../lib/config';
-import { getEffectiveNavLinks } from '../lib/sections';
+import { discoverAllSections, getEffectiveNavLinks } from '../lib/sections';
 import SearchTrigger from './SearchTrigger.astro';
 
 interface Props {
@@ -9,7 +9,8 @@ interface Props {
 
 const { config } = Astro.props;
 const showSearch = config.search?.enabled && config.search?.showInHeader !== false;
-const navLinks = getEffectiveNavLinks(config);
+const allSections = await discoverAllSections(config);
+const navLinks = getEffectiveNavLinks(config, allSections);
 ---
 
 <header class="sticky top-0 z-50 bg-[var(--color-bg-primary)]/95 dark:bg-[var(--color-dark-bg-primary)]/95 backdrop-blur-sm border-b border-[var(--color-border)] dark:border-[var(--color-dark-border)]">

@@ -80,6 +80,13 @@ export async function promptMultilineInput(instructions?: string): Promise<strin
       if (resolved) return;
       resolved = true;
       if (inputTimeout) clearTimeout(inputTimeout);
+
+      // Capture any remaining buffered input (last line without trailing \n)
+      const remaining = (rl as any).line;
+      if (remaining && remaining.length > 0) {
+        lines.push(remaining);
+      }
+
       rl.close();
       const content = lines.join('\n').trim();
       if (content) {
