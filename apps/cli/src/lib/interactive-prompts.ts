@@ -607,110 +607,202 @@ interface SelectionResult {
 }
 
 /**
+ * Extract keyword filters (date:YYYY-MM-DD, url:pattern) from input string.
+ * Returns the base input (with filters removed) and any extracted filters.
+ */
+function extractFilters(input: string): { baseInput: string; dateFilter?: string; urlFilter?: string } {
+  let baseInput = input;
+  let dateFilter: string | undefined;
+  let urlFilter: string | undefined;
+
+  // Extract date:YYYY-MM-DD
+  const dateMatch = baseInput.match(/\bdate:(\d{4}-\d{2}-\d{2})\b/);
+  if (dateMatch) {
+    dateFilter = dateMatch[1];
+    baseInput = baseInput.replace(dateMatch[0], '');
+  }
+
+  // Extract url:PATTERN (non-whitespace chars after url:)
+  const urlMatch = baseInput.match(/\burl:(\S+)/);
+  if (urlMatch) {
+    urlFilter = urlMatch[1];
+    baseInput = baseInput.replace(urlMatch[0], '');
+  }
+
+  return { baseInput: baseInput.trim(), dateFilter, urlFilter };
+}
+
+/**
+ * Apply date and url filters to an article list.
+ * Returns items with their original indices preserved.
+ */
+function applyFilters(
+  articles: ArticleForSelection[],
+  totalArticles: number,
+  dateFilter?: string,
+  urlFilter?: string
+): { originalIndex: number; article: ArticleForSelection }[] {
+  let workingList = articles
+    ? articles.map((article, idx) => ({ originalIndex: idx, article }))
+    : Array.from({ length: totalArticles }, (_, idx) => ({ originalIndex: idx, article: null as any }));
+
+  if (dateFilter && articles) {
+    const maxDate = new Date(dateFilter + 'T23:59:59Z');
+    workingList = workingList.filter(item => new Date(item.article.created_at) <= maxDate);
+  }
+
+  if (urlFilter && articles) {
+    workingList = workingList.filter(item => item.article.path.includes(urlFilter));
+  }
+
+  return workingList;
+}
+
+/**
+ * Slice a 1-based range from a filtered working list.
+ */
+function sliceRange(
+  filtered: { originalIndex: number; article: ArticleForSelection }[],
+  startNum: number,
+  count: number
+): { indices: number[]; warning?: string } {
+  const effectiveTotal = filtered.length;
+
+  if (startNum < 1 || startNum > effectiveTotal) {
+    return {
+      indices: [],
+      warning: `Start index ${startNum} is out of range (1-${effectiveTotal})`,
+    };
+  }
+
+  if (count === 0) {
+    return { indices: [] };
+  }
+
+  const startIdx = startNum - 1;
+  const requestedEnd = startIdx + count;
+  const actualEnd = Math.min(requestedEnd, effectiveTotal);
+
+  const indices: number[] = [];
+  for (let i = startIdx; i < actualEnd; i++) {
+    indices.push(filtered[i].originalIndex);
+  }
+
+  let warning: string | undefined;
+  if (requestedEnd > effectiveTotal) {
+    const actualCount = actualEnd - startIdx;
+    warning = `Requested ${count} articles from ${startNum}, only ${actualCount} available`;
+  }
+
+  return { indices, warning };
+}
+
+/**
  * Parse article selection input
- * Supports: comma-separated numbers, range syntax "N:M" or "N:M:YYYY-MM-DD", "all", "q"
+ * Supports: comma-separated numbers, range "N:M", keyword filters "date:YYYY-MM-DD" and "url:path/", "all", "q"
  *
  * @param input - User input string
  * @param totalArticles - Total number of available articles
- * @param articles - Optional array of articles for date filtering
+ * @param articles - Optional array of articles for date/url filtering
  * @returns SelectionResult with type and indices
  */
-function parseArticleSelection(
+export function parseArticleSelection(
   input: string,
   totalArticles: number,
   articles?: ArticleForSelection[]
 ): SelectionResult {
-  const trimmed = input.trim().toLowerCase();
+  const trimmed = input.trim();
 
   // Quit
-  if (!trimmed || trimmed === 'q') {
+  if (!trimmed || trimmed.toLowerCase() === 'q') {
     return { type: 'quit' };
   }
 
-  // All
-  if (trimmed === 'all') {
+  // Extract keyword filters
+  const { baseInput, dateFilter, urlFilter } = extractFilters(trimmed);
+  const hasFilters = !!(dateFilter || urlFilter);
+
+  // Apply filters to get working list
+  const filtered = hasFilters && articles
+    ? applyFilters(articles, totalArticles, dateFilter, urlFilter)
+    : (articles
+      ? articles.map((article, idx) => ({ originalIndex: idx, article }))
+      : Array.from({ length: totalArticles }, (_, idx) => ({ originalIndex: idx, article: null as any })));
+
+  // Build filter description for warnings
+  const filterParts: string[] = [];
+  if (dateFilter) filterParts.push(`date <= ${dateFilter}`);
+  if (urlFilter) filterParts.push(`url contains '${urlFilter}'`);
+  const filterDesc = filterParts.length > 0 ? filterParts.join(', ') : undefined;
+
+  // Check if filters matched anything
+  if (hasFilters && filtered.length === 0) {
+    return {
+      type: 'indices',
+      indices: [],
+      warning: `No articles match filters (${filterDesc})`,
+    };
+  }
+
+  const base = baseInput.toLowerCase();
+
+  // "all" with optional filters
+  if (base === 'all') {
+    if (hasFilters) {
+      const indices = filtered.map(item => item.originalIndex);
+      return {
+        type: 'indices',
+        indices,
+        warning: `Filter (${filterDesc}): ${filtered.length} articles selected`,
+      };
+    }
     return { type: 'all' };
   }
 
-  // Range syntax: N:M or N:M:YYYY-MM-DD where N=start (1-based), M=count
-  const rangeMatch = trimmed.match(/^(\d+):(\d+)(?::(\d{4}-\d{2}-\d{2}))?$/);
+  // Range syntax: N:M where N=start (1-based), M=count
+  const rangeMatch = base.match(/^(\d+):(\d+)$/);
   if (rangeMatch) {
-    const startNum = parseInt(rangeMatch[1], 10);  // 1-based
+    const startNum = parseInt(rangeMatch[1], 10);
     const count = parseInt(rangeMatch[2], 10);
-    const dateFilter = rangeMatch[3];
 
-    // Apply date filter if provided and articles available
-    let workingList: { originalIndex: number; article: ArticleForSelection }[] = [];
+    const { indices, warning: sliceWarning } = sliceRange(filtered, startNum, count);
 
-    if (dateFilter && articles) {
-      const maxDate = new Date(dateFilter + 'T23:59:59Z');
-      workingList = articles
-        .map((article, idx) => ({ originalIndex: idx, article }))
-        .filter(item => new Date(item.article.created_at) <= maxDate);
-
-      // If no articles match the date filter
-      if (workingList.length === 0) {
-        return {
-          type: 'indices',
-          indices: [],
-          warning: `No articles found with created_at <= ${dateFilter}`,
-        };
-      }
-    } else {
-      // No date filter - use all articles
-      workingList = articles
-        ? articles.map((article, idx) => ({ originalIndex: idx, article }))
-        : Array.from({ length: totalArticles }, (_, idx) => ({ originalIndex: idx, article: null as any }));
-    }
-
-    const effectiveTotal = workingList.length;
-
-    // Validate start against filtered list
-    if (startNum < 1 || startNum > effectiveTotal) {
-      return {
-        type: 'indices',
-        indices: [],
-        warning: `Start index ${startNum} is out of range (1-${effectiveTotal})`,
-      };
-    }
-
-    // Zero count means no articles
-    if (count === 0) {
-      return { type: 'indices', indices: [] };
-    }
-
-    // Calculate range on filtered list
-    const startIdx = startNum - 1;  // Convert to 0-based
-    const requestedEnd = startIdx + count;
-    const actualEnd = Math.min(requestedEnd, effectiveTotal);
-
-    // Map back to original indices
-    const indices: number[] = [];
-    for (let i = startIdx; i < actualEnd; i++) {
-      indices.push(workingList[i].originalIndex);
-    }
-
-    // Build warning message
     let warning: string | undefined;
-    if (dateFilter && articles) {
-      warning = `Date filter: ${effectiveTotal} articles with created_at <= ${dateFilter}`;
+    if (hasFilters) {
+      warning = `Filter (${filterDesc}): ${filtered.length} articles`;
     }
-    if (requestedEnd > effectiveTotal) {
-      const actualCount = actualEnd - startIdx;
-      const truncMsg = `Requested ${count} articles from ${startNum}, only ${actualCount} available`;
-      warning = warning ? `${warning}; ${truncMsg}` : truncMsg;
+    if (sliceWarning) {
+      warning = warning ? `${warning}; ${sliceWarning}` : sliceWarning;
     }
 
     return { type: 'indices', indices, warning };
   }
 
-  // Comma-separated numbers (existing behavior)
+  // Single number with filters: e.g. "5 url:blog/"
+  const singleMatch = base.match(/^(\d+)$/);
+  if (singleMatch && hasFilters) {
+    const num = parseInt(singleMatch[1], 10);
+    if (num < 1 || num > filtered.length) {
+      return {
+        type: 'indices',
+        indices: [],
+        warning: `Index ${num} is out of range for filtered list (1-${filtered.length})`,
+      };
+    }
+    return {
+      type: 'indices',
+      indices: [filtered[num - 1].originalIndex],
+      warning: `Filter (${filterDesc}): picked #${num} of ${filtered.length}`,
+    };
+  }
+
+  // Comma-separated numbers (no filter support)
   const indices: number[] = [];
   const nums = trimmed.split(',').map((s) => parseInt(s.trim(), 10));
 
   for (const num of nums) {
     if (!isNaN(num) && num >= 1 && num <= totalArticles) {
-      indices.push(num - 1);  // Convert to 0-based
+      indices.push(num - 1);
     }
   }
 
@@ -758,25 +850,47 @@ export async function selectArticlesForGeneration(
   }
   console.error('');
 
-  const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M' or 'N:M:YYYY-MM-DD', 'all', or 'q'");
+  while (true) {
+    const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
 
-  const result = parseArticleSelection(answer, sorted.length, sorted);
+    const result = parseArticleSelection(answer, sorted.length, sorted);
 
-  // Show warning if any
-  if (result.warning) {
-    console.error(`Warning: ${result.warning}`);
+    if (result.type === 'quit') {
+      return [];
+    }
+
+    let selectedPaths: string[];
+    if (result.type === 'all') {
+      selectedPaths = sorted.map((a) => a.path);
+    } else {
+      selectedPaths = (result.indices || []).map((idx) => sorted[idx].path);
+    }
+
+    if (selectedPaths.length === 0) {
+      console.error(result.warning ? `Warning: ${result.warning}` : 'No articles matched.');
+      continue;
+    }
+
+    // Show warning if any
+    if (result.warning) {
+      console.error(`  ${result.warning}`);
+    }
+
+    // Show selected articles and confirm
+    console.error(`\nSelected ${selectedPaths.length} article(s):`);
+    for (const p of selectedPaths.slice(0, 10)) {
+      const info = sorted.find(a => a.path === p);
+      console.error(`  - ${info ? truncateTitle(info.title, 80) : p}`);
+    }
+    if (selectedPaths.length > 10) {
+      console.error(`  ... and ${selectedPaths.length - 10} more`);
+    }
+
+    const ok = await prompt('Proceed? (Y/n)');
+    if (!ok || ok.trim().toLowerCase() === 'y' || ok.trim() === '') {
+      return selectedPaths;
+    }
   }
-
-  if (result.type === 'quit') {
-    return [];
-  }
-
-  if (result.type === 'all') {
-    return sorted.map((a) => a.path);
-  }
-
-  // Return paths for selected indices
-  return (result.indices || []).map((idx) => sorted[idx].path);
 }
 
 /**
@@ -814,26 +928,47 @@ export async function selectArticlesForEnhancement(
   }
   console.error('');
 
-  const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M' or 'N:M:YYYY-MM-DD', 'all', or 'q'");
+  while (true) {
+    const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
 
-  const result = parseArticleSelection(answer, articles.length, articles);
+    const result = parseArticleSelection(answer, articles.length, articles);
 
-  // Show warning if any
-  if (result.warning) {
-    console.error(`Warning: ${result.warning}`);
+    if (result.type === 'quit') {
+      return null;
+    }
+
+    let selectedPaths: string[];
+    if (result.type === 'all') {
+      selectedPaths = articles.map((a) => a.path);
+    } else {
+      selectedPaths = (result.indices || []).map((idx) => articles[idx].path);
+    }
+
+    if (selectedPaths.length === 0) {
+      console.error(result.warning ? `Warning: ${result.warning}` : 'No articles matched.');
+      continue;
+    }
+
+    // Show warning if any
+    if (result.warning) {
+      console.error(`  ${result.warning}`);
+    }
+
+    // Show selected articles and confirm
+    console.error(`\nSelected ${selectedPaths.length} article(s):`);
+    for (const p of selectedPaths.slice(0, 10)) {
+      const info = articles.find(a => a.path === p);
+      console.error(`  - ${info ? truncateTitle(info.title || info.path, 80) : p}`);
+    }
+    if (selectedPaths.length > 10) {
+      console.error(`  ... and ${selectedPaths.length - 10} more`);
+    }
+
+    const ok = await prompt('Proceed? (Y/n)');
+    if (!ok || ok.trim().toLowerCase() === 'y' || ok.trim() === '') {
+      return selectedPaths.length > 0 ? selectedPaths : null;
+    }
   }
-
-  if (result.type === 'quit') {
-    return null;
-  }
-
-  if (result.type === 'all') {
-    return articles.map((a) => a.path);
-  }
-
-  // Return paths for selected indices
-  const selected = (result.indices || []).map((idx) => articles[idx].path);
-  return selected.length > 0 ? selected : null;
 }
 
 /**
