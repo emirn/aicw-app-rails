@@ -84,6 +84,9 @@ export async function getHomeArticles(config?: SiteConfig) {
     return articles;
   }
 
+  // Check if any section explicitly declares section_type
+  const hasSectionTypes = sections.some((s) => s.section_type);
+
   return articles.filter((article) => {
     const sectionId = getSectionFromSlug(article.slug);
 
@@ -96,7 +99,12 @@ export async function getHomeArticles(config?: SiteConfig) {
     // Articles in unconfigured subfolders show on home by default
     if (!section) return true;
 
-    // showOnHome defaults to true
+    // If section_type is used anywhere, only show 'blog' type sections
+    if (hasSectionTypes) {
+      return section.section_type === 'blog';
+    }
+
+    // Legacy: fall back to showOnHome flag
     return section.showOnHome !== false;
   });
 }

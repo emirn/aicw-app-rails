@@ -249,6 +249,8 @@ export interface SectionConfig {
   postsPerPage?: number;
   /** Article display layout. 'grid' = tile cards, 'list' = horizontal rows. Default: 'grid' */
   layout?: 'grid' | 'list';
+  /** Section content type. 'blog' sections appear in the homepage blog grid. Default: undefined (treated as 'blog' for backward compat) */
+  section_type?: 'blog' | 'page';
 }
 
 // Default configuration
