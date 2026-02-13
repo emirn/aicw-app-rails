@@ -23,7 +23,8 @@ export const buildArticlePrompt = (
   promptParts: IPromptParts,
   articleMeta?: IArticle,
   customTemplate?: string,
-  customContent?: string
+  customContent?: string,
+  articlePath?: string
 ): string => {
   const cfg = ACTION_CONFIG['write_draft'];
 
@@ -40,15 +41,14 @@ export const buildArticlePrompt = (
   // Build template variables including article-specific metadata
   const vars: Record<string, unknown> = {
     website_title: websiteInfo.title,
-    description,
     requirements: promptParts.project_requirements,
     // Custom content for brand style customization
     custom: custom,
     // Article metadata from meta.md - helps AI target specific title/keywords
-    article_title: articleMeta?.title || '(use topic from description)',
-    article_keywords: articleMeta?.keywords?.join(', ') || '(derive from topic)',
-    article_description: articleMeta?.description || '(create appropriate description)',
-    article_slug: articleMeta?.slug || '',
+    title: articleMeta?.title || '(use topic from brief)',
+    keywords: articleMeta?.keywords?.join(', ') || '(derive from topic)',
+    content: articleMeta?.content || description,  // article.content = the brief
+    path: articlePath || '(path not set)',
   };
 
   // Use custom template if provided, otherwise use server default

@@ -40,8 +40,10 @@ const {
 
 // Use canonicalDomain if set (for sites hosted on staging subdomain but indexed under custom domain)
 // Otherwise fall back to site.url
-const baseUrl = (config.seo.canonicalDomain || config.branding.site.url).replace(/\/$/, '');
-const siteUrl = config.branding.site.url.replace(/\/$/, '');
+const rawBaseUrl = (config.seo.canonicalDomain || config.branding.site.url).replace(/\/$/, '');
+const baseUrl = rawBaseUrl.startsWith('http') ? rawBaseUrl : `https://${rawBaseUrl}`;
+const rawSiteUrl = config.branding.site.url.replace(/\/$/, '');
+const siteUrl = rawSiteUrl.startsWith('http') ? rawSiteUrl : `https://${rawSiteUrl}`;
 
 // Build canonical URL using the canonical domain base
 const fullCanonical = canonical

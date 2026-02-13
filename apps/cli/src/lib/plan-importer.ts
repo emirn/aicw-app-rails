@@ -295,7 +295,7 @@ export function planItemToArticleMeta(
 
   const meta: IArticle = {
     title: item.title,
-    description: item.description,
+    content: item.description,  // plan description = article brief/assignment
     keywords: item.target_keywords || [],
     // No last_pipeline = seed article (ready for generate pipeline)
     internal_links: (item as IContentPlanItem).link_recommendations?.map((l) => ({

@@ -111,15 +111,18 @@ export async function publishToLocalFolder(
     logger.log('Cleaned Astro data store cache');
   }
 
-  // Copy custom pages (if custom-pages/ directory exists)
-  const customPagesDir = path.join(projectDir, 'custom-pages');
-  if (existsSync(customPagesDir)) {
-    const pagesDest = path.join(config.path, config.pages_subfolder || 'src/content/pages');
+  // Copy pages (check pages/ first, fall back to legacy custom-pages/)
+  const pagesDir = path.join(projectDir, 'pages');
+  const legacyPagesDir = path.join(projectDir, 'custom-pages');
+  const effectivePagesDir = existsSync(pagesDir) ? pagesDir : existsSync(legacyPagesDir) ? legacyPagesDir : null;
+  const pagesDest = path.join(config.path, config.pages_subfolder || 'src/content/pages');
+
+  if (effectivePagesDir) {
     const pagesAssetsDest = path.join(config.path, config.assets_subfolder, 'pages');
 
-    const pageFolders = await fs.readdir(customPagesDir, { withFileTypes: true });
+    const pageFolders = await fs.readdir(effectivePagesDir, { withFileTypes: true });
     for (const folder of pageFolders.filter(f => f.isDirectory())) {
-      const pageDir = path.join(customPagesDir, folder.name);
+      const pageDir = path.join(effectivePagesDir, folder.name);
 
       // Copy index.md or index.mdx → src/content/pages/{slug}.md(x)
       const indexMdx = path.join(pageDir, 'index.mdx');
@@ -129,7 +132,7 @@ export async function publishToLocalFolder(
         const ext = path.extname(sourceFile);
         await fs.mkdir(pagesDest, { recursive: true });
         await fs.copyFile(sourceFile, path.join(pagesDest, `${folder.name}${ext}`));
-        logger.log(`  → custom page: ${folder.name}${ext}`);
+        logger.log(`  → page: ${folder.name}${ext}`);
       }
 
       // Copy assets/ → public/assets/pages/{slug}/
@@ -137,10 +140,13 @@ export async function publishToLocalFolder(
       if (existsSync(assetsDir)) {
         const destAssets = path.join(pagesAssetsDest, folder.name);
         await fs.cp(assetsDir, destAssets, { recursive: true, force: true });
-        logger.log(`  → custom page assets: pages/${folder.name}/`);
+        logger.log(`  → page assets: pages/${folder.name}/`);
       }
     }
   }
+
+  // Always ensure pages directory exists (template content config expects it)
+  await fs.mkdir(pagesDest, { recursive: true });
 
   // When templatePath is set (and not soft-copy), ensure content subfolder exists (template may have created it)
   const contentDest = path.join(config.path, config.content_subfolder);

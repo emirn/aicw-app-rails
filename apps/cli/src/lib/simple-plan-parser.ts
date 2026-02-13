@@ -6,7 +6,7 @@
  * URL: relative/path
  * DATE: 2026-05-01 (optional)
  * KEYWORDS: keyword1, keyword2 (optional)
- * DESCRIPTION: Brief description...
+ * DESCRIPTION: Brief description...  (or CONTENT: as alias)
  * ---
  *
  * NO AI - works entirely locally
@@ -92,7 +92,7 @@ function parseSimpleArticle(block: string, index: number): ParseArticleResult {
   const missing: string[] = [];
   if (!title) missing.push('TITLE');
   if (!url) missing.push('URL');
-  if (!description) missing.push('DESCRIPTION');
+  if (!description) missing.push('DESCRIPTION/CONTENT');
 
   if (missing.length > 0) {
     return {
@@ -140,19 +140,32 @@ function extractField(block: string, fieldName: string): string | undefined {
 }
 
 /**
- * Extract DESCRIPTION content (everything after "DESCRIPTION:" to end of block)
- * DESCRIPTION is always the last field in an article block.
+ * Extract DESCRIPTION/CONTENT content (everything after field label to end of block)
+ * Supports both "DESCRIPTION:" and "CONTENT:" as the brief field.
+ * This is always the last field in an article block.
  * @param block - Text block to search
  * @returns Description content or empty string
  */
 function extractDescription(block: string): string {
-  // Find the position of DESCRIPTION: (case-insensitive)
-  const descIndex = block.toLowerCase().indexOf('description:');
-  if (descIndex === -1) return '';
+  const lower = block.toLowerCase();
+  // Support both DESCRIPTION: and CONTENT: as the brief field
+  const descIndex = lower.indexOf('description:');
+  const contentIndex = lower.indexOf('content:');
 
-  // Get everything after "DESCRIPTION:"
-  const afterDesc = block.slice(descIndex + 'description:'.length);
-  return afterDesc.trim();
+  // Use whichever is found (prefer CONTENT: if both exist, or whichever exists)
+  let fieldIndex = -1;
+  let fieldLength = 0;
+  if (contentIndex !== -1 && (descIndex === -1 || contentIndex < descIndex)) {
+    fieldIndex = contentIndex;
+    fieldLength = 'content:'.length;
+  } else if (descIndex !== -1) {
+    fieldIndex = descIndex;
+    fieldLength = 'description:'.length;
+  }
+
+  if (fieldIndex === -1) return '';
+  const afterField = block.slice(fieldIndex + fieldLength);
+  return afterField.trim();
 }
 
 /**
