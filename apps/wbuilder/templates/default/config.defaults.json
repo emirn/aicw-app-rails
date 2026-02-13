@@ -43,8 +43,8 @@
   },
   "hero": {
     "enabled": true,
-    "title": "The Blog Title",
-    "subtitle": "Your compelling tagline goes here.",
+    "title": "",
+    "subtitle": "",
     "show_on_all_pages": false
   },
   "gradient": ["", "", ""],
@@ -100,9 +100,9 @@
       "rss": true
     },
     "copyright_text": "{{YEAR}} {{SITE_NAME}}",
-    "powered_by_text": "Published with AICW.io",
+    "powered_by_text": "",
     "powered_by_url": "https://aicw.io",
-    "show_powered_by": true
+    "show_powered_by": false
   },
   "newsletter": {
     "enabled": false,
