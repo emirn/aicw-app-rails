@@ -107,7 +107,7 @@ export async function handleGenerate(
     // Pass custom prompt template and custom content if provided (from project's config/actions/write_draft/)
     const customTemplate = context.promptParts?.custom_prompt_template;
     const customContent = context.promptParts?.custom_content;
-    prompt = buildArticlePrompt(briefContent, websiteInfo, context.promptParts!, article, customTemplate, customContent);
+    prompt = buildArticlePrompt(briefContent, websiteInfo, context.promptParts!, article, customTemplate, customContent, context.articlePath);
     const genCfg = ACTION_CONFIG['write_draft'];
     const provider = genCfg?.ai_provider || 'openrouter';
     const modelId = genCfg?.ai_model_id || (provider === 'openai'
