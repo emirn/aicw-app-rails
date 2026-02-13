@@ -11,6 +11,7 @@ import mdx from '@astrojs/mdx';
 // Note: Pagefind is run as a post-build step via CLI (see package.json build script)
 // The astro-pagefind integration is kept for dev server middleware only
 import pagefind from 'astro-pagefind';
+import { validateImages } from './src/integrations/validate-images.js';
 import { ogImages } from './src/integrations/og-images.js';
 import { favicon } from './src/integrations/favicon.js';
 
@@ -33,7 +34,7 @@ const siteUrl = siteConfig?.site?.url || 'https://example.com';
 // Always include pagefind integration for dev server middleware
 // ogImages() generates OG images for all articles during build
 // favicon() generates favicon.ico and favicon.png during build
-const integrations = [sitemap(), mdx(), pagefind(), ogImages(), favicon()];
+const integrations = [sitemap(), mdx(), pagefind(), validateImages(), ogImages(), favicon()];
 
 export default defineConfig({
   site: siteUrl,

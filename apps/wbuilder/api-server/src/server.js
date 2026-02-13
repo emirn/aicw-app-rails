@@ -1290,7 +1290,17 @@ async function runBuild(jobId, jobDir, templateDir) {
     if (error.stderr) {
       await appendLog(jobDir, `STDERR: ${error.stderr}`);
     }
-    await writeStatus(jobDir, 'failed', error.message, { duration, buildDir });
+
+    // Build a useful error message: prefer stderr tail for execa failures
+    // (error.message is often just "Command failed with exit code 1")
+    let statusMessage = error.message;
+    if (error.stderr) {
+      const stderrLines = error.stderr.trim().split('\n');
+      const tail = stderrLines.slice(-10).join('\n');
+      statusMessage = `${error.message}\n--- stderr (last 10 lines) ---\n${tail}`;
+    }
+
+    await writeStatus(jobDir, 'failed', statusMessage, { duration, buildDir });
 
     // Keep build directory on failure for debugging
     await appendLog(jobDir, `Build files preserved at: ${buildDir}`);

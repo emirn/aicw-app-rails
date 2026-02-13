@@ -75,6 +75,123 @@ async function processConfigDataUrls(config, publicDir, logFn) {
 }
 
 /**
+ * Parse YAML frontmatter from markdown content
+ */
+function parseFrontmatter(content) {
+  const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+  if (!match) return { frontmatter: {}, body: content };
+
+  // Simple YAML key-value parsing (handles quoted and unquoted strings)
+  const frontmatter = {};
+  for (const line of match[1].split('\n')) {
+    const kvMatch = line.match(/^(\w+):\s*(.*)$/);
+    if (kvMatch) {
+      let value = kvMatch[2].trim();
+      // Remove surrounding quotes
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      frontmatter[kvMatch[1]] = value;
+    }
+  }
+  return { frontmatter, body: match[2] };
+}
+
+/**
+ * Extract all local image references from markdown/HTML body content
+ */
+function extractBodyImages(body) {
+  const images = [];
+
+  // Markdown images: ![alt](url)
+  const mdRegex = /!\[.*?\]\(([^)]+\.(?:webp|png|jpg|jpeg|gif|svg|avif))\)/gi;
+  let match;
+  while ((match = mdRegex.exec(body)) !== null) {
+    if (match[1]) images.push(match[1]);
+  }
+
+  // HTML img tags: <img src="url">
+  const htmlRegex = /<img[^>]+src=["']([^"']+\.(?:webp|png|jpg|jpeg|gif|svg|avif))["']/gi;
+  while ((match = htmlRegex.exec(body)) !== null) {
+    if (match[1]) images.push(match[1]);
+  }
+
+  return images;
+}
+
+/**
+ * Validate that all image references in articles point to existing files.
+ * Runs before npm install / astro build for fast feedback.
+ *
+ * @param {string} workDir - The Astro project working directory
+ * @param {Function} logFn - Logging function
+ */
+async function validateArticleImages(workDir, logFn) {
+  const articlesDir = path.join(workDir, 'src/content/articles');
+  const publicDir = path.join(workDir, 'public');
+
+  let entries;
+  try {
+    entries = await fs.readdir(articlesDir, { withFileTypes: true, recursive: true });
+  } catch {
+    logFn('No articles directory found, skipping image validation');
+    return;
+  }
+
+  const errors = [];
+  let articlesChecked = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!entry.name.endsWith('.md') && !entry.name.endsWith('.mdx')) continue;
+
+    const parentPath = entry.parentPath || entry.path || articlesDir;
+    const fullPath = path.join(parentPath, entry.name);
+    const relativePath = path.relative(articlesDir, fullPath);
+    const slug = relativePath.replace(/\.(md|mdx)$/, '');
+
+    const content = await fs.readFile(fullPath, 'utf-8');
+    const { frontmatter, body } = parseFrontmatter(content);
+
+    articlesChecked++;
+
+    // Check image_hero
+    if (frontmatter.image_hero && !frontmatter.image_hero.startsWith('http')) {
+      const imgPath = frontmatter.image_hero.startsWith('/')
+        ? path.join(publicDir, frontmatter.image_hero)
+        : path.join(publicDir, frontmatter.image_hero);
+      try {
+        await fs.access(imgPath);
+      } catch {
+        errors.push(`[image_hero] ${slug}: missing ${frontmatter.image_hero}`);
+      }
+    }
+
+    // Check body images
+    const bodyImages = extractBodyImages(body);
+    for (const imgRef of bodyImages) {
+      if (imgRef.startsWith('http://') || imgRef.startsWith('https://')) continue;
+      const imgPath = imgRef.startsWith('/')
+        ? path.join(publicDir, imgRef)
+        : path.join(publicDir, imgRef);
+      try {
+        await fs.access(imgPath);
+      } catch {
+        errors.push(`[body] ${slug}: missing ${imgRef}`);
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    const errorMsg = `Image validation failed: ${errors.length} missing image(s) in ${articlesChecked} articles:\n  ${errors.join('\n  ')}`;
+    logFn(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  logFn(`Image validation passed: ${articlesChecked} articles checked`);
+}
+
+/**
  * Build an Astro site from the astro-blog template
  *
  * @param {Object} options
@@ -240,7 +357,11 @@ ${content}
     }
   }
 
-  // 7. Install dependencies if node_modules doesn't exist
+  // 7. Validate image references before expensive build steps
+  logFn('Validating image references...');
+  await validateArticleImages(workDir, logFn);
+
+  // 8. Install dependencies if node_modules doesn't exist
   // (In Docker, we pre-install deps, but for local dev we might need to install)
   const nodeModulesPath = path.join(workDir, 'node_modules');
   try {
@@ -254,7 +375,7 @@ ${content}
     });
   }
 
-  // 8. Run astro build
+  // 9. Run astro build
   logFn('Running astro build...');
   const buildResult = await execa('npm', ['run', 'build'], {
     cwd: workDir,
@@ -269,7 +390,7 @@ ${content}
     logFn(buildResult.stdout);
   }
 
-  // 9. Copy dist to output directory
+  // 10. Copy dist to output directory
   const distDir = path.join(workDir, 'dist');
   logFn(`Copying build output to ${outputDir}`);
   await fs.rm(outputDir, { recursive: true, force: true });
