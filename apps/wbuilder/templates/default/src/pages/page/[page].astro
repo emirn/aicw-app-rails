@@ -9,8 +9,8 @@ import Pagination from '../../components/Pagination.astro';
 export const getStaticPaths = (async () => {
   const siteConfig = getConfig();
   const articles = await getHomeArticles(siteConfig);
-  const postsPerPage = siteConfig.blog.postsPerPage || 9;
-  const totalPages = Math.ceil(articles.length / postsPerPage);
+  const posts_per_page = siteConfig.blog.posts_per_page || 9;
+  const totalPages = Math.ceil(articles.length / posts_per_page);
 
   // Generate paths for page 2 onwards (page 1 is index.astro)
   // If no articles or only 1 page, return empty array
@@ -33,10 +33,10 @@ const articles = (await getHomeArticles(config))
   .sort((a, b) => b.data.published_at.valueOf() - a.data.published_at.valueOf());
 
 // Pagination
-const postsPerPage = config.blog.postsPerPage || 9;
-const totalPages = Math.ceil(articles.length / postsPerPage);
-const startIndex = (currentPage - 1) * postsPerPage;
-const paginatedArticles = articles.slice(startIndex, startIndex + postsPerPage);
+const posts_per_page = config.blog.posts_per_page || 9;
+const totalPages = Math.ceil(articles.length / posts_per_page);
+const startIndex = (currentPage - 1) * posts_per_page;
+const paginatedArticles = articles.slice(startIndex, startIndex + posts_per_page);
 ---
 
 <BaseLayout
@@ -44,9 +44,9 @@ const paginatedArticles = articles.slice(startIndex, startIndex + postsPerPage);
   canonical={`${config.branding.site.url}/page/${currentPage}/`}
 >
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    {config.blog.sectionTitle && (
+    {config.blog.section_title && (
       <h2 class="text-sm font-semibold text-[var(--color-primary)] uppercase tracking-wider mb-8">
-        {config.blog.sectionTitle}
+        {config.blog.section_title}
       </h2>
     )}
 

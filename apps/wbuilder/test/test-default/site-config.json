@@ -9,104 +9,104 @@
   "logo": {
     "type": "text",
     "text": "TestBlog",
-    "showBorder": true,
-    "borderColor": "#10B981"
+    "show_border": true,
+    "border_color": "#10B981"
   },
   "hero": {
     "enabled": true,
     "title": "Welcome to the Test Blog",
     "subtitle": "Testing categories, search, llms.txt, and JSON-LD features",
-    "showOnAllPages": false
+    "show_on_all_pages": false
   },
   "colors": {
     "primary": "#10B981",
-    "primaryHover": "#059669",
+    "primary_hover": "#059669",
     "accent": "#F59E0B",
-    "textPrimary": "#0F172A",
-    "textSecondary": "#475569",
-    "textMuted": "#9CA3AF",
+    "text_primary": "#0F172A",
+    "text_secondary": "#475569",
+    "text_muted": "#9CA3AF",
     "background": "#FFFFFF",
-    "backgroundSecondary": "#F8FAFC",
+    "background_secondary": "#F8FAFC",
     "border": "#E2E8F0"
   },
-  "darkMode": {
+  "dark_mode": {
     "enabled": true,
     "default": "dark",
-    "togglePosition": "footer",
+    "toggle_position": "footer",
     "colors": {
-      "textPrimary": "#FFFFFF",
-      "textSecondary": "#D1D5DB",
-      "textMuted": "#9CA3AF",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "#D1D5DB",
+      "text_muted": "#9CA3AF",
       "background": "#111827",
-      "backgroundSecondary": "#1F2937",
+      "background_secondary": "#1F2937",
       "border": "#374151"
     }
   },
   "typography": {
-    "fontFamily": "Inter, system-ui, sans-serif",
-    "headingFontFamily": "Inter, system-ui, sans-serif",
-    "googleFonts": ["Inter:wght@400;500;600;700"]
+    "font_family": "Inter, system-ui, sans-serif",
+    "heading_font_family": "Inter, system-ui, sans-serif",
+    "google_fonts": ["Inter:wght@400;500;600;700"]
   },
   "header": {
     "style": "pill",
-    "showSearch": true,
-    "navLinks": [
+    "show_search": true,
+    "nav_links": [
       { "label": "Home", "url": "/" },
       { "label": "Categories", "url": "/categories/" }
     ]
   },
   "footer": {
-    "showLogo": true,
-    "showTagline": true,
+    "show_logo": true,
+    "show_tagline": true,
     "columns": [],
-    "socialLinks": { "rss": true },
-    "copyrightText": "{{YEAR}} {{SITE_NAME}}",
-    "poweredByText": "Built with AICW Website Builder",
-    "showPoweredBy": true
+    "social_links": { "rss": true },
+    "copyright_text": "{{YEAR}} {{SITE_NAME}}",
+    "powered_by_text": "Built with AICW Website Builder",
+    "show_powered_by": true
   },
   "blog": {
-    "sectionTitle": "LATEST POSTS",
-    "postsPerPage": 9,
-    "showCategories": true,
-    "showDate": true,
-    "showAuthor": true,
-    "showExcerpt": true,
-    "showReadingTime": true,
-    "showTableOfContents": true,
-    "showRelatedPosts": true,
-    "paginationStyle": "pages",
-    "dateFormat": "MMM d, yyyy"
+    "section_title": "LATEST POSTS",
+    "posts_per_page": 9,
+    "show_categories": true,
+    "show_date": true,
+    "show_author": true,
+    "show_excerpt": true,
+    "show_reading_time": true,
+    "show_table_of_contents": true,
+    "show_related_posts": true,
+    "pagination_style": "pages",
+    "date_format": "MMM d, yyyy"
   },
   "article": {
-    "showSocialShare": true,
-    "socialShareButtons": ["twitter", "facebook", "linkedin", "copy"],
-    "showAuthorBio": false,
-    "showTags": true
+    "show_social_share": true,
+    "social_share_buttons": ["twitter", "facebook", "linkedin", "copy"],
+    "show_author_bio": false,
+    "show_tags": true
   },
   "seo": {
-    "titleSeparator": " | ",
-    "enableJsonLd": true,
-    "robotsNoIndex": false,
-    "jsonLd": {
-      "organizationName": "Test Blog Inc.",
-      "organizationLogo": "/logo.png"
+    "title_separator": " | ",
+    "enable_json_ld": true,
+    "robots_no_index": false,
+    "json_ld": {
+      "organization_name": "Test Blog Inc.",
+      "organization_logo": "/logo.png"
     }
   },
   "categories": {
     "enabled": true,
-    "showIndex": true,
-    "urlPrefix": "category"
+    "show_index": true,
+    "url_prefix": "category"
   },
   "search": {
     "enabled": true,
     "placeholder": "Search articles...",
-    "showInHeader": true
+    "show_in_header": true
   },
-  "llmsTxt": {
+  "llms_txt": {
     "enabled": true,
-    "includeArticles": true,
-    "maxArticles": 50,
-    "includeCategories": true
+    "include_articles": true,
+    "max_articles": 50,
+    "include_categories": true
   },
   "tracking": {},
   "aicw": {

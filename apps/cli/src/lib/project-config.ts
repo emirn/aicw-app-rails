@@ -177,7 +177,7 @@ export async function initializeProject(
       path: "",
       content_subfolder: "articles",
       assets_subfolder: "assets",
-      templatePath: "",
+      template_path: "",
       template_settings: {},
     },
     created_at: new Date().toISOString(),

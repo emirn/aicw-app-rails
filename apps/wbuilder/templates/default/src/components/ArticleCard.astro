@@ -12,7 +12,7 @@ interface Props {
 const { article, config } = Astro.props;
 const { data, slug } = article;
 const categories = data.categories || [];
-const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
+const showCategories = config.blog.show_categories && config.categories?.enabled && categories.length > 0;
 
 // Format date
 function formatDate(date: Date): string {
@@ -66,27 +66,27 @@ const heroImage = data.image_hero || extractFirstImage(article.body);
         {data.title}
       </h2>
 
-      {config.blog.showExcerpt && data.description && (
+      {config.blog.show_excerpt && data.description && (
         <p class="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] line-clamp-3 mb-4">
           {data.description}
         </p>
       )}
 
       <div class="flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
-        {config.blog.showDate && data.published_at && (
+        {config.blog.show_date && data.published_at && (
           <time datetime={data.published_at.toISOString()}>
             {formatDate(data.published_at)}
           </time>
         )}
 
-        {config.blog.showAuthor && (data.author || getDefaultAuthor(config)) && (
+        {config.blog.show_author && (data.author || getDefaultAuthor(config)) && (
           <>
             <span class="w-1 h-1 rounded-full bg-current"></span>
             <span>{data.author || getDefaultAuthor(config)}</span>
           </>
         )}
 
-        {config.blog.showReadingTime && (
+        {config.blog.show_reading_time && (
           <>
             <span class="w-1 h-1 rounded-full bg-current"></span>
             <span>{readingTime} min read</span>

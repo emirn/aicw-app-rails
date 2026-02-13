@@ -47,46 +47,46 @@ export interface SiteConfig {
     enabled: boolean;
     title?: string;
     subtitle?: string;
-    showOnAllPages?: boolean;
+    show_on_all_pages?: boolean;
   };
   gradient?: [string, string, string];
   typography: {
-    fontFamily?: string;
-    headingFontFamily?: string;
-    googleFonts?: string[];
+    font_family?: string;
+    heading_font_family?: string;
+    google_fonts?: string[];
   };
   header: {
     style?: string;
-    showSearch?: boolean;
-    navLinks: Array<{
+    show_search?: boolean;
+    nav_links: Array<{
       label: string;
       url: string;
       /** Optional Tailwind classes for custom styling (e.g., button styles) */
-      className?: string;
+      class_name?: string;
     }>;
-    ctaButton?: {
+    cta_button?: {
       enabled: boolean;
       label: string;
       url: string;
       style?: string;
       target?: '_self' | '_blank';
       /** Optional Tailwind classes for custom CTA styling */
-      className?: string;
+      class_name?: string;
     };
   };
   footer: {
-    showLogo?: boolean;
-    showTagline?: boolean;
+    show_logo?: boolean;
+    show_tagline?: boolean;
     columns: Array<{
       title: string;
       links: Array<{
         label: string;
         url: string;
         /** Optional Tailwind classes for custom styling */
-        className?: string;
+        class_name?: string;
       }>;
     }>;
-    socialLinks?: {
+    social_links?: {
       twitter?: string;
       linkedin?: string;
       facebook?: string;
@@ -98,10 +98,10 @@ export interface SiteConfig {
       threads?: string;
       rss?: boolean;
     };
-    copyrightText?: string;
-    poweredByText?: string;
-    poweredByUrl?: string;
-    showPoweredBy?: boolean;
+    copyright_text?: string;
+    powered_by_text?: string;
+    powered_by_url?: string;
+    show_powered_by?: boolean;
   };
   newsletter?: {
     enabled?: boolean;
@@ -109,58 +109,58 @@ export interface SiteConfig {
     code?: string;
   };
   blog: {
-    sectionTitle?: string;
-    postsPerPage: number;
-    showCategories?: boolean;
-    showDate?: boolean;
-    showAuthor?: boolean;
-    showExcerpt?: boolean;
-    showReadingTime?: boolean;
-    showTableOfContents?: boolean;
-    showRelatedPosts?: boolean;
-    paginationStyle?: string;
-    dateFormat?: string;
+    section_title?: string;
+    posts_per_page: number;
+    show_categories?: boolean;
+    show_date?: boolean;
+    show_author?: boolean;
+    show_excerpt?: boolean;
+    show_reading_time?: boolean;
+    show_table_of_contents?: boolean;
+    show_related_posts?: boolean;
+    pagination_style?: string;
+    date_format?: string;
   };
   article: {
-    showSocialShare?: boolean;
-    socialShareButtons?: string[];
-    showAuthorBio?: boolean;
-    showTags?: boolean;
+    show_social_share?: boolean;
+    social_share_buttons?: string[];
+    show_author_bio?: boolean;
+    show_tags?: boolean;
   };
   seo: {
-    titleSeparator?: string;
-    defaultOgImage?: string;
-    twitterHandle?: string;
-    enableJsonLd?: boolean;
+    title_separator?: string;
+    default_og_image?: string;
+    twitter_handle?: string;
+    enable_json_ld?: boolean;
     /**
      * Override the canonical URL domain. Useful when site is hosted on
      * sites.pgndr.com but should be indexed under a custom domain.
      * Example: "https://myblog.com" - canonical URLs will use this instead of site.url
      */
-    canonicalDomain?: string;
+    canonical_domain?: string;
     /**
      * If true, adds noindex meta tag to prevent search engine indexing.
      * Useful for staging/preview sites.
      */
-    robotsNoIndex?: boolean;
+    robots_no_index?: boolean;
     /**
-     * If true, shows a red preview banner at the top of the page when robotsNoIndex is enabled.
-     * Defaults to true when robotsNoIndex is true.
+     * If true, shows a red preview banner at the top of the page when robots_no_index is enabled.
+     * Defaults to true when robots_no_index is true.
      */
-    showPreviewBanner?: boolean;
+    show_preview_banner?: boolean;
     /**
      * Custom text for the preview banner.
      * Defaults to "Preview Mode - This site is not indexed by search engines"
      */
-    previewBannerText?: string;
+    preview_banner_text?: string;
     /**
      * JSON-LD schema configuration for structured data
      */
-    jsonLd?: {
+    json_ld?: {
       /** Organization name for publisher schema (defaults to site.name) */
-      organizationName?: string;
+      organization_name?: string;
       /** Organization logo URL for publisher schema */
-      organizationLogo?: string;
+      organization_logo?: string;
     };
   };
   /**
@@ -170,9 +170,9 @@ export interface SiteConfig {
     /** Enable category archive pages. Defaults to false. */
     enabled?: boolean;
     /** Show /categories/ index page. Defaults to true when enabled. */
-    showIndex?: boolean;
+    show_index?: boolean;
     /** URL prefix for category pages. Defaults to 'category'. */
-    urlPrefix?: string;
+    url_prefix?: string;
   };
   /**
    * Search configuration using Pagefind
@@ -183,25 +183,25 @@ export interface SiteConfig {
     /** Placeholder text for search input */
     placeholder?: string;
     /** Show search trigger in header. Defaults to true when enabled. */
-    showInHeader?: boolean;
+    show_in_header?: boolean;
   };
   /**
    * llms.txt generation configuration
    */
-  llmsTxt?: {
+  llms_txt?: {
     /** Enable llms.txt generation at /llms.txt. Defaults to false. */
     enabled?: boolean;
     /** Include article list in llms.txt. Defaults to true. */
-    includeArticles?: boolean;
+    include_articles?: boolean;
     /** Maximum number of articles to list. Defaults to 50. */
-    maxArticles?: number;
+    max_articles?: number;
     /** Include category list in llms.txt. Defaults to true. */
-    includeCategories?: boolean;
+    include_categories?: boolean;
   };
   tracking: {
-    widgetCode?: string;
-    customHeadCode?: string;
-    customBodyCode?: string;
+    widget_code?: string;
+    custom_head_code?: string;
+    custom_body_code?: string;
   };
   /**
    * AICW-specific tracking configuration.
@@ -215,10 +215,10 @@ export interface SiteConfig {
     /**
      * AICW tracking ID (e.g., "abc123xyz")
      */
-    trackingId?: string;
+    tracking_id?: string;
     /**
      * Domain to track. Should match the canonical domain.
-     * If not specified, will use canonicalDomain or site.url.
+     * If not specified, will use canonical_domain or site.url.
      */
     domain?: string;
   };
@@ -238,15 +238,15 @@ export interface SectionConfig {
   /** URL path prefix (usually same as id), OR absolute URL (https://...) for nav-only links */
   path: string;
   /** Auto-add to header nav. Default: false */
-  showInNav?: boolean;
+  show_in_nav?: boolean;
   /** Show articles on home page. Default: true */
-  showOnHome?: boolean;
+  show_on_home?: boolean;
   /** Uppercase label above grid (e.g., "LEGAL AI TOOLS") */
-  sectionTitle?: string;
+  section_title?: string;
   /** Meta description for section index page */
   description?: string;
-  /** Override blog.postsPerPage for this section */
-  postsPerPage?: number;
+  /** Override blog.posts_per_page for this section */
+  posts_per_page?: number;
   /** Article display layout. 'grid' = tile cards, 'list' = horizontal rows. Default: 'grid' */
   layout?: 'grid' | 'list';
   /** Section content type. 'blog' sections appear in the homepage blog grid. Default: undefined (treated as 'blog' for backward compat) */
@@ -300,28 +300,28 @@ const defaultConfig: SiteConfig = {
     enabled: true,
     title: 'Welcome to the Blog',
     subtitle: 'Your compelling tagline goes here.',
-    showOnAllPages: false,
+    show_on_all_pages: false,
   },
   gradient: ['', '', ''],
   typography: {
-    fontFamily: 'Inter, system-ui, sans-serif',
-    headingFontFamily: 'Inter, system-ui, sans-serif',
-    googleFonts: ['Inter:wght@400;500;600;700'],
+    font_family: 'Inter, system-ui, sans-serif',
+    heading_font_family: 'Inter, system-ui, sans-serif',
+    google_fonts: ['Inter:wght@400;500;600;700'],
   },
   header: {
     style: 'pill',
-    showSearch: false,
-    navLinks: [{ label: 'Home', url: '/' }],
+    show_search: false,
+    nav_links: [{ label: 'Home', url: '/' }],
   },
   footer: {
-    showLogo: true,
-    showTagline: true,
+    show_logo: true,
+    show_tagline: true,
     columns: [],
-    socialLinks: { rss: true },
-    copyrightText: '{{YEAR}} {{SITE_NAME}}',
-    poweredByText: '',
-    poweredByUrl: '',
-    showPoweredBy: false,
+    social_links: { rss: true },
+    copyright_text: '{{YEAR}} {{SITE_NAME}}',
+    powered_by_text: '',
+    powered_by_url: '',
+    show_powered_by: false,
   },
   newsletter: {
     enabled: false,
@@ -329,29 +329,29 @@ const defaultConfig: SiteConfig = {
     code: '',
   },
   blog: {
-    sectionTitle: 'LATEST',
-    postsPerPage: 9,
-    showCategories: false,
-    showDate: true,
-    showAuthor: true,
-    showExcerpt: true,
-    showReadingTime: false,
-    showTableOfContents: true,
-    showRelatedPosts: true,
-    paginationStyle: 'pages',
-    dateFormat: 'MMM d, yyyy',
+    section_title: 'LATEST',
+    posts_per_page: 9,
+    show_categories: false,
+    show_date: true,
+    show_author: true,
+    show_excerpt: true,
+    show_reading_time: false,
+    show_table_of_contents: true,
+    show_related_posts: true,
+    pagination_style: 'pages',
+    date_format: 'MMM d, yyyy',
   },
   article: {
-    showSocialShare: true,
-    socialShareButtons: ['facebook', 'linkedin', 'twitter', 'copy'],
-    showAuthorBio: false,
-    showTags: false,
+    show_social_share: true,
+    social_share_buttons: ['facebook', 'linkedin', 'twitter', 'copy'],
+    show_author_bio: false,
+    show_tags: false,
   },
   seo: {
-    titleSeparator: ' | ',
-    enableJsonLd: true,
-    robotsNoIndex: false,
-    jsonLd: {},
+    title_separator: ' | ',
+    enable_json_ld: true,
+    robots_no_index: false,
+    json_ld: {},
   },
   tracking: {},
   aicw: {
@@ -359,19 +359,19 @@ const defaultConfig: SiteConfig = {
   },
   categories: {
     enabled: false,
-    showIndex: true,
-    urlPrefix: 'category',
+    show_index: true,
+    url_prefix: 'category',
   },
   search: {
     enabled: false,
     placeholder: 'Search articles...',
-    showInHeader: true,
+    show_in_header: true,
   },
-  llmsTxt: {
+  llms_txt: {
     enabled: false,
-    includeArticles: true,
-    maxArticles: 50,
-    includeCategories: true,
+    include_articles: true,
+    max_articles: 50,
+    include_categories: true,
   },
 };
 

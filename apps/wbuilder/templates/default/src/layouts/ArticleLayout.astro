@@ -54,7 +54,7 @@ const hasInlineJsonLd = article.body?.includes('application/ld+json');
 
 // Categories
 const categories = data.categories || [];
-const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
+const showCategories = config.blog.show_categories && config.categories?.enabled && categories.length > 0;
 const hasInlineToc = article.body?.includes('<div id="toc">') || false;
 ---
 
@@ -74,7 +74,7 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
   twitterDescription={data.twitter_description}
 >
   <!-- Article-specific JSON-LD (BlogPosting + Breadcrumbs) - skipped if article has inline JSON-LD -->
-  {config.seo.enableJsonLd && !hasInlineJsonLd && (
+  {config.seo.enable_json_ld && !hasInlineJsonLd && (
     <Fragment slot="head">
       <script type="application/ld+json" set:html={JSON.stringify(generateBlogPosting(config, article, canonicalUrl))} />
       <script type="application/ld+json" set:html={JSON.stringify(generateArticleBreadcrumbs(config, article))} />
@@ -97,24 +97,24 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
       </h1>
 
       <div class="flex flex-wrap items-center gap-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
-        {config.blog.showDate && (
+        {config.blog.show_date && (
           <time datetime={data.published_at.toISOString()}>
             {formatDate(data.published_at)}
           </time>
         )}
 
-        {config.blog.showDate && data.updated_at && (
+        {config.blog.show_date && data.updated_at && (
           <>
             <span class="w-1 h-1 rounded-full bg-current"></span>
             <span>Updated <time datetime={data.updated_at.toISOString()}>{formatDate(data.updated_at)}</time></span>
           </>
         )}
 
-        {config.blog.showAuthor && (data.author || getDefaultAuthor(config)) && (
+        {config.blog.show_author && (data.author || getDefaultAuthor(config)) && (
           <span>by {data.author || getDefaultAuthor(config)}</span>
         )}
 
-        {config.blog.showReadingTime && (
+        {config.blog.show_reading_time && (
           <span>{readingTime} min read</span>
         )}
       </div>
@@ -127,7 +127,7 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
         </div>
       )}
 
-      {data.keywords && data.keywords.length > 0 && config.article.showTags && (
+      {data.keywords && data.keywords.length > 0 && config.article.show_tags && (
         <div class="flex flex-wrap gap-2 mt-4">
           {data.keywords.map((keyword) => (
             <span class="px-3 py-1 text-xs font-medium rounded-full bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
@@ -139,13 +139,13 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
     </header>
 
     <!-- Mobile Table of Contents -->
-    {config.blog.showTableOfContents && headings.length > 0 && (
+    {config.blog.show_table_of_contents && headings.length > 0 && (
       <MobileToc headings={headings} />
     )}
 
     <!-- Article Content -->
     <div class="prose prose-lg max-w-none dark:prose-invert prose-headings:font-bold prose-headings:text-[var(--color-text-primary)] dark:prose-headings:text-[var(--color-dark-text-primary)] prose-p:text-[var(--color-text-secondary)] dark:prose-p:text-[var(--color-dark-text-secondary)] prose-a:text-[var(--color-primary)] prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl">
-      {config.blog.showTableOfContents && !hasInlineToc && headings.length > 0 && (
+      {config.blog.show_table_of_contents && !hasInlineToc && headings.length > 0 && (
         <div id="toc" class="not-prose">
           <ul>
             {headings.filter(h => h.depth >= 2 && h.depth <= 3).map(h => (
@@ -158,19 +158,19 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
     </div>
 
     <!-- Social Share -->
-    {config.article.showSocialShare && (
+    {config.article.show_social_share && (
       <div class="mt-12 pt-8 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
         <SocialShare
           url={canonicalUrl}
           title={data.title}
           description={data.description}
-          buttons={config.article.socialShareButtons || ['twitter', 'facebook', 'linkedin', 'copy']}
+          buttons={config.article.social_share_buttons || ['twitter', 'facebook', 'linkedin', 'copy']}
         />
       </div>
     )}
 
     <!-- Related Articles -->
-    {config.blog.showRelatedPosts && relatedArticles.length > 0 && (
+    {config.blog.show_related_posts && relatedArticles.length > 0 && (
       <section class="mt-16">
         <h2 class="text-2xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-8">
           Related Articles

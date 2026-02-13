@@ -9,17 +9,17 @@ interface Props {
 const { config } = Astro.props;
 const currentYear = new Date().getFullYear();
 
-const copyrightText = config.footer.copyrightText
-  ? replacePlaceholders(config.footer.copyrightText, config)
+const copyrightText = config.footer.copyright_text
+  ? replacePlaceholders(config.footer.copyright_text, config)
   : `${currentYear} ${config.branding.site.name}`;
 ---
 
 <footer class="bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    {(config.footer.columns.length > 0 || config.footer.showLogo) && (
+    {(config.footer.columns.length > 0 || config.footer.show_logo) && (
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
         <!-- Logo and Tagline Column -->
-        {config.footer.showLogo && (
+        {config.footer.show_logo && (
           <div class="col-span-2 md:col-span-1">
             <a href="/" class="inline-block font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-2">
               {config.branding.logo.type === 'image' && config.branding.logo.image_url ? (
@@ -28,7 +28,7 @@ const copyrightText = config.footer.copyrightText
                 <span>{config.branding.logo.text || config.branding.brand_name || config.branding.site.name}</span>
               )}
             </a>
-            {config.footer.showTagline && config.branding.site.tagline && (
+            {config.footer.show_tagline && config.branding.site.tagline && (
               <p class="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
                 {config.branding.site.tagline}
               </p>
@@ -48,7 +48,7 @@ const copyrightText = config.footer.copyrightText
                   <a
                     href={link.url}
                     class:list={[
-                      link.className || "text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
+                      link.class_name || "text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
                     ]}
                   >
                     {link.label}
@@ -62,11 +62,11 @@ const copyrightText = config.footer.copyrightText
     )}
 
     <!-- Social Links -->
-    {config.footer.socialLinks && (
+    {config.footer.social_links && (
       <div class="flex items-center gap-4 mb-8">
-        {config.footer.socialLinks.twitter && (
+        {config.footer.social_links.twitter && (
           <a
-            href={config.footer.socialLinks.twitter}
+            href={config.footer.social_links.twitter}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -78,9 +78,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.linkedin && (
+        {config.footer.social_links.linkedin && (
           <a
-            href={config.footer.socialLinks.linkedin}
+            href={config.footer.social_links.linkedin}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -92,9 +92,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.facebook && (
+        {config.footer.social_links.facebook && (
           <a
-            href={config.footer.socialLinks.facebook}
+            href={config.footer.social_links.facebook}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -106,9 +106,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.instagram && (
+        {config.footer.social_links.instagram && (
           <a
-            href={config.footer.socialLinks.instagram}
+            href={config.footer.social_links.instagram}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -120,9 +120,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.youtube && (
+        {config.footer.social_links.youtube && (
           <a
-            href={config.footer.socialLinks.youtube}
+            href={config.footer.social_links.youtube}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -134,9 +134,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.github && (
+        {config.footer.social_links.github && (
           <a
-            href={config.footer.socialLinks.github}
+            href={config.footer.social_links.github}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -148,9 +148,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.tiktok && (
+        {config.footer.social_links.tiktok && (
           <a
-            href={config.footer.socialLinks.tiktok}
+            href={config.footer.social_links.tiktok}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -162,9 +162,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.bluesky && (
+        {config.footer.social_links.bluesky && (
           <a
-            href={config.footer.socialLinks.bluesky}
+            href={config.footer.social_links.bluesky}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -176,9 +176,9 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.threads && (
+        {config.footer.social_links.threads && (
           <a
-            href={config.footer.socialLinks.threads}
+            href={config.footer.social_links.threads}
             target="_blank"
             rel="noopener noreferrer"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -190,7 +190,7 @@ const copyrightText = config.footer.copyrightText
           </a>
         )}
 
-        {config.footer.socialLinks.rss && (
+        {config.footer.social_links.rss && (
           <a
             href="/rss.xml"
             class="text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
@@ -208,15 +208,15 @@ const copyrightText = config.footer.copyrightText
     <div class="pt-8 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)] flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
       <p>&copy; {copyrightText}</p>
 
-      {config.footer.showPoweredBy && config.footer.poweredByText && (
+      {config.footer.show_powered_by && config.footer.powered_by_text && (
         <p>
           <a
-            href={config.footer.poweredByUrl || "https://aicw.io"}
+            href={config.footer.powered_by_url || "https://aicw.io"}
             target="_blank"
             rel="noopener noreferrer"
             class="hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
           >
-            {config.footer.poweredByText}
+            {config.footer.powered_by_text}
           </a>
         </p>
       )}

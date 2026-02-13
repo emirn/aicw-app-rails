@@ -38,9 +38,9 @@ const {
   config,
 } = Astro.props;
 
-// Use canonicalDomain if set (for sites hosted on staging subdomain but indexed under custom domain)
+// Use canonical_domain if set (for sites hosted on staging subdomain but indexed under custom domain)
 // Otherwise fall back to site.url
-const rawBaseUrl = (config.seo.canonicalDomain || config.branding.site.url).replace(/\/$/, '');
+const rawBaseUrl = (config.seo.canonical_domain || config.branding.site.url).replace(/\/$/, '');
 const baseUrl = rawBaseUrl.startsWith('http') ? rawBaseUrl : `https://${rawBaseUrl}`;
 const rawSiteUrl = config.branding.site.url.replace(/\/$/, '');
 const siteUrl = rawSiteUrl.startsWith('http') ? rawSiteUrl : `https://${rawSiteUrl}`;
@@ -52,8 +52,8 @@ const fullCanonical = canonical
 
 const ogImage = image
   ? (image.startsWith('http') ? image : new URL(image, siteUrl).href)
-  : config.seo.defaultOgImage
-    ? new URL(config.seo.defaultOgImage, siteUrl).href
+  : config.seo.default_og_image
+    ? new URL(config.seo.default_og_image, siteUrl).href
     : null;
 ---
 
@@ -65,7 +65,7 @@ const ogImage = image
 {keywords && <meta name="keywords" content={keywords} />}
 <meta name="author" content={author || getDefaultAuthor(config)} />
 <link rel="canonical" href={fullCanonical} />
-{config.seo.robotsNoIndex && <meta name="robots" content="noindex, nofollow" />}
+{config.seo.robots_no_index && <meta name="robots" content="noindex, nofollow" />}
 
 <!-- Favicon -->
 {config.branding.site.favicon_url ? (
@@ -112,8 +112,8 @@ const ogImage = image
     <meta name="twitter:image:alt" content={imageAlt || title} />
   </>
 )}
-{config.seo.twitterHandle && (
-  <meta name="twitter:site" content={`@${config.seo.twitterHandle}`} />
+{config.seo.twitter_handle && (
+  <meta name="twitter:site" content={`@${config.seo.twitter_handle}`} />
 )}
 
 <!-- RSS Feed -->

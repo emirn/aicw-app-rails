@@ -168,14 +168,14 @@ export async function buildWebsiteLocal(
       text: siteName,
     },
     header: {
-      navLinks: [{ label: 'Home', url: '/' }],
-      ctaButton: {
+      nav_links: [{ label: 'Home', url: '/' }],
+      cta_button: {
         enabled: false,
       },
     },
     footer: {
       columns: [],
-      showPoweredBy: true,
+      show_powered_by: true,
     },
   };
 

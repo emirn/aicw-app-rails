@@ -17,7 +17,7 @@ export function categorySlug(name: string): string {
  */
 export function getCategoryUrl(name: string, config?: SiteConfig): string {
   const cfg = config || getConfig();
-  const prefix = cfg.categories?.urlPrefix || 'category';
+  const prefix = cfg.categories?.url_prefix || 'category';
   return `/${prefix}/${categorySlug(name)}/`;
 }
 

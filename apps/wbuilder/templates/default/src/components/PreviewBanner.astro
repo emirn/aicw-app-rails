@@ -8,8 +8,8 @@ interface Props {
 const { config } = Astro.props;
 
 // Show banner if robotsNoIndex is true AND showPreviewBanner is not explicitly false
-const showBanner = config.seo.robotsNoIndex && config.seo.showPreviewBanner !== false;
-const bannerText = config.seo.previewBannerText || 'Preview Mode - This site is not indexed by search engines';
+const showBanner = config.seo.robots_no_index && config.seo.show_preview_banner !== false;
+const bannerText = config.seo.preview_banner_text || 'Preview Mode - This site is not indexed by search engines';
 ---
 
 {showBanner && (
