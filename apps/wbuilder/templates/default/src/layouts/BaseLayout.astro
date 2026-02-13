@@ -44,7 +44,7 @@ const {
 } = Astro.props;
 
 const pageTitle = title
-  ? `${title}${config.seo.titleSeparator || ' | '}${config.branding.site.name}`
+  ? `${title}${config.seo.title_separator || ' | '}${config.branding.site.name}`
   : config.branding.site.name;
 
 // Generate CSS variables from config colors
@@ -63,8 +63,8 @@ const cssVars = {
   '--color-dark-bg-primary': config.branding.dark_mode.colors.background,
   '--color-dark-bg-secondary': config.branding.dark_mode.colors.background_secondary,
   '--color-dark-border': config.branding.dark_mode.colors.border,
-  '--font-family': config.typography.fontFamily || 'Inter, system-ui, sans-serif',
-  '--font-heading': config.typography.headingFontFamily || 'Inter, system-ui, sans-serif',
+  '--font-family': config.typography.font_family || 'Inter, system-ui, sans-serif',
+  '--font-heading': config.typography.heading_font_family || 'Inter, system-ui, sans-serif',
   '--logo-border-color': config.branding.colors.primary,
 };
 ---
@@ -91,19 +91,19 @@ const cssVars = {
     />
 
     <!-- Google Fonts -->
-    {config.typography.googleFonts && config.typography.googleFonts.length > 0 && (
+    {config.typography.google_fonts && config.typography.google_fonts.length > 0 && (
       <>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-          href={`https://fonts.googleapis.com/css2?family=${config.typography.googleFonts.join('&family=')}&display=swap`}
+          href={`https://fonts.googleapis.com/css2?family=${config.typography.google_fonts.join('&family=')}&display=swap`}
           rel="stylesheet"
         />
       </>
     )}
 
     <!-- Custom Head Code -->
-    {config.tracking.customHeadCode && <Fragment set:html={config.tracking.customHeadCode} />}
+    {config.tracking.custom_head_code && <Fragment set:html={config.tracking.custom_head_code} />}
 
     <slot name="head" />
   </head>
@@ -123,7 +123,7 @@ const cssVars = {
     {config.search?.enabled && <Search config={config} />}
 
     <!-- JSON-LD Structured Data -->
-    {config.seo.enableJsonLd && (
+    {config.seo.enable_json_ld && (
       <script type="application/ld+json" set:html={JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -138,22 +138,22 @@ const cssVars = {
     )}
 
     <!-- AICW Tracking Script -->
-    {config.aicw?.enabled && config.aicw?.trackingId && (
+    {config.aicw?.enabled && config.aicw?.tracking_id && (
       <script
         is:inline
         async
         defer
         src="https://aicw.io/track.js"
-        data-id={config.aicw.trackingId}
-        data-domain={config.aicw.domain || config.seo.canonicalDomain?.replace(/^https?:\/\//, '').replace(/\/$/, '') || new URL(config.branding.site.url).hostname}
+        data-id={config.aicw.tracking_id}
+        data-domain={config.aicw.domain || config.seo.canonical_domain?.replace(/^https?:\/\//, '').replace(/\/$/, '') || new URL(config.branding.site.url).hostname}
       />
     )}
 
     <!-- Tracking Widget Code -->
-    {config.tracking.widgetCode && <Fragment set:html={config.tracking.widgetCode} />}
+    {config.tracking.widget_code && <Fragment set:html={config.tracking.widget_code} />}
 
     <!-- Custom Body Code -->
-    {config.tracking.customBodyCode && <Fragment set:html={config.tracking.customBodyCode} />}
+    {config.tracking.custom_body_code && <Fragment set:html={config.tracking.custom_body_code} />}
 
     <!-- Theme Initialization Script -->
     <script is:inline define:vars={{ darkModeDefault: config.branding.dark_mode.default, darkModeEnabled: config.branding.dark_mode.enabled }}>

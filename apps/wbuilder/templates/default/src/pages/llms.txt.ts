@@ -7,11 +7,11 @@ export const GET: APIRoute = async () => {
   const config = getConfig();
 
   // Return 404 if llms.txt is disabled
-  if (!config.llmsTxt?.enabled) {
+  if (!config.llms_txt?.enabled) {
     return new Response('Not found', { status: 404 });
   }
 
-  const siteUrl = config.seo.canonicalDomain || config.branding.site.url;
+  const siteUrl = config.seo.canonical_domain || config.branding.site.url;
   const lines: string[] = [];
 
   // Site header
@@ -25,7 +25,7 @@ export const GET: APIRoute = async () => {
   }
 
   // Categories section
-  if (config.llmsTxt.includeCategories !== false && config.categories?.enabled) {
+  if (config.llms_txt.include_categories !== false && config.categories?.enabled) {
     const categories = await getCategoriesWithCounts();
     if (categories.length > 0) {
       lines.push('## Categories');
@@ -38,7 +38,7 @@ export const GET: APIRoute = async () => {
   }
 
   // Articles section
-  if (config.llmsTxt.includeArticles !== false) {
+  if (config.llms_txt.include_articles !== false) {
     const articles = await getPublishedArticles();
 
     // Sort by date descending
@@ -49,8 +49,8 @@ export const GET: APIRoute = async () => {
     });
 
     // Limit number of articles
-    const maxArticles = config.llmsTxt.maxArticles || 50;
-    const limitedArticles = sortedArticles.slice(0, maxArticles);
+    const max_articles = config.llms_txt.max_articles || 50;
+    const limitedArticles = sortedArticles.slice(0, max_articles);
 
     if (limitedArticles.length > 0) {
       lines.push('## Articles');

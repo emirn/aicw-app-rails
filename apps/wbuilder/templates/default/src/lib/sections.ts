@@ -56,9 +56,9 @@ export async function discoverAllSections(config?: SiteConfig): Promise<SectionC
     id,
     label: titleCase(id),
     path: id,
-    showInNav: true,
-    showOnHome: true,
-    sectionTitle: id.replace(/-/g, ' ').toUpperCase(),
+    show_in_nav: true,
+    show_on_home: true,
+    section_title: id.replace(/-/g, ' ').toUpperCase(),
     layout: 'grid' as const,
   }));
 
@@ -73,7 +73,7 @@ export async function getAllLocalSections(config?: SiteConfig): Promise<SectionC
 
 /**
  * Get articles for the home page.
- * When sections configured: only return articles from showOnHome:true sections + root-level articles.
+ * When sections configured: only return articles from show_on_home:true sections + root-level articles.
  * When no sections: return all (backward compat).
  */
 export async function getHomeArticles(config?: SiteConfig) {
@@ -104,8 +104,8 @@ export async function getHomeArticles(config?: SiteConfig) {
       return section.section_type === 'blog';
     }
 
-    // Legacy: fall back to showOnHome flag
-    return section.showOnHome !== false;
+    // Legacy: fall back to show_on_home flag
+    return section.show_on_home !== false;
   });
 }
 
@@ -116,16 +116,16 @@ export function getSectionUrl(section: SectionConfig): string {
 }
 
 /**
- * Merge auto-injected section nav links with manual header.navLinks.
- * Section links with showInNav:true are inserted after "Home".
+ * Merge auto-injected section nav links with manual header.nav_links.
+ * Section links with show_in_nav:true are inserted after "Home".
  * Deduplicates by URL.
  */
-export function getEffectiveNavLinks(config: SiteConfig, sections?: SectionConfig[]): Array<{ label: string; url: string; className?: string }> {
-  const manualLinks = config.header.navLinks || [];
+export function getEffectiveNavLinks(config: SiteConfig, sections?: SectionConfig[]): Array<{ label: string; url: string; class_name?: string }> {
+  const manualLinks = config.header.nav_links || [];
   sections = sections || getSections(config);
 
   const sectionNavLinks = sections
-    .filter((s) => s.showInNav)
+    .filter((s) => s.show_in_nav)
     .map((s) => ({ label: s.label, url: getSectionUrl(s) }));
 
   if (sectionNavLinks.length === 0) return manualLinks;

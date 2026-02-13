@@ -16,7 +16,7 @@ export function generateBreadcrumbList(
   config: SiteConfig,
   items: Array<{ name: string; url: string }>
 ): object {
-  const siteUrl = config.seo.canonicalDomain || config.branding.site.url;
+  const siteUrl = config.seo.canonical_domain || config.branding.site.url;
 
   const itemListElement: BreadcrumbItem[] = [
     {
@@ -52,18 +52,18 @@ export function generateBlogPosting(
   canonicalUrl: string
 ): object {
   const { data } = article;
-  const siteUrl = config.seo.canonicalDomain || config.branding.site.url;
+  const siteUrl = config.seo.canonical_domain || config.branding.site.url;
 
   // Build publisher object
   const publisher: Record<string, unknown> = {
     '@type': 'Organization',
-    name: config.seo.jsonLd?.organizationName || config.branding.site.name,
+    name: config.seo.json_ld?.organization_name || config.branding.site.name,
   };
 
-  if (config.seo.jsonLd?.organizationLogo) {
-    const logoUrl = config.seo.jsonLd.organizationLogo.startsWith('http')
-      ? config.seo.jsonLd.organizationLogo
-      : `${siteUrl}${config.seo.jsonLd.organizationLogo}`;
+  if (config.seo.json_ld?.organization_logo) {
+    const logoUrl = config.seo.json_ld.organization_logo.startsWith('http')
+      ? config.seo.json_ld.organization_logo
+      : `${siteUrl}${config.seo.json_ld.organization_logo}`;
     publisher.logo = {
       '@type': 'ImageObject',
       url: logoUrl,
@@ -107,10 +107,10 @@ export function generateBlogPosting(
       ? imageUrl
       : `${siteUrl}${imageUrl}`;
     blogPosting.image = fullImageUrl;
-  } else if (config.seo.defaultOgImage) {
-    const fullImageUrl = config.seo.defaultOgImage.startsWith('http')
-      ? config.seo.defaultOgImage
-      : `${siteUrl}${config.seo.defaultOgImage}`;
+  } else if (config.seo.default_og_image) {
+    const fullImageUrl = config.seo.default_og_image.startsWith('http')
+      ? config.seo.default_og_image
+      : `${siteUrl}${config.seo.default_og_image}`;
     blogPosting.image = fullImageUrl;
   }
 

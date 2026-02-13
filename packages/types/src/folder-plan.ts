@@ -113,11 +113,11 @@ export interface IBrandingLogo {
  */
 export interface IBrandingTypography {
   /** Body font CSS family (e.g., "Inter, system-ui, sans-serif") */
-  fontFamily?: string;
+  font_family?: string;
   /** Heading font CSS family (e.g., "Playfair Display, serif") */
-  headingFontFamily?: string;
+  heading_font_family?: string;
   /** Google Fonts specs (e.g., ["Inter:wght@400;500;600;700"]) */
-  googleFonts?: string[];
+  google_fonts?: string[];
 }
 
 /**
@@ -166,7 +166,7 @@ export interface ILocalPublishConfig {
   /** Subfolder within target project for asset files (e.g., "public/assets/blog") */
   assets_subfolder: string;
   /** Path to website template directory. Empty = skip template copy. */
-  templatePath?: string;
+  template_path?: string;
   /** Settings merged with template's config.defaults.json → written to data/site-config.json */
   template_settings?: Record<string, unknown>;
   /** Subfolder for custom pages content (default: "src/content/pages") */

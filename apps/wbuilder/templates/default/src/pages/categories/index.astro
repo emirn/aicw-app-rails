@@ -5,8 +5,8 @@ import { getCategoriesWithCounts } from '../../lib/categories';
 
 const config = getConfig();
 
-// Return 404 if categories are disabled or showIndex is false
-const categoriesDisabled = !config.categories?.enabled || config.categories?.showIndex === false;
+// Return 404 if categories are disabled or show_index is false
+const categoriesDisabled = !config.categories?.enabled || config.categories?.show_index === false;
 
 const categories = categoriesDisabled ? [] : await getCategoriesWithCounts();
 

@@ -45,22 +45,22 @@
     "enabled": true,
     "title": "The Blog Title",
     "subtitle": "Your compelling tagline goes here.",
-    "showOnAllPages": false
+    "show_on_all_pages": false
   },
   "gradient": ["", "", ""],
   "typography": {
-    "fontFamily": "Inter, system-ui, sans-serif",
-    "headingFontFamily": "Inter, system-ui, sans-serif",
-    "googleFonts": ["Inter:wght@400;500;600;700"]
+    "font_family": "Inter, system-ui, sans-serif",
+    "heading_font_family": "Inter, system-ui, sans-serif",
+    "google_fonts": ["Inter:wght@400;500;600;700"]
   },
   "header": {
     "style": "pill",
-    "showSearch": true,
-    "navLinks": [
+    "show_search": true,
+    "nav_links": [
       { "label": "Home", "url": "/" },
       { "label": "Contacts", "url": "/contacts/" }
     ],
-    "ctaButton": {
+    "cta_button": {
       "enabled": true,
       "label": "Request a demo",
       "url": "https://example.com/demo",
@@ -69,8 +69,8 @@
     }
   },
   "footer": {
-    "showLogo": true,
-    "showTagline": true,
+    "show_logo": true,
+    "show_tagline": true,
     "columns": [
       {
         "title": "Navigation",
@@ -87,7 +87,7 @@
         ]
       }
     ],
-    "socialLinks": {
+    "social_links": {
       "twitter": "",
       "linkedin": "",
       "facebook": "",
@@ -99,10 +99,10 @@
       "threads": "",
       "rss": true
     },
-    "copyrightText": "{{YEAR}} {{SITE_NAME}}",
-    "poweredByText": "Published with AICW.io",
-    "poweredByUrl": "https://aicw.io",
-    "showPoweredBy": true
+    "copyright_text": "{{YEAR}} {{SITE_NAME}}",
+    "powered_by_text": "Published with AICW.io",
+    "powered_by_url": "https://aicw.io",
+    "show_powered_by": true
   },
   "newsletter": {
     "enabled": false,
@@ -110,47 +110,47 @@
     "code": ""
   },
   "blog": {
-    "sectionTitle": "LATEST",
-    "postsPerPage": 9,
-    "showCategories": false,
-    "showDate": true,
-    "showAuthor": true,
-    "showExcerpt": true,
-    "showReadingTime": false,
-    "showTableOfContents": true,
-    "showRelatedPosts": true,
-    "paginationStyle": "pages",
-    "dateFormat": "MMM d, yyyy"
+    "section_title": "LATEST",
+    "posts_per_page": 9,
+    "show_categories": false,
+    "show_date": true,
+    "show_author": true,
+    "show_excerpt": true,
+    "show_reading_time": false,
+    "show_table_of_contents": true,
+    "show_related_posts": true,
+    "pagination_style": "pages",
+    "date_format": "MMM d, yyyy"
   },
   "article": {
-    "showSocialShare": true,
-    "socialShareButtons": ["facebook", "linkedin", "twitter", "copy"],
-    "showAuthorBio": false,
-    "showTags": false
+    "show_social_share": true,
+    "social_share_buttons": ["facebook", "linkedin", "twitter", "copy"],
+    "show_author_bio": false,
+    "show_tags": false
   },
   "seo": {
-    "titleSeparator": " | ",
-    "defaultOgImage": "",
-    "twitterHandle": "",
-    "enableJsonLd": true,
-    "canonicalDomain": "",
-    "robotsNoIndex": false,
-    "showPreviewBanner": true,
-    "previewBannerText": "Preview Mode - This site is not indexed by search engines"
+    "title_separator": " | ",
+    "default_og_image": "",
+    "twitter_handle": "",
+    "enable_json_ld": true,
+    "canonical_domain": "",
+    "robots_no_index": false,
+    "show_preview_banner": true,
+    "preview_banner_text": "Preview Mode - This site is not indexed by search engines"
   },
   "tracking": {
-    "widgetCode": "",
-    "customHeadCode": "",
-    "customBodyCode": ""
+    "widget_code": "",
+    "custom_head_code": "",
+    "custom_body_code": ""
   },
   "search": {
     "enabled": true,
     "placeholder": "Search articles...",
-    "showInHeader": true
+    "show_in_header": true
   },
   "aicw": {
     "enabled": false,
-    "trackingId": "",
+    "tracking_id": "",
     "domain": ""
   }
 }

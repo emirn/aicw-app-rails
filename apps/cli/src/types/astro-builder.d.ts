@@ -30,8 +30,8 @@ export interface SiteConfig {
     src?: string;
   };
   header?: {
-    navLinks?: Array<{ label: string; url: string }>;
-    ctaButton?: {
+    nav_links?: Array<{ label: string; url: string }>;
+    cta_button?: {
       enabled?: boolean;
       label?: string;
       url?: string;
@@ -39,7 +39,7 @@ export interface SiteConfig {
   };
   footer?: {
     columns?: Array<unknown>;
-    showPoweredBy?: boolean;
+    show_powered_by?: boolean;
   };
   [key: string]: unknown;
 }

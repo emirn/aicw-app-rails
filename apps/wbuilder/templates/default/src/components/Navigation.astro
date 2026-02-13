@@ -8,7 +8,7 @@ interface Props {
 }
 
 const { config } = Astro.props;
-const showSearch = config.search?.enabled && config.search?.showInHeader !== false;
+const showSearch = config.search?.enabled && config.search?.show_in_header !== false;
 const allSections = await discoverAllSections(config);
 const navLinks = getEffectiveNavLinks(config, allSections);
 ---
@@ -38,7 +38,7 @@ const navLinks = getEffectiveNavLinks(config, allSections);
           <a
             href={link.url}
             class:list={[
-              link.className || "text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors font-medium"
+              link.class_name || "text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors font-medium"
             ]}
           >
             {link.label}
@@ -47,16 +47,16 @@ const navLinks = getEffectiveNavLinks(config, allSections);
 
         {showSearch && <SearchTrigger />}
 
-        {config.header.ctaButton?.enabled && (
+        {config.header.cta_button?.enabled && (
           <a
-            href={config.header.ctaButton.url}
-            target={config.header.ctaButton.target || '_self'}
-            rel={config.header.ctaButton.target === '_blank' ? 'noopener noreferrer' : undefined}
+            href={config.header.cta_button.url}
+            target={config.header.cta_button.target || '_self'}
+            rel={config.header.cta_button.target === '_blank' ? 'noopener noreferrer' : undefined}
             class:list={[
-              config.header.ctaButton.className || "inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
+              config.header.cta_button.className || "inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
             ]}
           >
-            {config.header.ctaButton.label}
+            {config.header.cta_button.label}
           </a>
         )}
       </div>
@@ -85,23 +85,23 @@ const navLinks = getEffectiveNavLinks(config, allSections);
           <a
             href={link.url}
             class:list={[
-              link.className || "px-3 py-2 text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] hover:bg-[var(--color-bg-secondary)] dark:hover:bg-[var(--color-dark-bg-secondary)] rounded-lg transition-colors font-medium"
+              link.class_name || "px-3 py-2 text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] hover:bg-[var(--color-bg-secondary)] dark:hover:bg-[var(--color-dark-bg-secondary)] rounded-lg transition-colors font-medium"
             ]}
           >
             {link.label}
           </a>
         ))}
 
-        {config.header.ctaButton?.enabled && (
+        {config.header.cta_button?.enabled && (
           <a
-            href={config.header.ctaButton.url}
-            target={config.header.ctaButton.target || '_self'}
-            rel={config.header.ctaButton.target === '_blank' ? 'noopener noreferrer' : undefined}
+            href={config.header.cta_button.url}
+            target={config.header.cta_button.target || '_self'}
+            rel={config.header.cta_button.target === '_blank' ? 'noopener noreferrer' : undefined}
             class:list={[
-              config.header.ctaButton.className || "mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
+              config.header.cta_button.className || "mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
             ]}
           >
-            {config.header.ctaButton.label}
+            {config.header.cta_button.label}
           </a>
         )}
       </div>

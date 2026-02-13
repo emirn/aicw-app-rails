@@ -209,16 +209,16 @@ export async function runWebsitePreview(options: PreviewOptions): Promise<{ succ
           text: siteName,
         },
         header: {
-          navLinks: [
+          nav_links: [
             { label: 'Home', url: '/' },
           ],
-          ctaButton: {
+          cta_button: {
             enabled: false,
           },
         },
         footer: {
           columns: [],
-          showPoweredBy: true,
+          show_powered_by: true,
         },
       },
     });

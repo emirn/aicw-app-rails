@@ -32,7 +32,7 @@ export interface LocalPublishProjectInfo {
  * Cleans the content and assets subfolders before copying.
  */
 export function getPublishMethod(config: ILocalPublishConfig): 'template' | 'copy' {
-  return config.templatePath ? 'template' : 'copy';
+  return config.template_path ? 'template' : 'copy';
 }
 
 export async function publishToLocalFolder(
@@ -41,7 +41,7 @@ export async function publishToLocalFolder(
   logger: Logger,
   projectConfig?: IProjectConfig,
 ): Promise<LocalPublishResult> {
-  const softCopy = !config.templatePath;
+  const softCopy = !config.template_path;
   const result: LocalPublishResult = { articlesPublished: 0, assetsCopied: 0, errors: [] };
 
   // Validate target path exists
@@ -61,14 +61,14 @@ export async function publishToLocalFolder(
 
   // Template copy step: if templatePath is set, copy template and write merged config
   // Skip in soft-copy mode (preserves custom layouts/components/pages)
-  if (!softCopy && config.templatePath) {
-    if (!existsSync(config.templatePath)) {
-      throw new Error(`Template path does not exist: ${config.templatePath}`);
+  if (!softCopy && config.template_path) {
+    if (!existsSync(config.template_path)) {
+      throw new Error(`Template path does not exist: ${config.template_path}`);
     }
 
     // Copy template → target (recursive, overwrite existing files)
-    await fs.cp(config.templatePath, config.path, { recursive: true, force: true });
-    logger.log(`Copied template from ${config.templatePath}`);
+    await fs.cp(config.template_path, config.path, { recursive: true, force: true });
+    logger.log(`Copied template from ${config.template_path}`);
 
     // Read config.defaults.json from the target (just-copied template)
     const defaultsPath = path.join(config.path, 'config.defaults.json');
@@ -153,7 +153,7 @@ export async function publishToLocalFolder(
   if (softCopy) {
     // Soft mode: ensure dir exists but don't require it pre-exists
     await fs.mkdir(contentDest, { recursive: true });
-  } else if (config.templatePath) {
+  } else if (config.template_path) {
     await fs.mkdir(contentDest, { recursive: true });
   } else if (!existsSync(contentDest)) {
     throw new Error(`Content subfolder does not exist: ${contentDest}`);
