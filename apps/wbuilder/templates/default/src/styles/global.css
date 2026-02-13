@@ -111,8 +111,11 @@ a {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  max-width: min(100%, 800px);
+  max-width: min(30%, 300px);
+  max-height: 30vh;
   height: auto;
+  object-fit: contain;
+  cursor: zoom-in;
 }
 
 /* Figure/caption styling */
