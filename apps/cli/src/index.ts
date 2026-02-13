@@ -42,6 +42,7 @@ import {
   confirm,
   selectIllustrationStyle,
   promptInput,
+  parseArticleSelection,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
@@ -221,7 +222,7 @@ ACTIONS:
 GLOBAL OPTIONS:
   -i, --interactive  Enable interactive mode (prompts for missing args)
   --base <url>       Sgen API base URL (default: http://localhost:3001)
-  --range N:M        Batch select: start at article N, process M articles (e.g., --range 1:50)
+  --range "N:M [date:YYYY-MM-DD] [url:path/]"  Batch select with optional filters (e.g., --range "1:50 url:blog/")
   --debug            Enable debug output
   -h, --help         Show this help
 
@@ -2107,38 +2108,19 @@ async function main(): Promise<void> {
 
           // Handle --range flag for batch processing
           if (finalFlags.range && typeof finalFlags.range === 'string') {
-            const rangeMatch = finalFlags.range.match(/^(\d+):(\d+)(?::(\d{4}-\d{2}-\d{2}))?$/);
-            if (rangeMatch) {
-              const startNum = parseInt(rangeMatch[1], 10);
-              const count = parseInt(rangeMatch[2], 10);
-              const dateFilter = rangeMatch[3];
-
-              // Apply date filter if provided
-              let filteredList = selectionList;
-              if (dateFilter) {
-                const maxDate = new Date(dateFilter + 'T23:59:59Z');
-                filteredList = selectionList.filter(a =>
-                  new Date(a.created_at) <= maxDate
-                );
-                logger.log(`Date filter: ${filteredList.length} articles with created_at <= ${dateFilter}`);
-              }
-
-              if (startNum < 1 || startNum > filteredList.length) {
-                logger.log(`Range start ${startNum} is out of range (1-${filteredList.length})`);
-                process.exit(1);
-              }
-
-              const startIdx = startNum - 1;
-              const endIdx = Math.min(startIdx + count, filteredList.length);
-              selectedPaths = filteredList.slice(startIdx, endIdx).map((a) => a.path);
-
-              // Warning if truncated
-              if (startIdx + count > filteredList.length) {
-                const actualCount = endIdx - startIdx;
-                logger.log(`Note: Requested ${count} articles from ${startNum}, processing ${actualCount} available (${startNum}-${startNum + actualCount - 1})`);
-              }
+            const result = parseArticleSelection(finalFlags.range, selectionList.length, selectionList);
+            if (result.warning) {
+              logger.log(result.warning);
+            }
+            if (result.type === 'quit') {
+              process.exit(0);
+            } else if (result.type === 'all') {
+              selectedPaths = selectionList.map(a => a.path);
             } else {
-              logger.log(`Invalid range format: ${finalFlags.range}. Expected format: N:M or N:M:YYYY-MM-DD (e.g., 1:50 or 1:50:2026-12-31)`);
+              selectedPaths = (result.indices || []).map(idx => selectionList[idx].path);
+            }
+            if (selectedPaths.length === 0) {
+              logger.log(`No articles matched range: ${finalFlags.range}`);
               process.exit(1);
             }
           } else {
@@ -2278,38 +2260,19 @@ async function main(): Promise<void> {
 
             // Handle --range flag for batch processing
             if (finalFlags.range && typeof finalFlags.range === 'string') {
-              const rangeMatch = finalFlags.range.match(/^(\d+):(\d+)(?::(\d{4}-\d{2}-\d{2}))?$/);
-              if (rangeMatch) {
-                const startNum = parseInt(rangeMatch[1], 10);
-                const count = parseInt(rangeMatch[2], 10);
-                const dateFilter = rangeMatch[3];
-
-                // Apply date filter if provided
-                let filteredList = selectionList;
-                if (dateFilter) {
-                  const maxDate = new Date(dateFilter + 'T23:59:59Z');
-                  filteredList = selectionList.filter(a =>
-                    new Date(a.created_at) <= maxDate
-                  );
-                  logger.log(`Date filter: ${filteredList.length} articles with created_at <= ${dateFilter}`);
-                }
-
-                if (startNum < 1 || startNum > filteredList.length) {
-                  logger.log(`Range start ${startNum} is out of range (1-${filteredList.length})`);
-                  process.exit(1);
-                }
-
-                const startIdx = startNum - 1;
-                const endIdx = Math.min(startIdx + count, filteredList.length);
-                selectedPaths = filteredList.slice(startIdx, endIdx).map((a) => a.path);
-
-                // Warning if truncated
-                if (startIdx + count > filteredList.length) {
-                  const actualCount = endIdx - startIdx;
-                  logger.log(`Note: Requested ${count} articles from ${startNum}, processing ${actualCount} available (${startNum}-${startNum + actualCount - 1})`);
-                }
+              const result = parseArticleSelection(finalFlags.range, selectionList.length, selectionList);
+              if (result.warning) {
+                logger.log(result.warning);
+              }
+              if (result.type === 'quit') {
+                process.exit(0);
+              } else if (result.type === 'all') {
+                selectedPaths = selectionList.map(a => a.path);
               } else {
-                logger.log(`Invalid range format: ${finalFlags.range}. Expected format: N:M or N:M:YYYY-MM-DD (e.g., 1:50 or 1:50:2026-12-31)`);
+                selectedPaths = (result.indices || []).map(idx => selectionList[idx].path);
+              }
+              if (selectedPaths.length === 0) {
+                logger.log(`No articles matched range: ${finalFlags.range}`);
                 process.exit(1);
               }
             } else {
