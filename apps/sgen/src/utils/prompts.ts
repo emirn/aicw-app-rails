@@ -48,6 +48,7 @@ export const buildArticlePrompt = (
     article_title: articleMeta?.title || '(use topic from description)',
     article_keywords: articleMeta?.keywords?.join(', ') || '(derive from topic)',
     article_description: articleMeta?.description || '(create appropriate description)',
+    article_slug: articleMeta?.slug || '',
   };
 
   // Use custom template if provided, otherwise use server default

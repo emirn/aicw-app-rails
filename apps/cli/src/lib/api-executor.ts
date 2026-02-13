@@ -600,6 +600,41 @@ export class APIExecutor {
         throw new Error(brandingError);
       }
 
+      // Load article data BEFORE prompt parts — prompt loading may throw
+      // PromptValidationError (e.g. uncustomized custom.md) and we must not
+      // skip article reading because the API needs that data regardless.
+
+      // For batch operations or status, include articles list
+      if ((flags.all || action === 'status') && !resolved.isArticle) {
+        const articles = await getArticles(resolved);
+        context.articles = [];
+
+        for (const articleItem of articles) {
+          // Build unified article object with content
+          const unifiedArticle: IArticle = {
+            ...articleItem.meta,
+            content: articleItem.content || '',
+          };
+
+          context.articles.push({
+            path: articleItem.path,
+            article: unifiedArticle,
+          });
+        }
+      }
+
+      // Read article if path includes article
+      if (resolved.isArticle) {
+        const articleData = await readArticleContent(resolved);
+        if (articleData) {
+          // Build unified article object with content
+          context.article = {
+            ...articleData.meta,
+            content: articleData.articleContent || '',
+          };
+        }
+      }
+
       // For generate action, load prompt parts from project
       if (action === 'generate') {
         const projectPaths = getProjectPaths(resolved.projectName);
@@ -622,12 +657,15 @@ export class APIExecutor {
             this.logger.log('Loaded custom write_draft custom.md');
           }
         } catch (err) {
-          // Re-throw prompt validation errors to stop execution
+          // Log prompt validation errors — sgen API validates prompt parts
+          // and returns proper error codes. Don't re-throw as it would skip
+          // the rest of context building.
           if (err instanceof PromptValidationError || err instanceof MultiplePromptsError) {
-            throw err;
+            this.logger.log(`Prompt validation issue: ${err instanceof Error ? err.message : String(err)}`);
+          } else {
+            // Log other errors but continue (optional prompt parts)
+            this.logger.log(`Prompt loading warning: ${err instanceof Error ? err.message : String(err)}`);
           }
-          // Log other errors but continue (optional prompt parts)
-          this.logger.log(`Prompt loading warning: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 
@@ -664,37 +702,6 @@ export class APIExecutor {
         if (actionConfig?.variables) {
           flags.custom_variables = actionConfig.variables;
           this.logger.log('Loaded custom add_diagrams variables');
-        }
-      }
-
-      // For batch operations or status, include articles list
-      if ((flags.all || action === 'status') && !resolved.isArticle) {
-        const articles = await getArticles(resolved);
-        context.articles = [];
-
-        for (const articleItem of articles) {
-          // Build unified article object with content
-          const unifiedArticle: IArticle = {
-            ...articleItem.meta,
-            content: articleItem.content || '',
-          };
-
-          context.articles.push({
-            path: articleItem.path,
-            article: unifiedArticle,
-          });
-        }
-      }
-
-      // Read article if path includes article
-      if (resolved.isArticle) {
-        const articleData = await readArticleContent(resolved);
-        if (articleData) {
-          // Build unified article object with content
-          context.article = {
-            ...articleData.meta,
-            content: articleData.articleContent || '',
-          };
         }
       }
     } catch (err) {
