@@ -111,7 +111,9 @@ a {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  max-width: min(100%, 800px);
+  max-width: min(100%, 500px);
+  max-height: 50vh;
+  object-fit: contain;
   height: auto;
 }
 
@@ -177,6 +179,15 @@ a {
 .prose details > div {
   padding: 1rem 1.25rem;
   margin: 0;
+}
+
+/* Logo dark mode overrides — uses CSS custom properties set inline on .logo-link */
+[data-theme="dark"] .logo-link [style*="--logo-dark-color"] {
+  color: var(--logo-dark-color) !important;
+}
+[data-theme="dark"] .logo-link [style*="--logo-dark-bg"] {
+  background-color: var(--logo-dark-bg) !important;
+  border-color: var(--logo-dark-bg) !important;
 }
 
 /* Selection color */

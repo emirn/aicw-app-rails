@@ -1,6 +1,8 @@
 ---
 import type { SiteConfig } from '../lib/config';
 import { replacePlaceholders } from '../lib/config';
+import { getCollection } from 'astro:content';
+import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
   config: SiteConfig;
@@ -12,20 +14,124 @@ const currentYear = new Date().getFullYear();
 const copyrightText = config.footer.copyrightText
   ? replacePlaceholders(config.footer.copyrightText, config)
   : `${currentYear} ${config.branding.site.name}`;
+
+let pageFooterLinks: Array<{ label: string; url: string }> = [];
+try {
+  const pages = await getCollection('pages');
+  pageFooterLinks = pages
+    .filter(p => p.slug !== 'root' && p.data.footer_show_link !== false)
+    .map(p => ({ label: p.data.title, url: `/${p.slug}/` }));
+} catch {}
+
+const footerColumns = config.footer.columns.map((col, i) => {
+  if (i !== 0 || pageFooterLinks.length === 0) return col;
+  const existingUrls = new Set(col.links.map(l => l.url));
+  const newLinks = pageFooterLinks.filter(l => !existingUrls.has(l.url));
+  return { ...col, links: [...col.links, ...newLinks] };
+});
+
+// --- Footer logo config (mirrors Navigation.astro) ---
+const logo = config.branding.logo;
+const logoStyle = logo.style || (logo.show_border ? 'border' : 'plain');
+const logoLayout = logo.layout || 'text-only';
+const logoSize = logo.size || 'md';
+const sizeClass = { sm: 'text-lg', md: 'text-xl', lg: 'text-2xl' }[logoSize];
+
+const logoInlineStyle = [
+  logo.font_family ? `font-family:${logo.font_family}` : '',
+  logo.font_weight ? `font-weight:${logo.font_weight}` : '',
+  logo.color ? `color:${logo.color}` : '',
+  logo.letter_spacing ? `letter-spacing:${logo.letter_spacing}` : '',
+  logo.text_transform ? `text-transform:${logo.text_transform}` : '',
+].filter(Boolean).join(';');
+
+function getStyleInline(style: string): string {
+  const parts: string[] = [];
+  if (style === 'border') {
+    parts.push(`border-color:${logo.background_color || config.branding.colors.primary}`);
+  } else if (style === 'pill' || style === 'highlight' || style === 'backdrop') {
+    if (logo.background_color) parts.push(`background-color:${logo.background_color}`);
+    else parts.push(`background-color:${config.branding.colors.primary}`);
+    if (!logo.color) parts.push(`color:${config.branding.colors.primary_text || '#FFFFFF'}`);
+  } else if (style === 'underline') {
+    parts.push(`border-bottom-color:${logo.background_color || config.branding.colors.primary}`);
+  } else if (style === 'monogram-circle') {
+    if (logo.background_color) parts.push(`background-color:${logo.background_color}`);
+    else parts.push(`background-color:${config.branding.colors.primary}`);
+    if (!logo.color) parts.push(`color:${config.branding.colors.primary_text || '#FFFFFF'}`);
+  }
+  return parts.join(';');
+}
+
+const darkOverrides = logo.dark_mode || {};
+const darkStyleVars = [
+  darkOverrides.color ? `--logo-dark-color:${darkOverrides.color}` : '',
+  darkOverrides.background_color ? `--logo-dark-bg:${darkOverrides.background_color}` : '',
+].filter(Boolean).join(';');
+
+const fullLogoInline = [logoInlineStyle, getStyleInline(logoStyle), darkStyleVars].filter(Boolean).join(';');
+
+const styleClasses: Record<string, string> = {
+  plain: '',
+  border: 'px-3 py-1 border-2 rounded-lg',
+  pill: 'px-4 py-1 rounded-full',
+  underline: 'pb-1 border-b-2',
+  highlight: 'px-3 py-1 rounded-md',
+  'monogram-circle': 'inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold',
+  slash: '',
+  backdrop: 'px-3 py-1 rounded-lg',
+};
+
+const logoText = logo.text || config.branding.brand_name || config.branding.site.name;
+const markText = logo.mark_text || '';
 ---
 
 <footer class="bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    {(config.footer.columns.length > 0 || config.footer.showLogo) && (
+    {(footerColumns.length > 0 || config.footer.showLogo) && (
       <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
         <!-- Logo and Tagline Column -->
         {config.footer.showLogo && (
           <div class="col-span-2 md:col-span-1">
-            <a href="/" class="inline-block font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-2">
-              {config.branding.logo.type === 'image' && config.branding.logo.image_url ? (
-                <img src={config.branding.logo.image_url} alt={config.branding.site.name} class="h-8 w-auto" />
+            <a href="/" class:list={[
+              "inline-flex items-center gap-2 font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-2 logo-link",
+              sizeClass,
+            ]}>
+              {logo.type === 'image' && logo.image_url ? (
+                <>
+                  <img
+                    src={logo.image_url}
+                    alt={config.branding.site.name}
+                    class:list={[
+                      "w-auto",
+                      logo.dark_mode?.image_url && 'dark:hidden',
+                      logoSize === 'sm' ? 'h-6' : logoSize === 'lg' ? 'h-10' : 'h-8',
+                    ]}
+                  />
+                  {logo.dark_mode?.image_url && (
+                    <img
+                      src={logo.dark_mode.image_url}
+                      alt={config.branding.site.name}
+                      class:list={["w-auto hidden dark:block", logoSize === 'sm' ? 'h-6' : logoSize === 'lg' ? 'h-10' : 'h-8']}
+                    />
+                  )}
+                </>
+              ) : logoLayout === 'mark-and-name' && markText ? (
+                <span class="flex items-center gap-2" style={logoInlineStyle}>
+                  <span class:list={[styleClasses[logoStyle] || '']} style={fullLogoInline}>{markText}</span>
+                  {logo.separator && (
+                    <span class="text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] font-normal opacity-50">{logo.separator}</span>
+                  )}
+                  <span>{logoText}</span>
+                </span>
+              ) : logoStyle === 'slash' ? (
+                <span class="flex items-center gap-0" style={logoInlineStyle}>
+                  <span>{logoText.charAt(0)}</span>
+                  <span class="text-[var(--color-primary)] mx-0.5">/</span>
+                  <span>{logoText.slice(1)}</span>
+                </span>
               ) : (
-                <span>{config.branding.logo.text || config.branding.brand_name || config.branding.site.name}</span>
+                <span class:list={[styleClasses[logoStyle] || '']} style={fullLogoInline}>{logoText}</span>
               )}
             </a>
             {config.footer.showTagline && config.branding.site.tagline && (
@@ -37,7 +143,7 @@ const copyrightText = config.footer.copyrightText
         )}
 
         <!-- Link Columns -->
-        {config.footer.columns.map((column) => (
+        {footerColumns.map((column) => (
           <div>
             <h3 class="font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-4">
               {column.title}
@@ -208,18 +314,22 @@ const copyrightText = config.footer.copyrightText
     <div class="pt-8 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)] flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
       <p>&copy; {copyrightText}</p>
 
-      {config.footer.showPoweredBy && config.footer.poweredByText && (
-        <p>
-          <a
-            href={config.footer.poweredByUrl || "https://aicw.io"}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
-          >
-            {config.footer.poweredByText}
-          </a>
-        </p>
-      )}
+      <div class="flex items-center gap-4">
+        <ThemeToggle config={config} />
+
+        {config.footer.showPoweredBy && config.footer.poweredByText && (
+          <p>
+            <a
+              href={config.footer.poweredByUrl || "https://aicw.io"}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-[var(--color-text-primary)] dark:hover:text-[var(--color-dark-text-primary)] transition-colors"
+            >
+              {config.footer.poweredByText}
+            </a>
+          </p>
+        )}
+      </div>
     </div>
 
     {config.newsletter?.enabled && config.newsletter?.position === 'footer' && config.newsletter?.code && (

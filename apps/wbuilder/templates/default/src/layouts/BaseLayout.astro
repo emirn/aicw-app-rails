@@ -4,7 +4,6 @@ import SEO from '../components/SEO.astro';
 import PreviewBanner from '../components/PreviewBanner.astro';
 import Navigation from '../components/Navigation.astro';
 import Footer from '../components/Footer.astro';
-import ThemeToggle from '../components/ThemeToggle.astro';
 import Search from '../components/Search.astro';
 import '../styles/global.css';
 
@@ -44,7 +43,9 @@ const {
 } = Astro.props;
 
 const pageTitle = title
-  ? `${title}${config.seo.titleSeparator || ' | '}${config.branding.site.name}`
+  ? (title === config.branding.site.name
+    ? title
+    : `${title}${config.seo.titleSeparator || ' | '}${config.branding.site.name}`)
   : config.branding.site.name;
 
 // Generate CSS variables from config colors
@@ -65,8 +66,24 @@ const cssVars = {
   '--color-dark-border': config.branding.dark_mode.colors.border,
   '--font-family': config.typography.fontFamily || 'Inter, system-ui, sans-serif',
   '--font-heading': config.typography.headingFontFamily || 'Inter, system-ui, sans-serif',
+  '--font-logo': config.branding.logo.font_family || '',
   '--logo-border-color': config.branding.colors.primary,
+  '--logo-color': config.branding.logo.color || '',
+  '--logo-bg-color': config.branding.logo.background_color || '',
 };
+
+// Merge logo font into Google Fonts list if it's a separate font
+const googleFonts = [...(config.typography.googleFonts || [])];
+if (config.branding.logo.font_family) {
+  // Extract font name (before comma/fallbacks)
+  const logoFontName = config.branding.logo.font_family.split(',')[0].trim().replace(/['"]/g, '');
+  const weight = config.branding.logo.font_weight || '700';
+  const logoFontSpec = `${logoFontName}:wght@${weight}`;
+  // Only add if not already in the list
+  if (!googleFonts.some(f => f.startsWith(logoFontName))) {
+    googleFonts.push(logoFontSpec);
+  }
+}
 ---
 
 <!DOCTYPE html>
@@ -90,13 +107,13 @@ const cssVars = {
       config={config}
     />
 
-    <!-- Google Fonts -->
-    {config.typography.googleFonts && config.typography.googleFonts.length > 0 && (
+    <!-- Google Fonts (includes logo font if different from body/heading) -->
+    {googleFonts.length > 0 && (
       <>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-          href={`https://fonts.googleapis.com/css2?family=${config.typography.googleFonts.join('&family=')}&display=swap`}
+          href={`https://fonts.googleapis.com/css2?family=${googleFonts.join('&family=')}&display=swap`}
           rel="stylesheet"
         />
       </>
@@ -116,8 +133,6 @@ const cssVars = {
     </main>
 
     <Footer config={config} />
-
-    {config.branding.dark_mode.enabled && <ThemeToggle config={config} />}
 
     <!-- Search Modal -->
     {config.search?.enabled && <Search config={config} />}
