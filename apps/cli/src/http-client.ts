@@ -149,6 +149,8 @@ export class SgenClient {
     site_description: string;
     site_url?: string;
     color_preference?: string;
+    previous_config?: Record<string, unknown>;
+    user_comments?: string;
   }): Promise<{ success: boolean; branding?: any; error?: string; cost_usd?: number }> {
     return this.post('/api/v1/project/generate-config', body, 120000);
   }

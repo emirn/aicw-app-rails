@@ -200,7 +200,7 @@ export function createProjectConfig(websiteInfo: {
   // Determine URL: use provided URL, or derive from domain-like title
   let url = websiteInfo.url;
   if (!url && websiteInfo.title && websiteInfo.title.includes('.')) {
-    // Title looks like a domain (e.g., "legalaitoolbox.com")
+    // Title looks like a domain (e.g., "legavima.com")
     url = websiteInfo.title.startsWith('http')
       ? websiteInfo.title
       : `https://${websiteInfo.title}`;

@@ -7,7 +7,7 @@
  * Format: TITLE:/URL:/KEYWORDS:/DESCRIPTION: fields separated by ---
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
 import {
   IArticle,
@@ -93,6 +93,37 @@ export function printParseSummary(
 }
 
 /**
+ * Create a custom page from a plan item (for non-blog section pages).
+ * Creates {projectDir}/custom-pages/{slug}/index.md with frontmatter.
+ */
+export async function createCustomPageFromPlanItem(
+  projectDir: string,
+  item: ContentPlanItem,
+  slug: string
+): Promise<void> {
+  const pageDir = path.join(projectDir, 'custom-pages', slug);
+  mkdirSync(path.join(pageDir, 'assets'), { recursive: true });
+
+  const title = item.title.replace(/"/g, '\\"');
+  const description = item.description.replace(/"/g, '\\"');
+  const lines = [
+    '---',
+    `title: "${title}"`,
+    `description: "${description}"`,
+    'header_show_link: true',
+    'footer_show_link: true',
+    'blog_grid: false',
+    '---',
+    '',
+    `# ${item.title}`,
+    '',
+    `${item.description}`,
+    '',
+  ];
+  writeFileSync(path.join(pageDir, 'index.md'), lines.join('\n'), 'utf-8');
+}
+
+/**
  * Analyze plan items and detect conflicts BEFORE importing
  * Returns preview of what will happen for each item
  */
@@ -105,6 +136,27 @@ export async function analyzeImport(
   const preview: IImportPreviewItem[] = [];
 
   for (const item of plan.items) {
+    // For page items, check custom-pages/ instead of drafts/
+    const isPage = (item as ContentPlanItem).item_type === 'page';
+    if (isPage) {
+      const slug = item.slug.replace(/^.*\//, ''); // last segment
+      const pagePath = path.join(projectDir, 'custom-pages', slug, 'index.md');
+      let conflict: ImportConflictType = 'new';
+      try {
+        await fs.access(pagePath);
+        conflict = 'seed_replace'; // Page already exists
+      } catch {
+        // Does not exist — new
+      }
+      preview.push({
+        title: item.title,
+        slug: item.slug,
+        articlePath: `custom-pages/${slug}`,
+        conflict,
+      });
+      continue;
+    }
+
     const { path: articlePath } = planItemToArticleMeta(item, defaultPath || '');
     const folderPath = path.join(contentDir, articlePath);
 
@@ -252,6 +304,16 @@ export async function executeResolvedImport(
     }
 
     try {
+      // Route page items to custom-pages/
+      const isPage = (item as ContentPlanItem).item_type === 'page';
+      if (isPage) {
+        const slug = item.slug.replace(/^.*\//, ''); // last segment
+        await createCustomPageFromPlanItem(projectDir, item as ContentPlanItem, slug);
+        result.created++;
+        result.createdPaths.push(`custom-pages/${slug}`);
+        continue;
+      }
+
       // Create meta with potentially different path
       const { meta } = planItemToArticleMeta(item, options.defaultPath || '');
 

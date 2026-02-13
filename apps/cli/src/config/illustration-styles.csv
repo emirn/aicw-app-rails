@@ -62,23 +62,3 @@ vector_illustration/sharp_contrast,High contrast sharp vectors
 vector_illustration/thin,Thin delicate line vectors
 vector_illustration/vector_photo,Photo-realistic vector rendering
 vector_illustration/vivid_shapes,Vivid colorful geometric shapes
-realistic_image,Photo-realistic image (base style)
-realistic_image/b_and_w,Black and white photography
-realistic_image/enterprise,Corporate / enterprise photography
-realistic_image/evening_light,Warm evening golden hour light
-realistic_image/faded_nostalgia,Faded vintage photo look
-realistic_image/forest_life,Natural forest environment
-realistic_image/hard_flash,Direct flash photography
-realistic_image/hdr,High dynamic range photography
-realistic_image/motion_blur,Motion blur action shots
-realistic_image/mystic_naturalism,Mystical natural scenes
-realistic_image/natural_light,Soft natural lighting
-realistic_image/natural_tones,Earth-toned natural palette
-realistic_image/organic_calm,Calm organic compositions
-realistic_image/real_life_glow,Warm glowing real-life scenes
-realistic_image/retro_realism,Retro-styled realistic photos
-realistic_image/retro_snapshot,Retro camera snapshot aesthetic
-realistic_image/studio_portrait,Professional studio portrait
-realistic_image/urban_drama,Dramatic urban photography
-realistic_image/village_realism,Rural village realistic scenes
-realistic_image/warm_folk,Warm folk-inspired photography

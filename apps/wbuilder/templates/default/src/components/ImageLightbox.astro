@@ -20,6 +20,18 @@
 
       // Skip if parent is an anchor
       if (imgElement.parentElement?.tagName === 'A') return;
+      if (imgElement.parentElement?.tagName === 'FIGURE') return;
+
+      // Wrap in <figure> with <figcaption> from alt text
+      const figure = document.createElement('figure');
+      imgElement.parentNode?.insertBefore(figure, imgElement);
+      figure.appendChild(imgElement);
+
+      if (imgElement.alt) {
+        const figcaption = document.createElement('figcaption');
+        figcaption.textContent = imgElement.alt;
+        figure.appendChild(figcaption);
+      }
 
       imgElement.style.cursor = 'zoom-in';
       imgElement.addEventListener('click', () => {

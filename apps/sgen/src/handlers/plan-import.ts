@@ -10,7 +10,7 @@ import { ActionContext, ActionExecuteResponse, FileOperation } from './types';
 import { IArticle, IContentPlan, IContentPlanItem } from '@blogpostgen/types';
 import { buildCreateArticleOperation } from './utils';
 import { callAI } from '../services/ai.service';
-import { ensureActionConfigForMode } from '../config/action-config';
+import { ensureActionConfigForMode, getRoutesFromConfig } from '../config/action-config';
 import { renderTemplateAbsolutePath } from '../utils/template';
 import { IProjectConfig } from '@blogpostgen/types';
 import { ensureSlug } from '../utils/articleUpdate';
@@ -77,10 +77,9 @@ async function processChunk(
   }, 'plan-import:chunk:start');
 
   const prompt = renderTemplateAbsolutePath(cfg.template, vars);
+  const routes = getRoutesFromConfig(cfg);
   const { content, tokens, usageStats } = await callAI(prompt, {
-    provider: cfg.ai_provider || 'openrouter',
-    modelId: cfg.ai_model_id || 'openai/gpt-4o',
-    baseUrl: cfg.ai_base_url,
+    routes,
   });
 
   if (typeof content !== 'object' || !content.items) {

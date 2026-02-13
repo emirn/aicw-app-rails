@@ -121,6 +121,13 @@ export const buildUpdatePrompt = (
     vars.website_url = websiteInfo?.url || '';
     vars.article_slug = article.slug || '';
     vars.organization_name = websiteInfo?.title || 'Organization';
+    // Author data (from article or project config fallback)
+    vars.author_name = context?.author_name || '';
+    vars.author_title = context?.author_title || '';
+    vars.author_url = context?.author_url || '';
+    // Date fields
+    vars.article_date = context?.article_date || '';
+    vars.article_updated = context?.article_updated || '';
   }
   if (mode === 'add_faq_jsonld') {
     const websiteInfo = context?.website_info as IWebsiteInfo | undefined;

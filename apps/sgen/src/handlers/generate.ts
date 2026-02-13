@@ -9,11 +9,10 @@ import { ActionContext, ActionExecuteResponse, FileOperation } from './types';
 import { IArticle, IWebsiteInfo } from '@blogpostgen/types';
 import { getArticleFromContext, buildArticleOperation, updateArticle } from './utils';
 import { callAI } from '../services/ai.service';
-import { ACTION_CONFIG } from '../config/action-config';
+import { ACTION_CONFIG, getRoutesFromConfig } from '../config/action-config';
 import { buildArticlePrompt } from '../utils/prompts';
 import { collectKnownSlugs, ensureUniqueSlug } from '../utils/slug';
 import { ensureSlug as makeSlug } from '../utils/articleUpdate';
-import { config } from '../config/server-config';
 import { randomUUID } from 'crypto';
 import { stripDuplicateTitleH1 } from '../utils/content';
 import { extractMarkdownContent } from '../utils/json-content-extractor';
@@ -109,16 +108,11 @@ export async function handleGenerate(
     const customContent = context.promptParts?.custom_content;
     prompt = buildArticlePrompt(briefContent, websiteInfo, context.promptParts!, article, customTemplate, customContent);
     const genCfg = ACTION_CONFIG['write_draft'];
-    const provider = genCfg?.ai_provider || 'openrouter';
-    const modelId = genCfg?.ai_model_id || (provider === 'openai'
-      ? config.ai.defaultModel.replace(/^openai\//, '')
-      : config.ai.defaultModel);
+    const routes = genCfg ? getRoutesFromConfig(genCfg) : [];
 
-    log.info({ path: context.articlePath, words: targetWords, provider, modelId }, 'generate:start');
+    log.info({ path: context.articlePath, words: targetWords }, 'generate:start');
     const { content, tokens, rawContent, usageStats } = await callAI(prompt, {
-      provider,
-      modelId,
-      baseUrl: genCfg?.ai_base_url,
+      routes,
     });
 
     // Debug: Log content type and structure

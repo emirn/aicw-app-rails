@@ -2,26 +2,21 @@
 import type { CollectionEntry } from 'astro:content';
 import type { SiteConfig } from '../lib/config';
 import { getDefaultAuthor } from '../lib/config';
+import { formatDate } from '../lib/utils';
 import CategoryBadge from './CategoryBadge.astro';
 
 interface Props {
   article: CollectionEntry<'articles'>;
   config: SiteConfig;
+  headingLevel?: 'h2' | 'h3';
 }
 
-const { article, config } = Astro.props;
+const { article, config, headingLevel = 'h2' } = Astro.props;
 const { data, slug } = article;
 const categories = data.categories || [];
 const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
-
-// Format date
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+const dateLocale = config.branding.site.language || 'en-US';
+const HeadingTag = headingLevel;
 
 // Calculate reading time from body content
 const wordCount = article.body?.split(/\s+/).length || 0;
@@ -62,9 +57,9 @@ const heroImage = data.image_hero || extractFirstImage(article.body);
         </div>
       )}
 
-      <h2 class="text-lg font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] group-hover:text-[var(--color-primary)] transition-colors line-clamp-2 mb-2">
+      <HeadingTag class="text-lg font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] group-hover:text-[var(--color-primary)] transition-colors line-clamp-2 mb-2">
         {data.title}
-      </h2>
+      </HeadingTag>
 
       {config.blog.showExcerpt && data.description && (
         <p class="text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] line-clamp-3 mb-4">
@@ -75,7 +70,7 @@ const heroImage = data.image_hero || extractFirstImage(article.body);
       <div class="flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
         {config.blog.showDate && data.published_at && (
           <time datetime={data.published_at.toISOString()}>
-            {formatDate(data.published_at)}
+            {formatDate(data.published_at, dateLocale)}
           </time>
         )}
 

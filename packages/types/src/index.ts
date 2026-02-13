@@ -31,6 +31,7 @@ export {
 
 // Action types
 export {
+  AIRoute,
   ActionMode,
   OutputMode,
   IActionConfig,
@@ -62,6 +63,8 @@ export {
   SearchIntent,
   FunnelStage,
   ArticleStatus,
+  IAuthor,
+  IBrandingSite,
   IBrandingColors,
   IProjectBranding,
   ILocalPublishConfig,

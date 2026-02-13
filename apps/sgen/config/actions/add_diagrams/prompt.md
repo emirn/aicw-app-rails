@@ -1,9 +1,9 @@
 Add 2-4 relevant Mermaid diagrams to enhance the following article. Place diagrams strategically at key sections where visualization significantly aids understanding. Focus on the most important concepts - fewer, high-quality diagrams are better than many mediocre ones.
 
-## Diagram Count Limit:
-- **Maximum 3-4 diagrams per article** - quality over quantity
+## Diagram Count Guidance:
+- **Target 1 diagram per 400-500 words**. For a 2,000-word article, insert 4-5 diagrams. For articles under 1,000 words, use 2-3 diagrams.
 - Only add diagrams where they significantly enhance understanding
-- If the article is short (under 1000 words), use 1-2 diagrams maximum
+- Quality over quantity — but visual density improves AI Overview selection rates
 
 ## Diagram Placement Rules:
 - Place diagrams strategically where they add most value to understanding
@@ -57,13 +57,12 @@ Next paragraph...           <-- This is NOT part of the table
 Use these brand colors in all diagrams via Mermaid's `%%{init:...}%%` directive:
 - Primary: {{project.branding.colors.primary}} (main nodes, arrows)
 - Secondary: {{project.branding.colors.secondary}} (secondary elements)
-- Accent: {{project.branding.colors.accent}} (highlights, important items)
 
 **IMPORTANT**: Do NOT set diagram background color - it must remain transparent for rendering.
 
 Example for flowchart:
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '{{project.branding.colors.primary}}', 'primaryTextColor': '{{project.branding.colors.primary_text}}', 'primaryBorderColor': '{{project.branding.colors.primary}}', 'lineColor': '{{project.branding.colors.secondary}}', 'secondaryColor': '{{project.branding.colors.secondary}}', 'tertiaryColor': '{{project.branding.colors.accent}}', 'background': 'transparent'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '{{project.branding.colors.primary}}', 'primaryTextColor': '{{project.branding.colors.primary_text}}', 'primaryBorderColor': '{{project.branding.colors.primary}}', 'lineColor': '{{project.branding.colors.secondary}}', 'secondaryColor': '{{project.branding.colors.secondary}}', 'tertiaryColor': '{{project.branding.colors.secondary}}', 'background': 'transparent'}}}%%
 graph TD
     A[Start] --> B[Process]
 ```

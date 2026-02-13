@@ -3,12 +3,17 @@ Add valid JSON-LD (schema.org) blocks to the article using <script type="applica
 Website URL: {{website_url}}
 Article Slug: {{article_slug}}
 Organization Name: {{organization_name}}
+Author Name: {{author_name}}
+Author Title: {{author_title}}
+Author URL: {{author_url}}
+Article Date: {{article_date}}
+Article Updated: {{article_updated}}
 
 Include the following schemas where applicable:
 - WebPage
-- Article (use the article title, description, organization name for author/publisher, headline under 110 chars)
+- Article (use the article title, description, headline under 110 chars)
 - BreadcrumbList (use website URL and article slug for URLs)
-- Organization reference in Article
+- Organization reference in Article as publisher
 
 Do NOT include FAQPage schema - that is handled separately.
 
@@ -17,6 +22,36 @@ IMPORTANT - URL Requirements:
 - mainEntityOfPage @id should be: {{website_url}}/{{article_slug}}
 - BreadcrumbList items should use: {{website_url}}/ for home, {{website_url}}/{{article_slug}} for article
 - NEVER use "yourwebsite.com" or other placeholder domains
+
+## Author Schema
+- If Author Name is provided and not empty, use Person schema for the author:
+  ```json
+  "author": {
+    "@type": "Person",
+    "name": "<author_name>",
+    "jobTitle": "<author_title>",
+    "url": "<author_url>"
+  }
+  ```
+  Omit jobTitle/url if those values are empty.
+- If no Author Name is provided, fall back to Organization-only author:
+  ```json
+  "author": { "@type": "Organization", "name": "{{organization_name}}" }
+  ```
+
+## Date Fields
+- Include `"datePublished"` using the Article Date value if provided.
+- Include `"dateModified"` using the Article Updated value if provided. If Article Updated is empty, use Article Date.
+- Omit date fields if both are empty.
+
+## Speakable
+- Include a `speakable` property to support voice AI citation:
+  ```json
+  "speakable": {
+    "@type": "SpeakableSpecification",
+    "cssSelector": ["article > blockquote:first-of-type", "h2"]
+  }
+  ```
 
 Rules:
 - Insert JSON-LD script tags at the end of the article.
@@ -32,9 +67,12 @@ Example structure (replace placeholders with actual values):
   "@type": "Article",
   "headline": "<title>",
   "description": "<description>",
-  "author": { "@type": "Organization", "name": "{{organization_name}}" },
+  "author": { "@type": "Person", "name": "<author_name>", "jobTitle": "<author_title>", "url": "<author_url>" },
   "publisher": { "@type": "Organization", "name": "{{organization_name}}" },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{website_url}}/{{article_slug}}" }
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{website_url}}/{{article_slug}}" },
+  "datePublished": "<article_date>",
+  "dateModified": "<article_updated>",
+  "speakable": { "@type": "SpeakableSpecification", "cssSelector": ["article > blockquote:first-of-type", "h2"] }
 }
 </script>
 

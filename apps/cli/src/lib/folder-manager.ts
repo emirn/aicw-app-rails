@@ -19,6 +19,7 @@ import {
   IArticleFolder,
   IPlanSummary,
   IVersionEntry,
+  IProjectConfig,
   INDEX_FILE,
   HISTORY_DIR,
 } from '@blogpostgen/types';
@@ -693,7 +694,8 @@ export async function buildPublished(
   draftsDir: string,
   publishedDir: string,
   logger?: { log: (msg: string) => void },
-  publishableFilter?: string
+  publishableFilter?: string,
+  projectConfig?: IProjectConfig
 ): Promise<BuildPublishedResult> {
   const log = logger ? (msg: string) => logger.log(msg) : () => {};
 
@@ -774,6 +776,11 @@ export async function buildPublished(
       ...article.meta,
       content: article.content || '',
     };
+
+    // Populate author from project config if article doesn't have one
+    if (!articleData.author && projectConfig?.branding?.site?.author) {
+      articleData.author = projectConfig.branding.site.author;
+    }
 
     const rendered = await renderer.render(articleData);
 

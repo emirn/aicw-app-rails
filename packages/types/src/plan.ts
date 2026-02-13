@@ -15,6 +15,7 @@ export interface IContentPlanItem extends IBaseObject {
   priority: 1 | 2 | 3;           // 1 = high, 3 = low
   internal_links?: string[];     // slugs or paths to link to
   notes?: string;                // any extra guidance
+  item_type?: 'article' | 'page'; // article = blog draft, page = custom page
   // clustering
   cluster_id?: string;
   cluster_name?: string;
@@ -48,6 +49,7 @@ export interface ContentPlanItem {
   funnel_stage: string;
   priority: number;
   date?: string;  // Optional publish date (YYYY-MM-DD format)
+  item_type?: 'article' | 'page'; // article = blog draft, page = custom page
 }
 
 // Simplified plan for CLI

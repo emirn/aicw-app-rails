@@ -1,6 +1,7 @@
 {
-  "ai_provider": "openrouter",
-  "ai_model_id": "perplexity/sonar",
+  "ai_routes": [
+    { "model": "perplexity/sonar", "endpoint": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY" }
+  ],
   "output_mode": "text_replace",
   "description": "Verify facts using Perplexity Sonar with built-in web search and citations"
 }

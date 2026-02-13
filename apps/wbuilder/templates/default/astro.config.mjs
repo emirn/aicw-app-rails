@@ -28,7 +28,10 @@ function getSiteConfig() {
 // https://astro.build/config
 // Note: Using object form (not function form) for defineConfig to ensure integration hooks run properly
 const siteConfig = getSiteConfig();
-const siteUrl = siteConfig?.site?.url || 'https://example.com';
+const siteUrl = siteConfig?.branding?.site?.url;
+if (!siteUrl) {
+  throw new Error('Missing site URL: set branding.site.url in data/site-config.json');
+}
 
 // Always include pagefind integration for dev server middleware
 // ogImages() generates OG images for all articles during build

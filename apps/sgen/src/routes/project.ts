@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { callAI } from '../services/ai.service';
-import { ensureActionConfigForMode } from '../config/action-config';
+import { ensureActionConfigForMode, getRoutesFromConfig } from '../config/action-config';
 import { renderTemplateAbsolutePath } from '../utils/template';
 import { buildDebugInfo } from '../utils/debug';
 import { readFileSync } from 'fs';
@@ -11,6 +11,8 @@ interface GenerateConfigRequest {
   site_description: string;
   site_url?: string;
   color_preference?: string;
+  previous_config?: Record<string, unknown>;
+  user_comments?: string;
 }
 
 interface GenerateConfigResponse {
@@ -24,7 +26,7 @@ interface GenerateConfigResponse {
 const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
 
 /**
- * Load illustration styles CSV, excluding realistic_image (photorealistic) styles.
+ * Load illustration styles CSV.
  * Returns formatted text for embedding in prompt.
  */
 function loadIllustrationStyles(): { text: string; validIds: Set<string> } {
@@ -33,19 +35,17 @@ function loadIllustrationStyles(): { text: string; validIds: Set<string> } {
   const lines = content.trim().split('\n').slice(1); // skip header
 
   const validIds = new Set<string>();
-  const filtered: string[] = [];
+  const rows: string[] = [];
 
   for (const line of lines) {
     if (!line.trim()) continue;
     const commaIdx = line.indexOf(',');
     const styleId = line.slice(0, commaIdx).trim();
-    // Exclude realistic_image styles (photorealistic)
-    if (styleId.startsWith('realistic_image')) continue;
     validIds.add(styleId);
-    filtered.push(line.trim());
+    rows.push(line.trim());
   }
 
-  return { text: filtered.join('\n'), validIds };
+  return { text: rows.join('\n'), validIds };
 }
 
 /**
@@ -109,6 +109,8 @@ export default async function projectRoutes(app: FastifyInstance) {
       site_description,
       site_url,
       color_preference,
+      previous_config,
+      user_comments,
     } = request.body;
 
     // Validate required fields
@@ -125,12 +127,26 @@ export default async function projectRoutes(app: FastifyInstance) {
       const cfg = ensureActionConfigForMode('generate_project_config');
       const { text: stylesText, validIds: validStyleIds } = loadIllustrationStyles();
 
+      // Build reiteration context for re-generation requests
+      let reiteration_context: string;
+      if (previous_config && user_comments) {
+        reiteration_context =
+          'The user has reviewed a previous version and wants changes.\n\n' +
+          '### Previous Configuration\n\n' +
+          '```json\n' + JSON.stringify(previous_config, null, 2) + '\n```\n\n' +
+          '### User Feedback\n\n' +
+          user_comments;
+      } else {
+        reiteration_context = '(No reiteration context — this is a fresh generation.)';
+      }
+
       const vars = {
         site_name: site_name.trim(),
         site_description: site_description.trim(),
         site_url: site_url?.trim() || site_name.trim(),
         color_preference: color_preference?.trim() || 'No specific preference — choose colors that match the industry and audience',
         illustration_styles: stylesText,
+        reiteration_context,
       };
 
       app.log.info({
@@ -141,10 +157,9 @@ export default async function projectRoutes(app: FastifyInstance) {
 
       const prompt = renderTemplateAbsolutePath(cfg.prompt_path!, vars);
 
+      const routes = getRoutesFromConfig(cfg);
       const { content, tokens, rawContent, debugInfo, usageStats } = await callAI(prompt, {
-        provider: cfg.ai_provider || 'openrouter',
-        modelId: cfg.ai_model_id || 'anthropic/claude-sonnet-4',
-        baseUrl: cfg.ai_base_url,
+        routes,
       });
 
       // Validate response structure

@@ -1,0 +1,10 @@
+{
+  "ai_routes": [
+    { "model": "gpt-4o-search-preview", "endpoint": "https://api.openai.com/v1", "api_key_env": "OPENAI_API_KEY" },
+    { "model": "openai/gpt-4o", "endpoint": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY" }
+  ],
+  "output_mode": "text_replace",
+  "description": "Add attributed expert quotes and perspectives from web search",
+  "supports_custom_prompt": false,
+  "web_search": true
+}

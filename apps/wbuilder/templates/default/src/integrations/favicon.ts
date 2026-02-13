@@ -20,6 +20,10 @@ interface SiteConfig {
       name?: string;
       favicon_url?: string;
     };
+    logo?: {
+      mark_text?: string;
+      style?: string;
+    };
     colors?: {
       primary?: string;
     };
@@ -61,20 +65,35 @@ function isLightColor(hex: string): boolean {
 }
 
 /**
- * Generate SVG favicon with first letter of site name
+ * Generate SVG favicon with letter(s) from site name or logo mark_text.
+ * Supports logo style: monogram-circle → circular, pill → rounded-rect, default → rounded-rect.
  */
-function generateLetterFaviconSvg(siteName: string, bgColor: string, size: number = 32): string {
-  const letter = getFirstLetter(siteName);
+function generateLetterFaviconSvg(
+  siteName: string,
+  bgColor: string,
+  size: number = 32,
+  markText?: string,
+  logoStyle?: string,
+): string {
+  // Use mark_text if provided (e.g., "LV"), otherwise fall back to first letter
+  const displayText = markText && markText.length <= 3 ? markText : getFirstLetter(siteName);
   const textColor = isLightColor(bgColor) ? '#1F2937' : '#FFFFFF';
-  const fontSize = Math.round(size * 0.5625); // 18/32 ratio
-  const rx = Math.round(size * 0.1875); // 6/32 ratio
+
+  // Adjust font size based on character count
+  const charCount = displayText.length;
+  const baseFontRatio = charCount === 1 ? 0.5625 : charCount === 2 ? 0.45 : 0.375;
+  const fontSize = Math.round(size * baseFontRatio);
+
+  // Shape based on logo style
+  const isCircle = logoStyle === 'monogram-circle';
+  const rx = isCircle ? Math.round(size / 2) : Math.round(size * 0.1875);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
     <rect width="${size}" height="${size}" rx="${rx}" fill="${bgColor}"/>
     <text x="50%" y="50%" dy=".35em" text-anchor="middle"
           font-family="system-ui, -apple-system, sans-serif"
           font-size="${fontSize}" font-weight="600" fill="${textColor}">
-      ${letter}
+      ${displayText}
     </text>
   </svg>`;
 }
@@ -129,6 +148,8 @@ export function favicon(): AstroIntegration {
         const siteName = config.branding?.site?.name || 'Site';
         const primaryColor = config.branding?.colors?.primary || '#3B82F6';
         const faviconUrl = config.branding?.site?.favicon_url;
+        const markText = config.branding?.logo?.mark_text;
+        const logoStyle = config.branding?.logo?.style;
 
         let pngBuffers: { size: number; buffer: Buffer }[] = [];
 
@@ -163,7 +184,7 @@ export function favicon(): AstroIntegration {
             logger.info(`Generating letter favicon for "${siteName}"`);
 
             for (const size of [16, 32, 48]) {
-              const svg = generateLetterFaviconSvg(siteName, primaryColor, size);
+              const svg = generateLetterFaviconSvg(siteName, primaryColor, size, markText, logoStyle);
               pngBuffers.push({
                 size,
                 buffer: svgToPng(svg, size),

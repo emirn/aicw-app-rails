@@ -2,6 +2,7 @@
 import type { CollectionEntry } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
 import { getConfig, getDefaultAuthor } from '../lib/config';
+import { formatDate } from '../lib/utils';
 import MobileToc from '../components/MobileToc.astro';
 import SocialShare from '../components/SocialShare.astro';
 import ArticleCard from '../components/ArticleCard.astro';
@@ -23,14 +24,7 @@ const { data } = article;
 const wordCount = article.body?.split(/\s+/).length || 0;
 const readingTime = Math.ceil(wordCount / 200);
 
-// Format date
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
+const dateLocale = config.branding.site.language || 'en-US';
 
 // Extract first image from markdown content for hero fallback
 function extractFirstImage(body: string | undefined): string | null {
@@ -44,18 +38,15 @@ function extractFirstImage(body: string | undefined): string | null {
 
 const heroImage = data.image_hero || extractFirstImage(article.body);
 
-const canonicalUrl = `${config.branding.site.url}/${article.slug}/`;
+const canonicalUrl = `${(config.seo.canonicalDomain || config.branding.site.url).replace(/\/$/, '')}/${article.slug}/`;
 
 // OG image: use explicit image_og, or fall back to the generated path
 const ogImagePath = data.image_og || `/assets/${article.slug}/og.webp`;
 
-// Skip template JSON-LD if the article body already contains inline JSON-LD
-const hasInlineJsonLd = article.body?.includes('application/ld+json');
-
 // Categories
 const categories = data.categories || [];
 const showCategories = config.blog.showCategories && config.categories?.enabled && categories.length > 0;
-const hasInlineToc = article.body?.includes('<div id="toc">') || false;
+const hasInlineToc = article.body?.includes('id="toc"') || false;
 ---
 
 <BaseLayout
@@ -73,8 +64,8 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
   twitterTitle={data.twitter_title}
   twitterDescription={data.twitter_description}
 >
-  <!-- Article-specific JSON-LD (BlogPosting + Breadcrumbs) - skipped if article has inline JSON-LD -->
-  {config.seo.enableJsonLd && !hasInlineJsonLd && (
+  <!-- Article-specific JSON-LD (BlogPosting + Breadcrumbs) -->
+  {config.seo.enableJsonLd && (
     <Fragment slot="head">
       <script type="application/ld+json" set:html={JSON.stringify(generateBlogPosting(config, article, canonicalUrl))} />
       <script type="application/ld+json" set:html={JSON.stringify(generateArticleBreadcrumbs(config, article))} />
@@ -99,14 +90,14 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
       <div class="flex flex-wrap items-center gap-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
         {config.blog.showDate && (
           <time datetime={data.published_at.toISOString()}>
-            {formatDate(data.published_at)}
+            {formatDate(data.published_at, dateLocale)}
           </time>
         )}
 
         {config.blog.showDate && data.updated_at && (
           <>
             <span class="w-1 h-1 rounded-full bg-current"></span>
-            <span>Updated <time datetime={data.updated_at.toISOString()}>{formatDate(data.updated_at)}</time></span>
+            <span>Updated <time datetime={data.updated_at.toISOString()}>{formatDate(data.updated_at, dateLocale)}</time></span>
           </>
         )}
 
@@ -171,13 +162,13 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
 
     <!-- Related Articles -->
     {config.blog.showRelatedPosts && relatedArticles.length > 0 && (
-      <section class="mt-16">
+      <section class="mt-16" aria-label="Related Articles">
         <h2 class="text-2xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-8">
           Related Articles
         </h2>
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {relatedArticles.slice(0, 3).map((related) => (
-            <ArticleCard article={related} config={config} />
+            <ArticleCard article={related} config={config} headingLevel="h3" />
           ))}
         </div>
       </section>

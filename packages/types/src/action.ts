@@ -37,12 +37,26 @@ export type OutputMode =
   | 'insert_content_bottom'
   | 'text_replace';
 
+/**
+ * A single AI provider route (self-contained: model + endpoint + key env var).
+ * Routes are tried in order; missing keys are skipped, auth errors fall through.
+ */
+export interface AIRoute {
+  /** Model ID as the provider expects it (e.g., "gpt-4o" for OpenAI, "openai/gpt-4o" for OpenRouter) */
+  model: string;
+  /** Base URL for the OpenAI-compatible API (e.g., "https://api.openai.com/v1") */
+  endpoint: string;
+  /** Env var name holding the API key (e.g., "OPENAI_API_KEY") */
+  api_key_env: string;
+}
+
 export interface IActionConfig {
-  // Provider for this action's AI call
+  // Ordered list of provider routes (tried in sequence on auth/missing-key errors)
+  ai_routes?: AIRoute[];
+
+  // DEPRECATED (backward compat only - converted to ai_routes internally):
   ai_provider?: 'openrouter' | 'openai';
-  // Direct model id for the chosen provider
   ai_model_id?: string;
-  // Override default provider base URL (e.g., for Azure OpenAI or custom endpoints)
   ai_base_url?: string;
   output_mode: OutputMode;
   description: string;

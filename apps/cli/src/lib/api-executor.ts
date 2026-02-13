@@ -12,6 +12,7 @@ import { readFileSync } from 'fs';
 import clipboardy from 'clipboardy';
 import { SgenClient } from '../http-client';
 import { Logger } from '../logger';
+import { isShuttingDown } from './shutdown';
 import {
   resolvePath,
   projectExists,
@@ -323,6 +324,8 @@ export class APIExecutor {
     site_description: string;
     site_url?: string;
     color_preference?: string;
+    previous_config?: Record<string, unknown>;
+    user_comments?: string;
   }): Promise<{ success: boolean; branding?: any; error?: string; cost_usd?: number }> {
     try {
       return await this.client.generateProjectConfig(body);
@@ -743,6 +746,10 @@ export class APIExecutor {
     const allOperations: FileOperation[] = [];
 
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      if (isShuttingDown()) {
+        this.logger.log(`Interrupted — stopping import after batch ${Math.floor(i / BATCH_SIZE)}.`);
+        break;
+      }
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
       const batchChunks = chunks.slice(i, i + BATCH_SIZE);
       const batchText = batchChunks.join('\n---\n');

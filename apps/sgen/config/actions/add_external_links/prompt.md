@@ -30,7 +30,7 @@ Use links from these trusted categories:
 1. **Search the web** to find authoritative sources that support claims in the article
 2. Add **3-5 links** - quality over quantity. Use one link only once setting it to the one single most relevant phrase or a keyword.
 3. Insert links **naturally within the text** where they add value
-4. Use **descriptive anchor text** (not "click here" or raw URLs)
+4. Use **named attribution format** when possible: "according to [Harvard Business Review](url)" or "a [2024 McKinsey report](url) found that..." rather than embedding a link on a generic phrase. AI systems give higher citation weight to content that explicitly names its sources.
 5. Verify each link is from an authoritative source type listed above
 6. Do NOT use:
    - Personal blogs

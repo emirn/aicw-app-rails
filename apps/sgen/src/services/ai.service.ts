@@ -310,94 +310,68 @@ export interface AICallResult {
   usageStats: IUsageStats;
 }
 
-/**
- * Normalize model ID for the target provider.
- * OpenRouter uses prefixed IDs (openai/gpt-4o), OpenAI uses plain IDs (gpt-4o).
- */
-function normalizeModelId(modelId: string, provider: AIProvider): string {
-  if (provider === 'openai') {
-    // Strip provider prefix for direct OpenAI calls
-    // "openai/gpt-4o" -> "gpt-4o"
-    if (modelId.startsWith('openai/')) {
-      return modelId.substring(7);
-    }
-  }
-  return modelId;
-}
+import type { AIRoute } from '@blogpostgen/types';
 
 /**
- * Get base URL for the provider (priority: custom > config default)
+ * Convert legacy provider/modelId/baseUrl options to an AIRoute array.
  */
-function getBaseUrl(provider: AIProvider, customUrl?: string): string {
-  if (customUrl) return customUrl;
-  return provider === 'openai'
-    ? config.ai.openaiBaseUrl
-    : config.ai.openrouterBaseUrl;
-}
-
-export const callAI = async (
-  prompt: string,
-  opts?: {
-    provider?: AIProvider;
-    modelId?: string;
-    baseUrl?: string;
-    webSearch?: boolean;
-  }
-): Promise<AICallResult> => {
-  const startTime = Date.now();
+function legacyToRoutes(opts?: {
+  provider?: AIProvider;
+  modelId?: string;
+  baseUrl?: string;
+}): AIRoute[] {
   const provider: AIProvider = opts?.provider || 'openrouter';
   const modelId = opts?.modelId || config.ai.defaultModel;
 
-  // Mock mode for local/offline testing
-  if (process.env.MOCK_AI === 'true') {
-    const mockResult = mockAIResponse(prompt);
-    const generationTime = Date.now() - startTime;
-    return {
-      ...mockResult,
-      usageStats: {
-        tokens_used: mockResult.tokens,
-        tokens_input: 0,
-        tokens_output: 0,
-        cost_usd: 0,
-        model_used: 'mock-ai',
-        generation_time_ms: generationTime
-      }
-    };
+  // Normalize model ID for provider
+  let normalizedModel = modelId;
+  if (provider === 'openai' && modelId.startsWith('openai/')) {
+    normalizedModel = modelId.substring(7);
   }
 
+  const endpoint = opts?.baseUrl || (provider === 'openai'
+    ? config.ai.openaiBaseUrl
+    : config.ai.openrouterBaseUrl);
+
+  return [{
+    model: normalizedModel,
+    endpoint,
+    api_key_env: provider === 'openai' ? 'OPENAI_API_KEY' : 'OPENROUTER_API_KEY',
+  }];
+}
+
+/**
+ * Make a single AI call to a specific route. Fully provider-agnostic.
+ */
+async function callAISingle(
+  prompt: string,
+  opts: {
+    model: string;
+    endpoint: string;
+    apiKey: string;
+    webSearch?: boolean;
+  }
+): Promise<{ response: any; data: any }> {
   const timeoutMs = config.ai.timeoutMs;
+  const url = `${opts.endpoint}/chat/completions`;
 
-  // Get API key based on provider
-  const apiKey = provider === 'openai' ? config.ai.openaiApiKey : config.ai.apiKey;
-  if (!apiKey) {
-    throw new Error(`Missing API key for provider: ${provider.toUpperCase()}_API_KEY`);
-  }
-
-  // Get base URL and normalize model ID for the provider
-  const baseUrl = getBaseUrl(provider, opts?.baseUrl);
-  const normalizedModelId = normalizeModelId(modelId, provider);
-  const endpoint = `${baseUrl}/chat/completions`;
-
-  // Use retry wrapper for transient failures (rate limits, server errors, timeouts)
-  // Each attempt gets its own AbortController so timeouts don't persist across retries
   const response = await withRetry(
     async () => {
-      // Fresh abort controller for each attempt
       const controller = new AbortController();
       const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
-        const res = await fetch(endpoint, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: `Bearer ${opts.apiKey}`,
           },
           body: JSON.stringify({
-            model: normalizedModelId,
+            model: opts.model,
             messages: [{ role: 'user', content: prompt }],
             max_tokens: config.ai.maxTokens,
-            ...(opts?.webSearch && { web_search_options: {} }),
+            ...(opts.webSearch && { web_search_options: {} }),
           }),
           // @ts-ignore
           signal: controller.signal,
@@ -421,33 +395,102 @@ export const callAI = async (
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text);
+    const err = new Error(text);
+    (err as any).status = response.status;
+    throw err;
   }
 
   const data: any = await response.json();
-  const rawContent = data?.choices?.[0]?.message?.content || '';
-  const tokens = data?.usage?.total_tokens || 0;
-  const inputTokens = data?.usage?.prompt_tokens || 0;
-  const outputTokens = data?.usage?.completion_tokens || 0;
-  const generationTime = Date.now() - startTime;
-  // Use original modelId for cost calculation (pricing.json uses OpenRouter format)
-  const costUsd = calculateCost(modelId, tokens, inputTokens, outputTokens);
+  return { response, data };
+}
 
-  const debugInfo = process.env.DEBUG_MODE === 'true'
-    ? { model_used: normalizedModelId, generation_time_ms: generationTime }
-    : undefined;
+export const callAI = async (
+  prompt: string,
+  opts?: {
+    routes?: AIRoute[];
+    webSearch?: boolean;
+    // Legacy (backward compat):
+    provider?: AIProvider;
+    modelId?: string;
+    baseUrl?: string;
+  }
+): Promise<AICallResult> => {
+  const startTime = Date.now();
 
-  const usageStats: IUsageStats = {
-    tokens_used: tokens,
-    tokens_input: inputTokens,
-    tokens_output: outputTokens,
-    cost_usd: costUsd,
-    model_used: normalizedModelId,
-    generation_time_ms: generationTime
-  };
+  // Mock mode for local/offline testing
+  if (process.env.MOCK_AI === 'true') {
+    const mockResult = mockAIResponse(prompt);
+    const generationTime = Date.now() - startTime;
+    return {
+      ...mockResult,
+      usageStats: {
+        tokens_used: mockResult.tokens,
+        tokens_input: 0,
+        tokens_output: 0,
+        cost_usd: 0,
+        model_used: 'mock-ai',
+        generation_time_ms: generationTime
+      }
+    };
+  }
 
-  const parsed = extractJsonObject(rawContent);
-  if (parsed !== null) return { content: parsed, tokens, rawContent, debugInfo, usageStats };
-  console.warn('Failed to parse JSON response robustly, returning raw content');
-  return { content: rawContent, tokens, rawContent, debugInfo, usageStats };
+  // Build routes: explicit routes take priority over legacy options
+  const routes = opts?.routes || legacyToRoutes(opts);
+
+  // Try each route in order
+  let lastError: Error | null = null;
+  for (const route of routes) {
+    const apiKey = process.env[route.api_key_env];
+    if (!apiKey) {
+      // Key not configured, skip to next route
+      continue;
+    }
+
+    try {
+      const { data } = await callAISingle(prompt, {
+        model: route.model,
+        endpoint: route.endpoint,
+        apiKey,
+        webSearch: opts?.webSearch,
+      });
+
+      const rawContent = data?.choices?.[0]?.message?.content || '';
+      const tokens = data?.usage?.total_tokens || 0;
+      const inputTokens = data?.usage?.prompt_tokens || 0;
+      const outputTokens = data?.usage?.completion_tokens || 0;
+      const generationTime = Date.now() - startTime;
+      const costUsd = calculateCost(route.model, tokens, inputTokens, outputTokens);
+
+      const debugInfo = process.env.DEBUG_MODE === 'true'
+        ? { model_used: route.model, generation_time_ms: generationTime }
+        : undefined;
+
+      const usageStats: IUsageStats = {
+        tokens_used: tokens,
+        tokens_input: inputTokens,
+        tokens_output: outputTokens,
+        cost_usd: costUsd,
+        model_used: route.model,
+        generation_time_ms: generationTime
+      };
+
+      const parsed = extractJsonObject(rawContent);
+      if (parsed !== null) return { content: parsed, tokens, rawContent, debugInfo, usageStats };
+      console.warn('Failed to parse JSON response robustly, returning raw content');
+      return { content: rawContent, tokens, rawContent, debugInfo, usageStats };
+    } catch (err: any) {
+      lastError = err;
+      const status = err?.status;
+      if (status === 401 || status === 402 || status === 403) {
+        // Auth/payment error - try next route
+        console.warn(`Route failed (${status}): ${route.endpoint} model=${route.model}, trying next...`);
+        continue;
+      }
+      throw err; // Non-auth error - don't try other routes
+    }
+  }
+
+  // All routes exhausted
+  if (lastError) throw lastError;
+  throw new Error('No AI routes configured or all API keys missing');
 };

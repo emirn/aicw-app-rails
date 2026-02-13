@@ -49,9 +49,9 @@ const fullCanonical = canonical
   : new URL(Astro.url.pathname, baseUrl).href;
 
 const ogImage = image
-  ? (image.startsWith('http') ? image : new URL(image, siteUrl).href)
+  ? (image.startsWith('http') ? image : new URL(image, baseUrl).href)
   : config.seo.defaultOgImage
-    ? new URL(config.seo.defaultOgImage, siteUrl).href
+    ? new URL(config.seo.defaultOgImage, baseUrl).href
     : null;
 ---
 
@@ -71,10 +71,11 @@ const ogImage = image
 ) : (
   <link rel="icon" type="image/svg+xml" href={generateLetterFavicon(
     config.branding.site.name,
-    config.branding.colors.primary
+    config.branding.colors.primary,
+    config.branding.logo.mark_text,
+    config.branding.logo.style
   )} />
 )}
-<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content={type} />
@@ -90,12 +91,14 @@ const ogImage = image
   </>
 )}
 <meta property="og:site_name" content={config.branding.site.name} />
+<meta property="og:locale" content={config.branding.site.language?.replace('-', '_') || 'en_US'} />
 
 {type === 'article' && publishedTime && (
   <>
     <meta property="article:published_time" content={publishedTime.toISOString()} />
     {modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
     {author && <meta property="article:author" content={author} />}
+    {keywords && <meta property="article:tag" content={keywords} />}
   </>
 )}
 
@@ -111,7 +114,7 @@ const ogImage = image
   </>
 )}
 {config.seo.twitterHandle && (
-  <meta name="twitter:site" content={`@${config.seo.twitterHandle}`} />
+  <meta name="twitter:site" content={config.seo.twitterHandle.startsWith('@') ? config.seo.twitterHandle : `@${config.seo.twitterHandle}`} />
 )}
 
 <!-- RSS Feed -->

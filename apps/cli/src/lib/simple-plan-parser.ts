@@ -22,7 +22,7 @@ export interface SimplePlanParseResult {
   plan: ContentPlan;
   parsed: number;
   skipped: number;
-  warnings: Array<{ blockIndex: number; reason: string }>;
+  warnings: Array<{ blockIndex: number; reason: string; rawBlock: string }>;
   sourceFile?: string;
 }
 
@@ -40,7 +40,7 @@ export function simplePlanToPlan(
   const blocks = content.split(/\n-{3,}\n/).filter((b) => b.trim());
 
   const items: ContentPlanItem[] = [];
-  const warnings: Array<{ blockIndex: number; reason: string }> = [];
+  const warnings: Array<{ blockIndex: number; reason: string; rawBlock: string }> = [];
   let skipped = 0;
 
   for (let i = 0; i < blocks.length; i++) {
@@ -50,7 +50,7 @@ export function simplePlanToPlan(
       items.push(result.item);
     } else {
       skipped++;
-      warnings.push({ blockIndex: i + 1, reason: result.reason! });
+      warnings.push({ blockIndex: i + 1, reason: result.reason!, rawBlock: blocks[i] });
     }
   }
 
@@ -87,6 +87,7 @@ function parseSimpleArticle(block: string, index: number): ParseArticleResult {
   const description = extractDescription(block);
   const date = extractField(block, 'DATE');
   const keywords = extractField(block, 'KEYWORDS');
+  const typeField = extractField(block, 'TYPE');
 
   // Validate required fields
   const missing: string[] = [];
@@ -109,6 +110,9 @@ function parseSimpleArticle(block: string, index: number): ParseArticleResult {
     };
   }
 
+  // Parse item_type from TYPE field
+  const itemType = typeField?.toLowerCase() === 'page' ? 'page' as const : 'article' as const;
+
   return {
     item: {
       id: `plan-${index + 1}`,
@@ -123,6 +127,7 @@ function parseSimpleArticle(block: string, index: number): ParseArticleResult {
       funnel_stage: 'top', // Default
       priority: 2, // Default (medium)
       date: date?.trim(),
+      item_type: itemType,
     },
   };
 }
@@ -167,6 +172,9 @@ export function planToSimpleText(plan: ContentPlan): string {
     const lines: string[] = [];
     lines.push(`TITLE: ${item.title}`);
     lines.push(`URL: ${item.slug}`);
+    if (item.item_type === 'page') {
+      lines.push(`TYPE: page`);
+    }
     if (item.target_keywords?.length) {
       lines.push(`KEYWORDS: ${item.target_keywords.join(', ')}`);
     }

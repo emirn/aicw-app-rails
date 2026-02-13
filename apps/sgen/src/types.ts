@@ -28,6 +28,7 @@ export {
   ContentPlan,
 
   // Action types
+  AIRoute,
   ActionMode,
   OutputMode,
   IActionConfig,

@@ -19,6 +19,7 @@ breadcrumbs: "Home/Blog/{{title}}"
 things: "{{keywords}}"
 keywords: "{{keywords}}"
 image_hero: "{{?image_hero}}"
+author: "{{?author.name}}"
 ---
 
 {{toc}}
@@ -30,6 +31,9 @@ image_hero: "{{?image_hero}}"
 {{faq_jsonld}}
 
 {{faq}}
+
+{{?author.name}}
+{{?author.bio}}
 `;
 
 const TEMPLATE_FILENAME = 'template_published.md';

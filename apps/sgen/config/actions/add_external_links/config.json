@@ -1,6 +1,8 @@
 {
-  "ai_provider": "openai",
-  "ai_model_id": "gpt-4o-mini-search-preview",
+  "ai_routes": [
+    { "model": "gpt-4o-mini-search-preview", "endpoint": "https://api.openai.com/v1", "api_key_env": "OPENAI_API_KEY" },
+    { "model": "openai/gpt-4o-mini", "endpoint": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY" }
+  ],
   "output_mode": "text_replace",
   "description": "Find and insert authoritative external links using web search",
   "web_search": true

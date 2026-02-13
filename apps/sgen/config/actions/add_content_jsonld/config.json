@@ -1,6 +1,8 @@
 {
-  "ai_provider": "openrouter",
-  "ai_model_id": "openai/gpt-4o-mini",
+  "ai_routes": [
+    { "model": "gpt-4o-mini", "endpoint": "https://api.openai.com/v1", "api_key_env": "OPENAI_API_KEY" },
+    { "model": "openai/gpt-4o-mini", "endpoint": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY" }
+  ],
   "output_mode": "insert_content_bottom",
   "description": "Generate JSON-LD schema.org blocks (Article, WebPage, BreadcrumbList, Organization) for article content"
 }

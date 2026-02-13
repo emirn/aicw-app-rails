@@ -1,6 +1,7 @@
 {
-  "ai_provider": "openrouter",
-  "ai_model_id": "anthropic/claude-4.5-sonnet",
+  "ai_routes": [
+    { "model": "anthropic/claude-4.5-sonnet", "endpoint": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY" }
+  ],
   "output_mode": "insert_content",
   "description": "Insert Mermaid diagrams at key sections",
   "supports_custom_config": false

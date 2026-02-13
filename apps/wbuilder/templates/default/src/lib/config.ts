@@ -16,12 +16,28 @@ export interface SiteConfig {
       type: 'text' | 'image';
       text?: string;
       image_url?: string;
+      /** @deprecated Use `style` instead */
       show_border?: boolean;
+      style?: 'plain' | 'border' | 'pill' | 'underline' | 'highlight' | 'monogram-circle' | 'slash' | 'backdrop';
+      font_family?: string;
+      font_weight?: string;
+      layout?: 'text-only' | 'mark-and-name';
+      mark_text?: string;
+      color?: string;
+      background_color?: string;
+      size?: 'sm' | 'md' | 'lg';
+      dark_mode?: {
+        color?: string;
+        background_color?: string;
+        image_url?: string;
+      };
+      letter_spacing?: string;
+      text_transform?: 'uppercase' | 'lowercase' | 'capitalize' | 'none';
+      separator?: string;
     };
     colors: {
       primary: string;
       secondary: string;
-      accent?: string;
       primary_text?: string;
       background: string;
       background_secondary: string;
@@ -268,12 +284,11 @@ const defaultConfig: SiteConfig = {
     logo: {
       type: 'text',
       text: 'Blog',
-      show_border: true,
+      style: 'border',
     },
     colors: {
       primary: '',
       secondary: '',
-      accent: '',
       primary_text: '',
       background: '',
       background_secondary: '',
@@ -406,18 +421,21 @@ export function getDefaultAuthor(config: SiteConfig): string {
 }
 
 /**
- * Generate an SVG favicon as a data URI with first letter of site name
+ * Generate an SVG favicon as a data URI with letter(s) from site name or logo mark_text
  */
-export function generateLetterFavicon(siteName: string, bgColor: string): string {
-  const letter = getFirstLetter(siteName);
+export function generateLetterFavicon(siteName: string, bgColor: string, markText?: string, logoStyle?: string): string {
+  const displayText = markText && markText.length <= 3 ? markText : getFirstLetter(siteName);
   const textColor = isLightColor(bgColor) ? '#1F2937' : '#FFFFFF';
+  const charCount = displayText.length;
+  const fontSize = charCount === 1 ? 18 : charCount === 2 ? 14 : 12;
+  const rx = logoStyle === 'monogram-circle' ? 16 : 6;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="6" fill="${bgColor}"/>
+    <rect width="32" height="32" rx="${rx}" fill="${bgColor}"/>
     <text x="50%" y="50%" dy=".35em" text-anchor="middle"
           font-family="system-ui, -apple-system, sans-serif"
-          font-size="18" font-weight="600" fill="${textColor}">
-      ${letter}
+          font-size="${fontSize}" font-weight="600" fill="${textColor}">
+      ${displayText}
     </text>
   </svg>`;
 

@@ -171,7 +171,7 @@ export async function initializePromptTemplates(
  */
 export async function mergeProjectTemplateDefaults(
   projectDir: string,
-  options?: { illustrationStyle?: string; branding?: any }
+  options?: { illustrationStyle?: string; branding?: any; templateSettings?: Record<string, unknown>; logoOverride?: any; faviconUrl?: string }
 ): Promise<void> {
   const indexPath = path.join(projectDir, 'index.json');
 
@@ -206,6 +206,30 @@ export async function mergeProjectTemplateDefaults(
       existingConfig.branding = { ...existingConfig.branding as object };
       (existingConfig.branding as any).illustration_style = options.illustrationStyle;
     }
+    // Apply logo image override for non-AI path
+    if (options?.logoOverride) {
+      (existingConfig.branding as any).logo = {
+        ...(existingConfig.branding as any).logo,
+        ...options.logoOverride,
+      };
+    }
+    // Apply favicon override for non-AI path
+    if (options?.faviconUrl) {
+      if (!(existingConfig.branding as any).site) {
+        (existingConfig.branding as any).site = {};
+      }
+      (existingConfig.branding as any).site.favicon_url = options.faviconUrl;
+    }
+  }
+
+  // Merge template settings if provided
+  if (options?.templateSettings && Object.keys(options.templateSettings).length > 0) {
+    const publishConfig = (existingConfig.publish_to_local_folder || {}) as Record<string, unknown>;
+    publishConfig.template_settings = {
+      ...((publishConfig.template_settings as Record<string, unknown>) || {}),
+      ...options.templateSettings,
+    };
+    existingConfig.publish_to_local_folder = publishConfig;
   }
 
   // Write merged config back

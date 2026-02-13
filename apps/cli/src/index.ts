@@ -45,6 +45,9 @@ import {
   selectOption,
   promptWebsiteConfig,
   parseArticleSelection,
+  promptLogoStyleOverride,
+  promptLogoImage,
+  promptFaviconImage,
 } from './lib/interactive-prompts';
 import { displayBrandingPreview } from './lib/branding-preview';
 import { getProjectPaths } from './config/user-paths';
@@ -57,6 +60,7 @@ import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDef
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
 import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
+import { setupGracefulShutdown, isShuttingDown, resetShutdown } from './lib/shutdown';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
   importPlanFromFile,
@@ -68,6 +72,7 @@ import {
   parsePlanFile,
 } from './lib/plan-importer';
 import { simplePlanToPlan, planToSimpleText } from './lib/simple-plan-parser';
+import { saveImportErrors } from './lib/error-saver';
 import { syncActionPrompts } from './lib/prompt-sync';
 import {
   migrateToUnifiedFormat,
@@ -284,6 +289,7 @@ async function main(): Promise<void> {
 
   // Logger for progress messages (stderr)
   const logger = new Logger();
+  setupGracefulShutdown(logger);
   if (debug) {
     logger.log(`Debug mode enabled`);
     logger.log(`Base URL: ${baseUrl}`);
@@ -312,6 +318,7 @@ async function main(): Promise<void> {
   // Main interactive loop - keeps returning to action menu after each action
   let firstIteration = true;
   while (interactive) {
+    resetShutdown();
     // On first iteration, use command-line action if provided
     if (firstIteration && action) {
       finalAction = action;
@@ -418,12 +425,7 @@ async function main(): Promise<void> {
         // Prompt for site description (multiline)
         logger.log('');
         const siteDescription = await promptMultilineInput(
-          'Describe your website (what it\'s about, target audience, tone).\nThis helps AI generate branding (colors, fonts, style).\nPress Enter twice when done:'
-        );
-
-        // Prompt for color preference (optional, single line)
-        const colorPreference = await promptInput(
-          'Color preference (optional, e.g. "modern blue and purple")'
+          'Describe your website (what it\'s about, target audience, tone).\nThis helps AI generate branding (colors, fonts, style).\nInclude color preferences if you have any (e.g. "modern blue and purple").\nPress Enter twice when done:'
         );
 
         // Try AI-powered branding generation with reiteration loop
@@ -438,7 +440,6 @@ async function main(): Promise<void> {
             site_name: projectName,
             site_description: siteDescription,
             site_url: projectUrl,
-            color_preference: colorPreference || undefined,
           });
 
           if (configResult.success && configResult.branding) {
@@ -461,8 +462,12 @@ async function main(): Promise<void> {
               ]);
 
               if (choice === 0) {
-                // Accept
+                // Accept — offer style override (image overrides asked after loop)
                 aiBranding = currentBranding;
+                const logoOverride = await promptLogoStyleOverride(currentBranding.logo);
+                if (logoOverride) {
+                  aiBranding.logo = { ...aiBranding.logo, ...logoOverride };
+                }
                 decided = true;
               } else if (choice === 1) {
                 // Regenerate with feedback
@@ -478,7 +483,6 @@ async function main(): Promise<void> {
                   site_name: projectName,
                   site_description: siteDescription,
                   site_url: projectUrl,
-                  color_preference: colorPreference || undefined,
                   previous_config: currentBranding,
                   user_comments: comments,
                 });
@@ -502,16 +506,67 @@ async function main(): Promise<void> {
           }
         }
 
-        // Fallback: manual illustration style picker
+        // Fallback: manual illustration style if AI branding was declined/skipped
         let illustrationStyle: string | null = null;
         if (!aiBranding) {
           illustrationStyle = await selectIllustrationStyle();
+        }
+
+        // Custom images — asked after AI branding so user sees the preview first
+        const logoImageResult = await promptLogoImage();
+        const faviconResult = await promptFaviconImage();
+
+        // Apply images to the chosen branding path
+        let manualLogo: any = null;
+        let manualFavicon: string | null = null;
+        if (aiBranding) {
+          if (logoImageResult) {
+            aiBranding.logo = { ...aiBranding.logo, ...logoImageResult };
+          }
+          if (faviconResult) {
+            if (!aiBranding.site) aiBranding.site = {};
+            aiBranding.site.favicon_url = faviconResult;
+          }
+        } else {
+          manualLogo = logoImageResult || null;
+          manualFavicon = faviconResult || null;
         }
 
         // Website configuration prompts
         logger.log('');
         logger.log('Now let\'s configure your website...');
         const websiteConfig = await promptWebsiteConfig(sanitizedName);
+
+        // Pre-creation summary
+        const sections = websiteConfig.templateSettings.sections as Array<{ label: string }> | undefined;
+        const sectionNames = sections ? sections.map(s => s.label).join(', ') : '';
+        const brandingSource = aiBranding ? 'AI-generated' : 'Template defaults';
+        const logoDesc = (() => {
+          if (aiBranding?.logo?.type === 'image' || manualLogo) return 'Custom image';
+          if (aiBranding?.logo) return `Text "${aiBranding.logo.text}" (${aiBranding.logo.style || 'plain'})`;
+          return 'Default';
+        })();
+        const faviconDesc = faviconResult ? 'Custom image' : 'Auto-generated from logo';
+
+        logger.log('');
+        logger.log('=== Project Summary ===');
+        logger.log('');
+        logger.log(`  Name:         ${sanitizedName}`);
+        if (projectUrl) logger.log(`  URL:          ${projectUrl}`);
+        logger.log(`  Branding:     ${brandingSource}`);
+        logger.log(`  Logo:         ${logoDesc}`);
+        logger.log(`  Favicon:      ${faviconDesc}`);
+        logger.log(`  Website type: ${websiteConfig.isBlogOnly ? 'Blog-only' : 'Full website'}`);
+        if (!websiteConfig.isBlogOnly && sectionNames) logger.log(`  Sections:     ${sectionNames}`);
+        logger.log(`  Publishing:   ${websiteConfig.localPublish?.path || 'None'}`);
+        logger.log('');
+
+        const proceed = await confirm('Create this project?', true);
+        if (!proceed) {
+          logger.log('Project creation cancelled.');
+          await pressEnterToContinue();
+          continue;
+        }
 
         logger.log(`Creating project '${sanitizedName}'...`);
         const publishConfig = websiteConfig.localPublish
@@ -525,14 +580,62 @@ async function main(): Promise<void> {
 
         logger.log('Applying project template defaults...');
         await mergeProjectTemplateDefaults(projectDir, {
-          ...(aiBranding ? { branding: aiBranding } : { illustrationStyle: illustrationStyle || undefined }),
+          ...(aiBranding ? { branding: aiBranding } : {
+            illustrationStyle: illustrationStyle || undefined,
+            logoOverride: manualLogo || undefined,
+            faviconUrl: manualFavicon || undefined,
+          }),
           templateSettings: websiteConfig.templateSettings,
         });
 
-        // Create section subfolders in drafts for full-website mode
+        // Create section folders for full-website mode
         if (!websiteConfig.isBlogOnly && websiteConfig.templateSettings.sections) {
-          for (const section of websiteConfig.templateSettings.sections as Array<{ path: string }>) {
-            mkdirSync(path.join(projectDir, 'drafts', section.path), { recursive: true });
+          for (const section of websiteConfig.templateSettings.sections as Array<{ id: string; path: string; label: string }>) {
+            if (section.id === 'blog') {
+              // Blog section: articles go to drafts/blog/
+              mkdirSync(path.join(projectDir, 'drafts', section.path), { recursive: true });
+            } else {
+              // Non-blog sections: create as custom pages with stub content
+              const pageDir = path.join(projectDir, 'custom-pages', section.path);
+              mkdirSync(path.join(pageDir, 'assets'), { recursive: true });
+              const stub = [
+                '---',
+                `title: "${section.label}"`,
+                'header_show_link: true',
+                'footer_show_link: true',
+                'blog_grid: false',
+                '---',
+                '',
+                `# ${section.label}`,
+                '',
+                'Your content here.',
+                '',
+              ].join('\n');
+              writeFileSync(path.join(pageDir, 'index.md'), stub, 'utf-8');
+            }
+          }
+
+          // Create root page for homepage custom content
+          // Use AI tagline/description as title to avoid "SITE | SITE" duplication in <title>
+          const rootTitle = aiBranding?.site?.tagline || aiBranding?.site?.description || projectName;
+          const rootDescription = aiBranding?.site?.description || '';
+          const rootPageDir = path.join(projectDir, 'custom-pages', 'root');
+          if (!existsSync(rootPageDir)) {
+            mkdirSync(path.join(rootPageDir, 'assets'), { recursive: true });
+            const rootStub = [
+              '---',
+              `title: "${rootTitle.replace(/"/g, '\\"')}"`,
+              ...(rootDescription ? [`description: "${rootDescription.replace(/"/g, '\\"')}"`] : []),
+              'header_show_link: false',
+              'footer_show_link: false',
+              'blog_grid: true',
+              'blog_grid_title: "Latest Articles"',
+              'blog_grid_limit: 9',
+              '---',
+              '',
+              ...(rootDescription ? [rootDescription, ''] : ['Welcome content goes here.', '']),
+            ].join('\n');
+            writeFileSync(path.join(rootPageDir, 'index.md'), rootStub, 'utf-8');
           }
         }
 
@@ -1481,6 +1584,23 @@ async function main(): Promise<void> {
         // Step 7: Parse the plan text back through simplePlanToPlan for import
         const parseResult = simplePlanToPlan(planText, 'AI-expanded ideas');
 
+        // Auto-detect page items from project sections
+        const pageSectionPaths = new Set<string>();
+        const sections = (projectConfig as any)?.publish_to_local_folder?.template_settings?.sections;
+        if (sections) {
+          for (const s of sections as Array<{ id: string; path: string }>) {
+            if (s.id !== 'blog') pageSectionPaths.add(s.path);
+          }
+        }
+        for (const item of parseResult.plan.items) {
+          if (!item.item_type || item.item_type === 'article') {
+            const bareSlug = item.slug.replace(/^.*\//, '');
+            if (pageSectionPaths.has(bareSlug) || pageSectionPaths.has(item.slug)) {
+              item.item_type = 'page';
+            }
+          }
+        }
+
         // Step 8: Analyze conflicts
         const preview = await analyzeImport(projectPaths.root, parseResult.plan);
 
@@ -1513,6 +1633,15 @@ async function main(): Promise<void> {
           resolved,
           {}
         );
+
+        // Save errors to file if any
+        const errorFile = await saveImportErrors(projectPaths.root, 'ideas', {
+          parseWarnings: parseResult.warnings.length > 0 ? parseResult.warnings : undefined,
+          executionErrors: importResult.errors.length > 0 ? importResult.errors : undefined,
+        });
+        if (errorFile) {
+          logger.log(`Errors saved to: ${errorFile}`);
+        }
 
         // Step 12: Print results
         logger.log('');
@@ -1609,6 +1738,27 @@ async function main(): Promise<void> {
           continue;
         }
 
+        // Auto-detect page items from project sections
+        {
+          const { loadProjectConfig } = await import('./lib/project-config.js');
+          const projectConfig = await loadProjectConfig(projectPaths.root);
+          const pageSectionPaths = new Set<string>();
+          const cfgSections = (projectConfig as any)?.publish_to_local_folder?.template_settings?.sections;
+          if (cfgSections) {
+            for (const s of cfgSections as Array<{ id: string; path: string }>) {
+              if (s.id !== 'blog') pageSectionPaths.add(s.path);
+            }
+          }
+          for (const item of parseResult.plan.items) {
+            if (!item.item_type || item.item_type === 'article') {
+              const bareSlug = item.slug.replace(/^.*\//, '');
+              if (pageSectionPaths.has(bareSlug) || pageSectionPaths.has(item.slug)) {
+                item.item_type = 'page';
+              }
+            }
+          }
+        }
+
         // Step 2: Analyze conflicts
         const preview = await analyzeImport(projectPaths.root, parseResult.plan);
 
@@ -1651,6 +1801,15 @@ async function main(): Promise<void> {
           resolved,
           {}
         );
+
+        // Save errors to file if any
+        const errorFile = await saveImportErrors(projectPaths.root, 'plan-import', {
+          parseWarnings: parseResult.warnings.length > 0 ? parseResult.warnings : undefined,
+          executionErrors: result.errors.length > 0 ? result.errors : undefined,
+        });
+        if (errorFile) {
+          logger.log(`Errors saved to: ${errorFile}`);
+        }
 
         // Step 7: Print import results
         logger.log('');
@@ -1858,6 +2017,11 @@ async function main(): Promise<void> {
 
           for (let i = 0; i < selectedPaths.length; i++) {
             if (batchStopped) break;
+            if (isShuttingDown()) {
+              logger.log(`\nInterrupted after ${i} of ${selectedPaths.length} articles.`);
+              batchStopped = true;
+              break;
+            }
 
             const articlePath = selectedPaths[i];
             const fullPath = `${selectedProject}/${articlePath}`;
@@ -1868,6 +2032,11 @@ async function main(): Promise<void> {
 
             let articleSuccess = true;
             for (let m = 0; m < actions.length; m++) {
+              if (isShuttingDown()) {
+                logger.log(`  Interrupted — stopping after current action.`);
+                articleSuccess = false;
+                break;
+              }
               const currentAction = actions[m];
 
               // Check if action was already applied — skip for all action types (local and API)
@@ -1984,6 +2153,10 @@ async function main(): Promise<void> {
         } else {
           // For pipelines without articleFilter (e.g., plan-import)
           for (let m = 0; m < actions.length; m++) {
+            if (isShuttingDown()) {
+              logger.log(`\nInterrupted — stopping pipeline.`);
+              break;
+            }
             const currentAction = actions[m];
             logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
@@ -2334,6 +2507,10 @@ async function main(): Promise<void> {
           }> = [];
 
           for (let i = 0; i < selectedPaths.length; i++) {
+            if (isShuttingDown()) {
+              logger.log(`\nInterrupted after ${i} of ${selectedPaths.length} articles.`);
+              break;
+            }
             const articlePath = selectedPaths[i];
             const fullPath = `${resolved.projectName}/${articlePath}`;
             const articleInfo = selectionList.find(a => a.path === articlePath);
@@ -2491,7 +2668,14 @@ async function main(): Promise<void> {
               wordCount?: number;
             }> = [];
 
+            let batchStopped = false;
             for (let i = 0; i < selectedPaths.length; i++) {
+              if (batchStopped) break;
+              if (isShuttingDown()) {
+                logger.log(`\nInterrupted after ${i} of ${selectedPaths.length} articles.`);
+                batchStopped = true;
+                break;
+              }
               const articlePath = selectedPaths[i];
               const fullPath = `${resolved.projectName}/${articlePath}`;
               const absoluteFilePath = path.join(getProjectPaths(resolved.projectName).content, articlePath, 'content.md');
@@ -2501,6 +2685,11 @@ async function main(): Promise<void> {
 
               let articleSuccess = true;
               for (let m = 0; m < actions.length; m++) {
+                if (isShuttingDown()) {
+                  logger.log(`  Interrupted — stopping after current action.`);
+                  articleSuccess = false;
+                  break;
+                }
                 const currentAction = actions[m];
 
                 // Check if action was already applied — skip for all action types (local and API)

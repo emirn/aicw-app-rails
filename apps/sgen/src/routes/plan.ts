@@ -4,7 +4,7 @@ import {
   IWebsiteInfo,
 } from '../types';
 import { callAI } from '../services/ai.service';
-import { ensureActionConfigForMode } from '../config/action-config';
+import { ensureActionConfigForMode, getRoutesFromConfig } from '../config/action-config';
 import { renderTemplateAbsolutePath } from '../utils/template';
 import { buildDebugInfo } from '../utils/debug';
 import { validateWebsiteInfo, isPositiveInteger, formatValidationErrors } from '../utils/validation';
@@ -92,10 +92,9 @@ export default async function planRoutes(app: FastifyInstance) {
 
       const prompt = renderTemplateAbsolutePath(cfg.prompt_path!, vars);
 
+      const routes = getRoutesFromConfig(cfg);
       const { content, tokens, rawContent, debugInfo, usageStats } = await callAI(prompt, {
-        provider: cfg.ai_provider || 'openrouter',
-        modelId: cfg.ai_model_id || 'openai/gpt-4o',
-        baseUrl: cfg.ai_base_url,
+        routes,
       });
 
       // Validate JSON response
@@ -188,10 +187,9 @@ export default async function planRoutes(app: FastifyInstance) {
 
       const prompt = renderTemplateAbsolutePath(cfg.prompt_path!, vars);
 
+      const routes = getRoutesFromConfig(cfg);
       const { content, tokens, rawContent, debugInfo, usageStats } = await callAI(prompt, {
-        provider: cfg.ai_provider || 'openrouter',
-        modelId: cfg.ai_model_id || 'openai/gpt-4o',
-        baseUrl: cfg.ai_base_url,
+        routes,
       });
 
       // Validate JSON response

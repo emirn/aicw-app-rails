@@ -8,9 +8,8 @@ import {
   INewArticleResponse,
 } from '../types';
 import { callAI } from '../services/ai.service';
-import { config } from '../config/server-config';
 import { buildArticlePrompt, buildUpdatePrompt } from '../utils/prompts';
-import { ACTION_CONFIG, ensureActionConfigForMode, isValidActionMode, VALID_ACTION_MODES } from '../config/action-config';
+import { ACTION_CONFIG, ensureActionConfigForMode, getRoutesFromConfig, isValidActionMode, VALID_ACTION_MODES } from '../config/action-config';
 import { ensureTemplateExistsNonEmpty, ensureNonEmptyText } from '../utils/guards';
 import { mergeUpdate, MergeResult, parseLinePatches as updParseLinePatches, applyPatches as updApplyPatches, extractContentText, ensureSlug as makeSlug, parseTextReplacements, applyTextReplacements } from '../utils/articleUpdate';
 import { collectKnownSlugs, ensureUniqueSlug } from '../utils/slug';
@@ -78,15 +77,10 @@ export default async function articleRoutes(app: FastifyInstance) {
       const customTemplate = prompt_parts?.custom_prompt_template;
       const prompt = buildArticlePrompt(description, website_info, prompt_parts, undefined, customTemplate);
       const genCfg = ACTION_CONFIG['write_draft'];
-      const provider = genCfg?.ai_provider || 'openrouter';
-      const modelId = genCfg?.ai_model_id || (provider === 'openai'
-        ? config.ai.defaultModel.replace(/^openai\//, '')
-        : config.ai.defaultModel);
-      app.log.info({ title: website_info.title, words: target_words, provider, modelId }, 'generate:start');
+      const routes = genCfg ? getRoutesFromConfig(genCfg) : [];
+      app.log.info({ title: website_info.title, words: target_words }, 'generate:start');
       const { content, tokens, rawContent, debugInfo, usageStats } = await callAI(prompt, {
-        provider,
-        modelId,
-        baseUrl: genCfg?.ai_base_url,
+        routes,
       });
 
       let article: IApiArticle;
@@ -316,8 +310,7 @@ export default async function articleRoutes(app: FastifyInstance) {
           const fixPromptPath = join(__dirname, '..', '..', 'config', 'actions', 'humanize_text', 'fix_orthography.md');
 
           const cfg = ACTION_CONFIG['humanize_text'];
-          const provider = cfg?.ai_provider || 'openrouter';
-          const modelId = cfg?.ai_model_id || (provider === 'openai' ? config.ai.defaultModel.replace(/^openai\//, '') : config.ai.defaultModel);
+          const routes = cfg ? getRoutesFromConfig(cfg) : [];
 
           // Render prompt manually since buildUpdatePrompt is tied to specific modes/templates
           const { renderTemplateAbsolutePath } = await import('../utils/template');
@@ -327,7 +320,7 @@ export default async function articleRoutes(app: FastifyInstance) {
           const prompt = renderTemplateAbsolutePath(fixPromptPath, vars);
 
           app.log.info({ mode: 'humanize_text', action: 'fix_orthography' }, 'ai_fix:start');
-          const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url });
+          const aiRes = await callAI(prompt, { routes });
 
           if (aiRes.content && typeof aiRes.content === 'string') {
             text = aiRes.content; // Update text with AI fixed version
@@ -415,12 +408,9 @@ export default async function articleRoutes(app: FastifyInstance) {
       const outMode = output_mode || defaultCfg?.output_mode || 'text_replace_all';
       const prompt = buildUpdatePrompt(article, mode, context, outMode);
       app.log.info({ id: article.id, mode, output_mode: outMode, desc: defaultCfg?.description }, 'update:start');
-      const provider = defaultCfg?.ai_provider || 'openrouter';
-      const modelId = defaultCfg?.ai_model_id || (provider === 'openai' ? config.ai.defaultModel.replace(/^openai\//, '') : config.ai.defaultModel);
+      const routes = getRoutesFromConfig(defaultCfg);
       const { content, tokens, rawContent, debugInfo, usageStats } = await callAI(prompt, {
-        provider,
-        modelId,
-        baseUrl: defaultCfg?.ai_base_url,
+        routes,
         webSearch: defaultCfg?.web_search,
       });
 

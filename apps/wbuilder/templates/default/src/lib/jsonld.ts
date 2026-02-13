@@ -67,6 +67,8 @@ export function generateBlogPosting(
     publisher.logo = {
       '@type': 'ImageObject',
       url: logoUrl,
+      width: 600,
+      height: 60,
     };
   }
 
@@ -74,6 +76,7 @@ export function generateBlogPosting(
   const blogPosting: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
+    '@id': canonicalUrl,
     headline: data.title,
     datePublished: data.published_at.toISOString(),
     mainEntityOfPage: {
@@ -98,6 +101,7 @@ export function generateBlogPosting(
   blogPosting.author = {
     '@type': 'Person',
     name: authorName,
+    url: siteUrl,
   };
 
   // Image - use OG image or hero image
@@ -119,6 +123,11 @@ export function generateBlogPosting(
     blogPosting.keywords = data.keywords.join(', ');
   }
 
+  // Word count
+  if (article.body) {
+    blogPosting.wordCount = article.body.split(/\s+/).length;
+  }
+
   return blogPosting;
 }
 
@@ -130,6 +139,18 @@ export function generateArticleBreadcrumbs(
   article: CollectionEntry<'articles'>
 ): object {
   const breadcrumbItems: Array<{ name: string; url: string }> = [];
+
+  // Add section breadcrumb from slug (e.g., "blog/my-article" -> "blog")
+  const slugParts = article.slug.split('/');
+  if (slugParts.length > 1) {
+    const section = slugParts[0];
+    const sectionConfig = config.sections?.find(s => s.id === section);
+    const sectionName = sectionConfig?.label || section.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    breadcrumbItems.push({
+      name: sectionName,
+      url: `/${section}/`,
+    });
+  }
 
   // Add first category if categories are enabled and article has categories
   if (config.categories?.enabled && article.data.categories?.length) {

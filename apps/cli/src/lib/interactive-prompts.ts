@@ -1382,8 +1382,9 @@ export async function promptLocalPublishing(
 
   if (!publishPath) return null;
 
-  // Resolve default template path (bundled with CLI)
-  const defaultTemplatePath = path.resolve(__dirname, '..', '..', '..', '..', 'wbuilder', 'templates', 'default');
+  // Resolve default template path (env var takes priority, fallback to relative from CLI)
+  const defaultTemplatePath = process.env.AICW_WB_TEMPLATE_PATH ||
+    path.resolve(__dirname, '..', '..', '..', '..', 'apps', 'wbuilder', 'templates', 'default');
 
   return {
     enabled: true,
@@ -1392,6 +1393,186 @@ export async function promptLocalPublishing(
     assets_subfolder: 'public/assets',
     templatePath: defaultTemplatePath,
   };
+}
+
+/**
+ * Allowed MIME types for logo images
+ */
+const IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+};
+
+/**
+ * Allowed MIME types for favicon/icon images
+ */
+const ICON_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+/**
+ * Read a local file and return as data URI (base64 encoded).
+ */
+function readFileAsDataUri(filePath: string, allowedTypes: Record<string, string>): string | null {
+  try {
+    const resolvedPath = path.resolve(filePath);
+    const buffer = readFileSync(resolvedPath);
+    const ext = path.extname(resolvedPath).toLowerCase();
+    const mimeType = allowedTypes[ext];
+    if (!mimeType) {
+      console.error(`Unsupported format: ${ext}. Allowed: ${Object.keys(allowedTypes).join(', ')}`);
+      return null;
+    }
+    const base64 = buffer.toString('base64');
+    console.error(`  Read ${buffer.length} bytes from ${resolvedPath}`);
+    return `data:${mimeType};base64,${base64}`;
+  } catch (err) {
+    console.error(`Failed to read file: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Fetch a URL and return as data URI (base64 encoded).
+ */
+async function fetchUrlAsDataUri(url: string, allowedTypes: Record<string, string>): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error(`Failed to fetch: HTTP ${response.status}`);
+      return null;
+    }
+    const contentType = response.headers.get('content-type') || '';
+    const mimeType = Object.values(allowedTypes).find(t => contentType.includes(t));
+    if (!mimeType) {
+      console.error(`Unsupported content type: ${contentType}. Expected: ${Object.values(allowedTypes).join(', ')}`);
+      return null;
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64 = buffer.toString('base64');
+    console.error(`  Downloaded ${buffer.length} bytes from URL`);
+    return `data:${mimeType};base64,${base64}`;
+  } catch (err) {
+    console.error(`Failed to fetch URL: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Logo style presets for manual selection
+ */
+const LOGO_STYLES = [
+  { id: 'plain', label: 'Plain', desc: 'Clean text, no decoration' },
+  { id: 'border', label: 'Border', desc: 'Text inside a rounded border box' },
+  { id: 'pill', label: 'Pill', desc: 'Text on colored pill/capsule background' },
+  { id: 'underline', label: 'Underline', desc: 'Text with colored bottom border' },
+  { id: 'highlight', label: 'Highlight', desc: 'Text on colored rectangle background' },
+  { id: 'monogram-circle', label: 'Monogram', desc: 'Letter(s) in colored circle + name' },
+  { id: 'slash', label: 'Slash', desc: 'First letter + colored "/" + rest of name' },
+  { id: 'backdrop', label: 'Backdrop', desc: 'Text on subtle colored rounded rectangle' },
+] as const;
+
+/**
+ * Prompt for logo style override after AI branding.
+ * Returns updated logo config or null if user keeps generated.
+ */
+export async function promptLogoStyleOverride(currentLogo: any): Promise<any | null> {
+  const choice = await selectOption('Logo style:', [
+    `Keep generated (${currentLogo?.style || 'plain'})`,
+    'Pick a different style',
+  ]);
+
+  if (choice === null || choice === 0) {
+    return null; // Keep as-is
+  }
+
+  if (choice === 1) {
+    return promptLogoStyle(currentLogo);
+  }
+
+  return null;
+}
+
+/**
+ * Interactive logo style picker.
+ * Shows 8 style presets with numbered selection.
+ */
+export async function promptLogoStyle(currentLogo: any): Promise<any | null> {
+  console.error('\n=== Select Logo Style ===\n');
+
+  for (let i = 0; i < LOGO_STYLES.length; i++) {
+    const style = LOGO_STYLES[i];
+    const current = currentLogo?.style === style.id ? ' (current)' : '';
+    console.error(`  ${String(i + 1).padStart(2)}. ${style.label.padEnd(12)} ${style.desc}${current}`);
+  }
+  console.error('');
+
+  const answer = await prompt('Enter number (or q to cancel)');
+
+  if (!answer || answer.toLowerCase() === 'q') {
+    return null;
+  }
+
+  const num = parseInt(answer, 10);
+  if (!isNaN(num) && num >= 1 && num <= LOGO_STYLES.length) {
+    const selected = LOGO_STYLES[num - 1];
+    return { ...currentLogo, style: selected.id };
+  }
+
+  console.error('Invalid selection.');
+  return null;
+}
+
+/**
+ * Prompt for logo image file or URL.
+ * Returns logo config with type: 'image', or null if declined.
+ */
+export async function promptLogoImage(): Promise<any | null> {
+  const hasLogo = await confirm('Do you have a logo image file?', false);
+  if (!hasLogo) return null;
+
+  const input = await prompt('Enter image file path or URL (PNG/SVG/JPEG)');
+  if (!input || input.toLowerCase() === 'q') return null;
+
+  // URL — return directly (templates render <img src=...>)
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    return { type: 'image', image_url: input, text: '' };
+  }
+
+  // File path → base64 data URI
+  const dataUri = readFileAsDataUri(input, IMAGE_TYPES);
+  if (!dataUri) return null;
+  return { type: 'image', image_url: dataUri, text: '' };
+}
+
+/**
+ * Prompt for favicon/icon image file or URL.
+ * Asks if the user has a custom favicon, then reads/base64-encodes it.
+ * URLs are downloaded and converted to base64 (template only handles data URIs).
+ * Returns a data URI string, or null if declined.
+ */
+export async function promptFaviconImage(): Promise<string | null> {
+  const hasIcon = await confirm('Do you have a website icon/favicon image?', false);
+  if (!hasIcon) {
+    console.error('  (An icon will be auto-generated from your logo at build time)');
+    return null;
+  }
+
+  const input = await prompt('Enter icon file path or URL (PNG/SVG, ideally square)');
+  if (!input || input.toLowerCase() === 'q') return null;
+
+  // URL → download and convert to base64 (template only handles data URIs)
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    return fetchUrlAsDataUri(input, ICON_TYPES);
+  }
+
+  // File path → base64 data URI
+  return readFileAsDataUri(input, ICON_TYPES);
 }
 
 /**

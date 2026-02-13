@@ -1,5 +1,6 @@
 import { BaseRenderer, BaseRendererAsset, RenderOptions } from './base-renderer';
 import { convertToWebp } from './webp-converter';
+import sharp from 'sharp';
 
 // Maximum width for generated diagrams in pixels
 const MAX_DIAGRAM_WIDTH = 800;
@@ -10,6 +11,10 @@ const MAX_DIAGRAM_WIDTH = 800;
 export interface DiagramAsset extends BaseRendererAsset {
   diagramType: string;
   mermaidCode: string;
+  /** Rendered image width in pixels */
+  width?: number;
+  /** Rendered image height in pixels */
+  height?: number;
 }
 
 /**
@@ -53,6 +58,17 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
       selector: '#mermaid-container'
     });
 
+    // Detect actual image dimensions from rendered WebP buffer
+    let width: number | undefined;
+    let height: number | undefined;
+    try {
+      const metadata = await sharp(buffer).metadata();
+      width = metadata.width;
+      height = metadata.height;
+    } catch {
+      // Fallback: dimensions unknown
+    }
+
     const filename = `${baseFilename}.webp`;
 
     return {
@@ -62,7 +78,9 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
       diagramType,
       contentHash,
       mermaidCode: code,
-      sourceContent: code
+      sourceContent: code,
+      width,
+      height,
     };
   }
 
@@ -162,7 +180,13 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
         const asset = await this.renderMermaidToPNG(sanitizedCode, baseFilename, altText);
         assets.push(asset);
 
-        const imageMd = `![${altText}](/assets/${articlePath}/${asset.filename})`;
+        // Use <img> tag with width/height to prevent CLS, with loading="lazy"
+        let imageMd: string;
+        if (asset.width && asset.height) {
+          imageMd = `<img src="/assets/${articlePath}/${asset.filename}" alt="${altText}" width="${asset.width}" height="${asset.height}" loading="lazy" />`;
+        } else {
+          imageMd = `![${altText}](/assets/${articlePath}/${asset.filename})`;
+        }
         updatedContent = updatedContent.substring(0, matchIndex) + imageMd + updatedContent.substring(matchIndex + match[0].length);
       } catch (error) {
         // Track the failure instead of silently swallowing it

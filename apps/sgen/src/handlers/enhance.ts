@@ -9,11 +9,10 @@ import { ActionContext, ActionExecuteResponse, FileOperation } from './types';
 import { IApiArticle, IArticle, IWebsiteInfo } from '@blogpostgen/types';
 import { getArticleFromContext, buildArticleOperation, updateArticle } from './utils';
 import { callAI } from '../services/ai.service';
-import { ensureActionConfigForMode } from '../config/action-config';
+import { ensureActionConfigForMode, getRoutesFromConfig } from '../config/action-config';
 import { buildUpdatePrompt } from '../utils/prompts';
 import { mergeUpdate, MergeResult, parseLinePatches, applyPatches, extractContentText, parseTextReplacements, applyTextReplacements, fixCitationPattern, deduplicateReplacementsByUrl } from '../utils/articleUpdate';
 import { cleanMarkdownUrls } from '../utils/url-cleaner';
-import { config } from '../config/server-config';
 import { loadPipelinesConfig } from '../config/pipelines-config';
 import { extractMarkdownContent, needsNormalization } from '../utils/json-content-extractor';
 import { randomUUID } from 'crypto';
@@ -22,6 +21,13 @@ import { join } from 'path';
 import { resolveProjectMacros, resolveProjectMacrosInText } from '../utils/variables';
 import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
 import { convertBase64ToWebp } from '../utils/webp-converter';
+
+/**
+ * FAQ JSON-LD generation toggle.
+ * FAQ rich results are now restricted to authoritative government and health sites (June 2025).
+ * Set to true only for sites that qualify for FAQ rich results.
+ */
+const FAQ_JSONLD_ENABLED = false;
 
 export async function handleEnhance(
   context: ActionContext,
@@ -601,11 +607,10 @@ export async function handleEnhance(
         const prompt = renderTemplateAbsolutePath(fixPromptPath, { content: text });
 
         const cfg = ensureActionConfigForMode('humanize_text' as any);
-        const provider = cfg?.ai_provider || 'openrouter';
-        const modelId = cfg?.ai_model_id || config.ai.defaultModel;
+        const routes = getRoutesFromConfig(cfg);
 
         log.info({ path: context.articlePath, mode, action: 'fix_orthography' }, 'enhance:humanize_text:ai_start');
-        const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url });
+        const aiRes = await callAI(prompt, { routes });
 
         if (aiRes.content && typeof aiRes.content === 'string') {
           text = aiRes.content;
@@ -709,6 +714,21 @@ export async function handleEnhance(
     }
     // ============== END LOCAL TOC GENERATION ==============
 
+    // For add_faq_jsonld: skip if disabled (FAQ rich results restricted to gov/health sites)
+    if (mode === 'add_faq_jsonld' && !FAQ_JSONLD_ENABLED) {
+      const updatedArticleObj = updateArticle(normalizedMeta, {
+        faq_jsonld: '<!-- frequently asked questions -->',
+      });
+      log.info({ path: context.articlePath, mode }, 'add_faq_jsonld:disabled (FAQ_JSONLD_ENABLED=false)');
+      return {
+        success: true,
+        message: 'FAQ JSON-LD disabled (restricted to authoritative gov/health sites)',
+        tokensUsed: 0,
+        costUsd: 0,
+        operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+      };
+    }
+
     // For add_faq_jsonld: skip if no FAQ content exists
     if (mode === 'add_faq_jsonld' && (!normalizedMeta.faq || !normalizedMeta.faq.trim())) {
       log.info({ path: context.articlePath, mode }, 'add_faq_jsonld:skipped (no faq content)');
@@ -743,6 +763,22 @@ export async function handleEnhance(
       contextForPrompt.faq_content = normalizedMeta.faq || '';
     }
 
+    // For add_content_jsonld: pass author info and date fields
+    if (mode === 'add_content_jsonld') {
+      // Resolve author: article-level > project branding > fallback
+      const articleAuthor = normalizedMeta.author;
+      const projectAuthor = (context.projectConfig as any)?.branding?.site?.author;
+      const brandName = (context.projectConfig as any)?.branding?.brand_name || websiteInfo.title || 'Content team';
+
+      contextForPrompt.author_name = articleAuthor?.name || projectAuthor?.name || `Content team at ${brandName}`;
+      contextForPrompt.author_title = articleAuthor?.title || projectAuthor?.title || '';
+      contextForPrompt.author_url = articleAuthor?.url || projectAuthor?.url || '';
+
+      // Date fields
+      contextForPrompt.article_date = normalizedMeta.published_at || normalizedMeta.created_at || '';
+      contextForPrompt.article_updated = normalizedMeta.updated_at || '';
+    }
+
     // For add_diagrams: merge server config variables with custom variables from CLI
     // Also resolve {{project.*}} macros in colors from action config
     if (mode === 'add_diagrams') {
@@ -775,15 +811,10 @@ export async function handleEnhance(
 
     log.info({ path: context.articlePath, mode, output_mode: outMode }, 'enhance:start');
 
-    const provider = cfg?.ai_provider || 'openrouter';
-    const modelId = cfg?.ai_model_id || (provider === 'openai'
-      ? config.ai.defaultModel.replace(/^openai\//, '')
-      : config.ai.defaultModel);
+    const routes = getRoutesFromConfig(cfg);
 
     const { content, tokens, rawContent, usageStats } = await callAI(prompt, {
-      provider,
-      modelId,
-      baseUrl: cfg?.ai_base_url,
+      routes,
       webSearch: cfg?.web_search,
     });
 

@@ -55,7 +55,7 @@ export async function publishToLocalFolder(
   if (existsSync(draftsDir)) {
     const { buildPublished } = await import('./folder-manager.js');
     logger.log('Building published articles from drafts...');
-    const publishResult = await buildPublished(projectDir, draftsDir, publishedDir, logger);
+    const publishResult = await buildPublished(projectDir, draftsDir, publishedDir, logger, undefined, projectConfig);
     logger.log(`Published ${publishResult.success} article(s)`);
   }
 

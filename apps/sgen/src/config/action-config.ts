@@ -1,6 +1,7 @@
-import { ActionConfigMap, IActionConfig, ActionMode } from '../types';
+import { ActionConfigMap, IActionConfig, ActionMode, AIRoute } from '../types';
 import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { config } from './server-config';
 
 const loadPerActionConfigs = (): ActionConfigMap => {
   const map: ActionConfigMap = {};
@@ -26,6 +27,7 @@ const loadPerActionConfigs = (): ActionConfigMap => {
         const promptContent = existsSync(promptPath) ? readFileSync(promptPath, 'utf8') : null;
 
         map[name] = {
+          ai_routes: cfg.ai_routes,
           ai_provider: cfg.ai_provider || 'openrouter',
           ai_model_id: cfg.ai_model_id,
           ai_base_url: cfg.ai_base_url,
@@ -124,4 +126,35 @@ export function ensureActionConfigForMode(mode: ActionMode) {
   const cfg = ACTION_CONFIG[mode];
   if (!cfg) throw new Error(`Missing action config for mode '${mode}'`);
   return cfg as IActionConfig;
+}
+
+/**
+ * Convert legacy ai_provider/ai_model_id config to AIRoute array.
+ */
+function legacyConfigToRoutes(cfg: IActionConfig): AIRoute[] {
+  const provider = cfg.ai_provider || 'openrouter';
+  const modelId = cfg.ai_model_id || config.ai.defaultModel;
+
+  // Normalize model for the chosen provider
+  let model = modelId;
+  if (provider === 'openai' && model.startsWith('openai/')) {
+    model = model.substring(7);
+  }
+
+  return [{
+    model,
+    endpoint: provider === 'openai' ? config.ai.openaiBaseUrl : config.ai.openrouterBaseUrl,
+    api_key_env: provider === 'openai' ? 'OPENAI_API_KEY' : 'OPENROUTER_API_KEY',
+  }];
+}
+
+/**
+ * Get AI routes from action config.
+ * Prefers explicit ai_routes; falls back to legacy ai_provider/ai_model_id conversion.
+ */
+export function getRoutesFromConfig(cfg: IActionConfig): AIRoute[] {
+  if (cfg.ai_routes && cfg.ai_routes.length > 0) {
+    return cfg.ai_routes;
+  }
+  return legacyConfigToRoutes(cfg);
 }

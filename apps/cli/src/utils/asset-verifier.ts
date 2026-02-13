@@ -3,6 +3,7 @@
  *
  * Verifies that local/relative image paths referenced in article content
  * and metadata actually exist on disk.
+ * Also validates hero image dimensions (minimum 1200px width for Google Discover).
  */
 
 import { promises as fs } from 'fs';
@@ -26,6 +27,21 @@ export interface MissingAsset {
 }
 
 /**
+ * Warning about an asset that exists but has issues
+ */
+export interface AssetWarning {
+  /** The relative path as referenced in the article */
+  path: string;
+  /** Where the reference was found */
+  source: AssetSource;
+  /** Warning message */
+  message: string;
+}
+
+/** Minimum hero image width for Google Discover eligibility */
+const MIN_HERO_WIDTH = 1200;
+
+/**
  * Result of asset verification
  */
 export interface AssetVerificationResult {
@@ -37,6 +53,8 @@ export interface AssetVerificationResult {
   passed: number;
   /** List of missing assets */
   missing: MissingAsset[];
+  /** List of asset warnings (e.g., hero image too small) */
+  warnings: AssetWarning[];
 }
 
 /**
@@ -99,6 +117,7 @@ export async function verifyAssets(
   });
 
   const missing: MissingAsset[] = [];
+  const warnings: AssetWarning[] = [];
 
   // Check each asset
   for (const asset of uniqueAssets) {
@@ -114,6 +133,21 @@ export async function verifyAssets(
         source: asset.source,
         absolutePath,
       });
+    } else if (asset.source === 'meta_image_hero') {
+      // Validate hero image width (minimum 1200px for Google Discover)
+      try {
+        const sharp = (await import('sharp')).default;
+        const metadata = await sharp(absolutePath).metadata();
+        if (metadata.width && metadata.width < MIN_HERO_WIDTH) {
+          warnings.push({
+            path: asset.path,
+            source: asset.source,
+            message: `Hero image width is ${metadata.width}px (minimum ${MIN_HERO_WIDTH}px required for Google Discover)`,
+          });
+        }
+      } catch {
+        // sharp not available or image unreadable — skip dimension check
+      }
     }
   }
 
@@ -122,5 +156,6 @@ export async function verifyAssets(
     totalChecked: uniqueAssets.length,
     passed: uniqueAssets.length - missing.length,
     missing,
+    warnings,
   };
 }

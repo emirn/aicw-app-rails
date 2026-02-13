@@ -1,6 +1,8 @@
 {
-  "ai_provider": "openrouter",
-  "ai_model_id": "openai/gpt-4o",
+  "ai_routes": [
+    { "model": "gpt-4o", "endpoint": "https://api.openai.com/v1", "api_key_env": "OPENAI_API_KEY" },
+    { "model": "openai/gpt-4o", "endpoint": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY" }
+  ],
   "output_mode": "text_replace_all",
   "description": "Improve SEO with target keywords and structure"
 }

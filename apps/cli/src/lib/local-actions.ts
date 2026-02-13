@@ -586,6 +586,13 @@ export async function verifyAssetsLocal(
       articleData.meta
     );
 
+    // Report warnings (e.g., hero image too small)
+    if (result.warnings?.length > 0) {
+      for (const warning of result.warnings) {
+        logger.log(`    WARNING: ${warning.message} (${warning.path})`);
+      }
+    }
+
     if (!result.success) {
       logger.log(`    FAILED: ${result.missing.length} missing asset(s):`);
       for (const asset of result.missing) {

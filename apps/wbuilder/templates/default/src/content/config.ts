@@ -30,6 +30,8 @@ const pages = defineCollection({
     title: z.string(),
     description: z.string().optional(),
     image_hero: z.string().optional(),
+    header_show_link: z.boolean().default(true),
+    footer_show_link: z.boolean().default(true),
     blog_grid: z.boolean().default(false),
     blog_grid_title: z.string().optional(),
     blog_grid_limit: z.number().default(9),

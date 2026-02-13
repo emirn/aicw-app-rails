@@ -1,6 +1,7 @@
 ---
 import type { SiteConfig } from '../lib/config';
 import { getEffectiveNavLinks } from '../lib/sections';
+import { getCollection } from 'astro:content';
 import SearchTrigger from './SearchTrigger.astro';
 
 interface Props {
@@ -9,24 +10,139 @@ interface Props {
 
 const { config } = Astro.props;
 const showSearch = config.search?.enabled && config.search?.showInHeader !== false;
-const navLinks = getEffectiveNavLinks(config);
+
+let pageNavLinks: Array<{ label: string; url: string }> = [];
+try {
+  const pages = await getCollection('pages');
+  pageNavLinks = pages
+    .filter(p => p.slug !== 'root' && p.data.header_show_link !== false)
+    .map(p => ({ label: p.data.title, url: `/${p.slug}/` }));
+} catch {}
+
+const baseNavLinks = getEffectiveNavLinks(config);
+const seen = new Set(baseNavLinks.map(l => l.url));
+const navLinks = [...baseNavLinks, ...pageNavLinks.filter(l => !seen.has(l.url))];
+
+// --- Logo config helpers ---
+const logo = config.branding.logo;
+// Resolve effective style: new `style` field takes precedence, fallback to legacy show_border
+const logoStyle = logo.style || (logo.show_border ? 'border' : 'plain');
+const logoLayout = logo.layout || 'text-only';
+const logoSize = logo.size || 'md';
+const sizeClass = { sm: 'text-lg', md: 'text-xl', lg: 'text-2xl' }[logoSize];
+
+// Build inline style for logo text
+const logoInlineStyle = [
+  logo.font_family ? `font-family:${logo.font_family}` : '',
+  logo.font_weight ? `font-weight:${logo.font_weight}` : '',
+  logo.color ? `color:${logo.color}` : '',
+  logo.letter_spacing ? `letter-spacing:${logo.letter_spacing}` : '',
+  logo.text_transform ? `text-transform:${logo.text_transform}` : '',
+].filter(Boolean).join(';');
+
+// Style-specific inline styles (background, border colors)
+function getStyleInline(style: string): string {
+  const parts: string[] = [];
+  if (style === 'border') {
+    parts.push(`border-color:${logo.background_color || config.branding.colors.primary}`);
+  } else if (style === 'pill' || style === 'highlight' || style === 'backdrop') {
+    if (logo.background_color) parts.push(`background-color:${logo.background_color}`);
+    else parts.push(`background-color:${config.branding.colors.primary}`);
+    if (!logo.color) parts.push(`color:${config.branding.colors.primary_text || '#FFFFFF'}`);
+  } else if (style === 'underline') {
+    parts.push(`border-bottom-color:${logo.background_color || config.branding.colors.primary}`);
+  } else if (style === 'monogram-circle') {
+    if (logo.background_color) parts.push(`background-color:${logo.background_color}`);
+    else parts.push(`background-color:${config.branding.colors.primary}`);
+    if (!logo.color) parts.push(`color:${config.branding.colors.primary_text || '#FFFFFF'}`);
+  }
+  return parts.join(';');
+}
+
+// Dark mode inline overrides (applied via dark: variant classes won't work for inline styles,
+// so we use CSS custom properties set on the logo element)
+const darkOverrides = logo.dark_mode || {};
+const darkStyleVars = [
+  darkOverrides.color ? `--logo-dark-color:${darkOverrides.color}` : '',
+  darkOverrides.background_color ? `--logo-dark-bg:${darkOverrides.background_color}` : '',
+].filter(Boolean).join(';');
+
+const fullLogoInline = [logoInlineStyle, getStyleInline(logoStyle), darkStyleVars].filter(Boolean).join(';');
+
+// Style-specific CSS classes
+const styleClasses: Record<string, string> = {
+  plain: '',
+  border: 'px-3 py-1 border-2 rounded-lg',
+  pill: 'px-4 py-1 rounded-full',
+  underline: 'pb-1 border-b-2',
+  highlight: 'px-3 py-1 rounded-md',
+  'monogram-circle': 'inline-flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold',
+  slash: '',
+  backdrop: 'px-3 py-1 rounded-lg',
+};
+
+const logoText = logo.text || config.branding.brand_name || config.branding.site.name;
+const markText = logo.mark_text || '';
 ---
 
 <header class="sticky top-0 z-50 bg-[var(--color-bg-primary)]/95 dark:bg-[var(--color-dark-bg-primary)]/95 backdrop-blur-sm border-b border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
   <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <!-- Logo -->
-      <a href="/" class="flex items-center gap-2 font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] hover:opacity-80 transition-opacity">
-        {config.branding.logo.type === 'image' && config.branding.logo.image_url ? (
-          <img src={config.branding.logo.image_url} alt={config.branding.site.name} class="h-8 w-auto" />
+      <a href="/" class:list={[
+        "flex items-center gap-2 font-bold text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] hover:opacity-80 transition-opacity logo-link",
+        sizeClass,
+      ]}>
+        {logo.type === 'image' && logo.image_url ? (
+          <>
+            <img
+              src={logo.image_url}
+              alt={config.branding.site.name}
+              class:list={[
+                "w-auto",
+                logo.dark_mode?.image_url && 'dark:hidden',
+                logoSize === 'sm' ? 'h-6' : logoSize === 'lg' ? 'h-10' : 'h-8',
+              ]}
+            />
+            {logo.dark_mode?.image_url && (
+              <img
+                src={logo.dark_mode.image_url}
+                alt={config.branding.site.name}
+                class:list={[
+                  "w-auto hidden dark:block",
+                  logoSize === 'sm' ? 'h-6' : logoSize === 'lg' ? 'h-10' : 'h-8',
+                ]}
+              />
+            )}
+          </>
+        ) : logoLayout === 'mark-and-name' && markText ? (
+          <span class="flex items-center gap-2" style={logoInlineStyle}>
+            {/* Mark */}
+            <span
+              class:list={[styleClasses[logoStyle] || '']}
+              style={fullLogoInline}
+            >
+              {markText}
+            </span>
+            {/* Separator */}
+            {logo.separator && (
+              <span class="text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] font-normal opacity-50">{logo.separator}</span>
+            )}
+            {/* Wordmark */}
+            <span>{logoText}</span>
+          </span>
+        ) : logoStyle === 'slash' ? (
+          <span class="flex items-center gap-0" style={logoInlineStyle}>
+            <span>{logoText.charAt(0)}</span>
+            <span class="text-[var(--color-primary)] mx-0.5">/</span>
+            <span>{logoText.slice(1)}</span>
+          </span>
         ) : (
           <span
-            class:list={[
-              config.branding.logo.show_border && 'px-3 py-1 border-2 rounded-lg',
-            ]}
-            style={config.branding.logo.show_border ? `border-color: ${config.branding.colors.primary}` : ''}
+            class:list={[styleClasses[logoStyle] || '']}
+            style={fullLogoInline}
           >
-            {config.branding.logo.text || config.branding.brand_name || config.branding.site.name}
+            {logoText}
           </span>
         )}
       </a>
