@@ -25,6 +25,7 @@ import {
   saveArticleWithPipeline,
   createArticleFolder,
   updateArticleMeta,
+  addCostEntry,
 } from './folder-manager';
 import { saveProjectConfig } from './project-config';
 import { getProjectPaths, initializeProjectDirectories } from '../config/user-paths';
@@ -456,6 +457,15 @@ export class APIExecutor {
         }
       }
 
+      // Track cost per article
+      if (context.articlePath && context.projectName) {
+        try {
+          const costPaths = getProjectPaths(context.projectName);
+          const folderPath = path.join(costPaths.content, context.articlePath);
+          await addCostEntry(folderPath, action, response.costUsd || 0);
+        } catch { /* non-fatal */ }
+      }
+
       return {
         success: true,
         message: response.message,
@@ -776,6 +786,14 @@ export class APIExecutor {
           try {
             await this.executeOperation(op, context.projectName, response.prompt);
             allOperations.push(op);
+            // Track cost for created articles
+            if (op.type === 'create_article' && op.articlePath && context.projectName) {
+              try {
+                const costPaths = getProjectPaths(context.projectName);
+                const folderPath = path.join(costPaths.content, op.articlePath);
+                await addCostEntry(folderPath, 'plan-import', 0);
+              } catch { /* non-fatal */ }
+            }
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
             this.logger.log(`Operation error: ${op.type} - ${errMsg}`);

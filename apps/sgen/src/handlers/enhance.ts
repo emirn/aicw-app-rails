@@ -604,7 +604,7 @@ export async function handleEnhance(
         const modelId = cfg?.ai_model_id || config.ai.defaultModel;
 
         log.info({ path: context.articlePath, mode, action: 'fix_orthography' }, 'enhance:humanize_text:ai_start');
-        const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url });
+        const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url, pricing: cfg?.pricing });
 
         if (aiRes.content && typeof aiRes.content === 'string') {
           text = aiRes.content;
@@ -784,6 +784,7 @@ export async function handleEnhance(
       modelId,
       baseUrl: cfg?.ai_base_url,
       webSearch: cfg?.web_search,
+      pricing: cfg?.pricing,
     });
 
     // Handle output modes properly

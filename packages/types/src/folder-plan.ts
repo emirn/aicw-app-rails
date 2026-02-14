@@ -98,6 +98,17 @@ export interface IBrandingSite {
 }
 
 /**
+ * Text logo display style
+ * - plain: Bold text, no decoration
+ * - bordered: Rounded border in primary color
+ * - pill: Solid primary background, white text, fully rounded
+ * - underline-hover: Sliding underline on hover
+ * - gradient: Primary→secondary gradient text
+ * - spaced-caps: Uppercase with wide letter-spacing
+ */
+export type LogoTextStyle = 'plain' | 'bordered' | 'pill' | 'underline-hover' | 'gradient' | 'spaced-caps';
+
+/**
  * Logo configuration
  */
 export interface IBrandingLogo {
@@ -105,7 +116,10 @@ export interface IBrandingLogo {
   text?: string;
   /** URL or data URI (data:image/png;base64,...) */
   image_url?: string;
+  /** @deprecated Use `style` instead. Kept for backward compatibility. */
   show_border?: boolean;
+  /** Text logo display style. Defaults to 'plain'. */
+  style?: LogoTextStyle;
 }
 
 /**
@@ -202,6 +216,18 @@ export interface IInternalLink {
 }
 
 /**
+ * Cost tracking entry for an article action
+ */
+export interface ICostEntry {
+  /** ISO timestamp of when the cost was incurred */
+  created_at: string;
+  /** Action name (e.g., "write_draft", "fact_check") */
+  action: string;
+  /** Cost in USD (0 for no-AI actions) */
+  cost: number;
+}
+
+/**
  * Complete article record stored in index.json (Filesystem-as-Plan architecture).
  * All fields are stored flat at the root level of index.json.
  *
@@ -240,6 +266,9 @@ export interface IArticle {
 
   /** Track which enhancement actions have been applied */
   applied_actions?: string[];
+
+  /** Cost tracking entries for actions applied to this article */
+  costs?: ICostEntry[];
 
   /** Path to hero image (relative to assets folder) */
   image_hero?: string;

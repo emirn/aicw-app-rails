@@ -14,7 +14,7 @@
       "type": "text",
       "text": "BRAND",
       "image_url": "",
-      "show_border": true
+      "style": "plain"
     },
     "colors": {
       "primary": "",

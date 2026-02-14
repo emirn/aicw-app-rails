@@ -96,6 +96,7 @@ export default async function planRoutes(app: FastifyInstance) {
         provider: cfg.ai_provider || 'openrouter',
         modelId: cfg.ai_model_id || 'openai/gpt-4o',
         baseUrl: cfg.ai_base_url,
+        pricing: cfg.pricing,
       });
 
       // Validate JSON response
@@ -192,6 +193,7 @@ export default async function planRoutes(app: FastifyInstance) {
         provider: cfg.ai_provider || 'openrouter',
         modelId: cfg.ai_model_id || 'openai/gpt-4o',
         baseUrl: cfg.ai_base_url,
+        pricing: cfg.pricing,
       });
 
       // Validate JSON response

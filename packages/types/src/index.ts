@@ -63,10 +63,13 @@ export {
   FunnelStage,
   ArticleStatus,
   IBrandingColors,
+  LogoTextStyle,
+  IBrandingLogo,
   IProjectBranding,
   ILocalPublishConfig,
   IProjectConfig,
   IInternalLink,
+  ICostEntry,
   IArticle,
   IArticleMeta,  // deprecated alias for IArticle
   IArticleFolder,

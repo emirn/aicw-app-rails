@@ -654,6 +654,31 @@ export async function addAppliedAction(
 }
 
 /**
+ * Add a cost entry to an article's costs array
+ *
+ * @param folderPath - Absolute path to article folder
+ * @param action - Name of the action (e.g., "write_draft", "fact_check")
+ * @param cost - Cost in USD (0 for no-AI actions)
+ */
+export async function addCostEntry(
+  folderPath: string,
+  action: string,
+  cost: number
+): Promise<void> {
+  const meta = await readArticleMeta(folderPath);
+  if (!meta) return;
+
+  const costs = meta.costs || [];
+  costs.push({
+    created_at: new Date().toISOString(),
+    action,
+    cost,
+  });
+
+  await updateArticleMeta(folderPath, { costs });
+}
+
+/**
  * Get the URL path for an article (based on folder structure)
  *
  * @param articlePath - Relative path from drafts/ (e.g., "blog/tutorials/getting-started")
