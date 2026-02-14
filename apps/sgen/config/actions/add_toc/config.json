@@ -1,5 +1,4 @@
 {
-  "no_ai": true,
   "local": true,
   "output_mode": "text_replace",
   "description": "Generate table of contents and add anchor IDs to headings (local, no AI)"

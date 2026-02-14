@@ -3,6 +3,6 @@
   "ai_model_id": null,
   "output_mode": "text_replace_all",
   "description": "Virtual action - handled specially in code",
-  "no_ai": true,
+  "local": true,
   "forcible": false
 }

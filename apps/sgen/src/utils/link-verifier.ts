@@ -45,10 +45,9 @@ const EXTERNAL_LINK_REGEX = /!?\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
 async function checkUrl(url: string): Promise<{ ok: boolean; statusCode?: number; errorType?: FailedLink['errorType']; message?: string }> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     try {
-      // Try HEAD first (faster, less bandwidth)
       const response = await fetch(url, {
         method: 'HEAD',
         signal: controller.signal,
@@ -62,7 +61,6 @@ async function checkUrl(url: string): Promise<{ ok: boolean; statusCode?: number
         return { ok: true };
       }
 
-      // If HEAD fails with 405 or 403, some servers block it - try GET
       if (response.status === 405 || response.status === 403) {
         // Fall through to GET fallback
       } else {
@@ -70,10 +68,9 @@ async function checkUrl(url: string): Promise<{ ok: boolean; statusCode?: number
       }
     } catch (headError) {
       clearTimeout(timeoutId);
-      // Fall through to GET fallback
     }
 
-    // Fallback: GET request with range header to minimize data transfer
+    // Fallback: GET request with range header
     const controllerGet = new AbortController();
     const timeoutGet = setTimeout(() => controllerGet.abort(), 8000);
 
@@ -82,7 +79,7 @@ async function checkUrl(url: string): Promise<{ ok: boolean; statusCode?: number
       signal: controllerGet.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; BlogPostGen/1.0)',
-        'Range': 'bytes=0-100', // Only get first 100 bytes
+        'Range': 'bytes=0-100',
       },
       redirect: 'follow',
     });
@@ -118,7 +115,6 @@ async function checkUrl(url: string): Promise<{ ok: boolean; statusCode?: number
  * @returns Verification result with list of any failed links
  */
 export async function verifyLinks(content: string): Promise<LinkVerificationResult> {
-  // Extract unique URLs
   const uniqueUrls = new Set<string>();
   const matches = content.matchAll(EXTERNAL_LINK_REGEX);
 
@@ -129,7 +125,6 @@ export async function verifyLinks(content: string): Promise<LinkVerificationResu
   const urls = Array.from(uniqueUrls);
   const failed: FailedLink[] = [];
 
-  // Check URLs in batches with concurrency limit
   const batchSize = 5;
 
   for (let i = 0; i < urls.length; i += batchSize) {

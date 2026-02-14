@@ -54,7 +54,6 @@ import { createArticleFolder, articleFolderExists, buildPublished, updateArticle
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
 import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
@@ -1741,41 +1740,6 @@ async function main(): Promise<void> {
 
               logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
-              // Handle local-only modes (e.g., generate_image_social, verify_assets)
-              if (isLocalMode(currentAction)) {
-                if (currentAction === 'generate_image_social') {
-                  const localResult = await generateImageSocialLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (free)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                } else if (currentAction === 'verify_assets') {
-                  const localResult = await verifyAssetsLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                } else if (currentAction === 'verify_links_and_sources') {
-                  const localResult = await verifyLinksLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                }
-                continue;
-              }
 
               // Execute action via API
               const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction, ...finalFlags }, { debug: debugEnabled });
@@ -2386,41 +2350,6 @@ async function main(): Promise<void> {
 
                 logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
-                if (isLocalMode(currentAction)) {
-                  if (currentAction === 'generate_image_social') {
-                    const localResult = await generateImageSocialLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (free)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  } else if (currentAction === 'verify_assets') {
-                    const localResult = await verifyAssetsLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  } else if (currentAction === 'verify_links_and_sources') {
-                    const localResult = await verifyLinksLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  }
-                  continue;
-                }
-
                 const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction }, { debug });
 
                 if (result.success) {
@@ -2478,52 +2407,6 @@ async function main(): Promise<void> {
             logger.log(`Non-interactive pipeline: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
-      }
-    }
-  }
-
-  // Handle local-only modes (e.g., generate_image_social, verify_assets) before API call
-  // Check both finalFlags.action and finalFlags.mode (CLI uses --mode for enhance)
-  const localMode = finalFlags.action || finalFlags.mode;
-  if (finalAction === 'enhance' && localMode && isLocalMode(localMode)) {
-    // Resolve path to get folder path for applied_actions update
-    const resolvedLocal = finalPath ? resolvePath(finalPath) : null;
-    const localFolderPath = resolvedLocal?.projectName && resolvedLocal?.articlePath
-      ? path.join(getProjectPaths(resolvedLocal.projectName).content, resolvedLocal.articlePath)
-      : null;
-
-    if (localMode === 'generate_image_social' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await generateImageSocialLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: social image generated (free)`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
-      }
-    } else if (localMode === 'verify_assets' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await verifyAssetsLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: ${localResult.count || 0} asset(s) verified`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
-      }
-    } else if (localMode === 'verify_links_and_sources' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await verifyLinksLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: ${localResult.count || 0} link(s) verified`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
       }
     }
   }

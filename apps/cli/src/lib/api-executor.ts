@@ -678,6 +678,36 @@ export class APIExecutor {
         }
       }
 
+      // For verify_assets: scan article folder's assets/ dir and pass list to sgen
+      if (action === 'enhance' && flags.mode === 'verify_assets' && resolved.isArticle) {
+        try {
+          const projectPaths = getProjectPaths(resolved.projectName);
+          const folderPath = path.join(projectPaths.content, resolved.articlePath!);
+          const { promises: fsPromises } = await import('fs');
+          const assetsDir = path.join(folderPath, 'assets');
+          const scanDir = async (dir: string, prefix: string = ''): Promise<string[]> => {
+            const entries = await fsPromises.readdir(dir, { withFileTypes: true }).catch(() => []);
+            const paths: string[] = [];
+            for (const entry of entries) {
+              const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+              if (entry.isDirectory()) {
+                paths.push(...await scanDir(path.join(dir, entry.name), rel));
+              } else {
+                paths.push(`assets/${rel}`);
+              }
+            }
+            return paths;
+          };
+          flags.existing_assets = await scanDir(assetsDir);
+        } catch { /* non-fatal - empty list means all assets will be "missing" */ }
+      }
+
+      // For generate_image_social: pass project assets dir so sgen can read hero image
+      if (action === 'enhance' && flags.mode === 'generate_image_social' && resolved.isArticle) {
+        const projectPaths = getProjectPaths(resolved.projectName);
+        flags.project_assets_dir = path.join(projectPaths.content, resolved.articlePath!);
+      }
+
       // For enhance action with generate_image_hero mode, load custom prompt template and variables
       if (action === 'enhance' && flags.mode === 'generate_image_hero') {
         const projectPaths = getProjectPaths(resolved.projectName);

@@ -1,6 +1,6 @@
 {
   "description": "Generate hero image for article using Recraft V3 (default) or Flux",
-  "no_ai": true,
+  "local": true,
   "output_mode": "text_replace_all",
   "supports_custom_prompt": true,
   "supports_custom_config": false

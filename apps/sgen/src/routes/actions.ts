@@ -9,7 +9,7 @@ export default async function actionsRoutes(app: FastifyInstance) {
       description: cfg?.description || '',
       forcible: cfg?.forcible !== false, // default true
       output_mode: cfg?.output_mode,
-      no_ai: cfg?.no_ai || false,
+      local: cfg?.local || false,
     }));
     return { success: true, actions };
   });
