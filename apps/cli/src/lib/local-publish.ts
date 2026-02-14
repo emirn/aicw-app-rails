@@ -118,7 +118,7 @@ export async function publishToLocalFolder(
   const pagesDest = path.join(config.path, config.pages_subfolder || 'src/content/pages');
 
   if (effectivePagesDir) {
-    const pagesAssetsDest = path.join(config.path, config.assets_subfolder, 'pages');
+    const pagesAssetsDest = path.join(config.path, config.assets_subfolder);
 
     const pageFolders = await fs.readdir(effectivePagesDir, { withFileTypes: true });
     for (const folder of pageFolders.filter(f => f.isDirectory())) {
