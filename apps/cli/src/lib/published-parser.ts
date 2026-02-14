@@ -13,7 +13,7 @@ import matter from 'gray-matter';
  * Article format expected by the Website Builder API
  */
 export interface BlogPostGenArticle {
-  slug: string;
+  path: string;
   meta: {
     title: string;
     description: string;
@@ -75,8 +75,8 @@ async function scanDir(baseDir: string, relativePath: string, articles: BlogPost
 function parseArticle(relativePath: string, fileContent: string): BlogPostGenArticle | null {
   const { data: frontmatter, content } = matter(fileContent);
 
-  // Slug from path: "guide/article.md" -> "guide/article"
-  const slug = relativePath.replace(/\.md$/, '');
+  // Path from relative: "guide/article.md" -> "guide/article"
+  const articlePath = relativePath.replace(/\.md$/, '');
 
   // Parse keywords (comma-separated string -> array)
   let keywords: string[] = [];
@@ -92,7 +92,7 @@ function parseArticle(relativePath: string, fileContent: string): BlogPostGenArt
   const published_at = frontmatter.published_at ? parseDate(frontmatter.published_at) : undefined;
 
   return {
-    slug,
+    path: articlePath,
     meta: {
       title: frontmatter.title || 'Untitled',
       description: frontmatter.description || '',

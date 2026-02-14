@@ -12,7 +12,7 @@ IMPORTANT: Respond with a valid JSON object that conforms to this structure:
   "items": [
     {
       "id": "string",
-      "slug": "string (URL-friendly)",
+      "path": "string (URL-friendly)",
       "title": "string (SEO title)",
       "description": "string (clear writing brief/instructions)",
       "target_keywords": ["string", "string", "..."] ,
@@ -25,7 +25,7 @@ IMPORTANT: Respond with a valid JSON object that conforms to this structure:
       "cluster_id": "string (optional)",
       "cluster_name": "string (optional)",
       "link_recommendations": [
-        { "slug": "/path-a", "anchor_text": "descriptive anchor" }
+        { "path": "/path-a", "anchor_text": "descriptive anchor" }
       ]
     }
   ],
@@ -37,7 +37,7 @@ IMPORTANT: Respond with a valid JSON object that conforms to this structure:
 
 Requirements:
 - Return only a JSON object (no surrounding text, no code fences).
-- Slugs must be URL-friendly (lowercase, hyphenated).
+- Paths must be URL-friendly (lowercase, hyphenated).
 - Target keywords must be relevant and non-duplicative across items.
 - Mix search intent and funnel stages to cover awareness to decision.
 - Group items into topic clusters; assign each item a cluster_id and cluster_name.

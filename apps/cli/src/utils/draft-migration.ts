@@ -64,7 +64,7 @@ export async function migrateLegacyPlan(projectName: string): Promise<number> {
       await createDraftFromPlanItem(projectName, item, i);
       created++;
     } catch (error) {
-      console.error(`Failed to create draft for ${item.slug}:`, error);
+      console.error(`Failed to create draft for ${item.path}:`, error);
     }
   }
 

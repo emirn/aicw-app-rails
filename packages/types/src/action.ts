@@ -59,6 +59,13 @@ export interface IActionConfig {
   supports_custom_prompt?: boolean;
   // When true, allows per-project config overrides with custom variables (default: false)
   supports_custom_config?: boolean;
+  // Per-action pricing (co-located with model/provider for easy maintenance)
+  pricing?: {
+    input_per_million: number;
+    output_per_million: number;
+    fixed_cost_per_call?: number;  // Fixed USD fee added per call (e.g. search fees)
+    comment?: string;              // Human-readable pricing note
+  };
   // Custom variables for prompt template (e.g., brand colors)
   variables?: Record<string, string>;
   // Color variables with {{project.*}} macros for branding (resolved at runtime)

@@ -237,7 +237,7 @@ export async function readArticle(folderPath: string): Promise<string | null> {
 export async function saveArticleWithPipeline(
   folderPath: string,
   content: string,
-  newPipeline: string,
+  newPipeline: string | null,
   archivePhase: string,
   metaUpdates?: Partial<IArticle>,
   prompt?: string
@@ -261,7 +261,8 @@ export async function saveArticleWithPipeline(
   const updatedMeta: IArticle = {
     ...meta,
     ...metaUpdates,
-    last_pipeline: newPipeline,
+    // When newPipeline is null, preserve existing last_pipeline value
+    last_pipeline: newPipeline !== null ? newPipeline : meta.last_pipeline,
     version: (meta.version ?? 0) + 1,
     updated_at: new Date().toISOString(),
   };

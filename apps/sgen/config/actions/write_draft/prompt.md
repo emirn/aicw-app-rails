@@ -1,4 +1,6 @@
-You are writing for {{website_title}}.
+You are writing the article named `{{title}}` for the website called `{{website_title}}`.
+This article will be published in this website at `{{path}}`.
+Keywords for the article are: `{{keywords}}`
 
 {{custom}}
 
@@ -11,8 +13,6 @@ IMPORTANT:
 - Do NOT include the title as an H1 heading (# Title) in your response - the title is stored separately in metadata. Do NOT use H1 heading (or markdown # Title) in your response.
 - Start your content with ## (H2) sections, not # (H1)
 
-This specific article will be named as  {{title}} and located at {{path}}.
-Its keywords: {{keywords}}
 
 ## Article Assignment:
 

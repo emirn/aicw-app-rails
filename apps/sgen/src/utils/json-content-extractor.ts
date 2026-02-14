@@ -12,9 +12,10 @@ export interface ExtractionResult {
     title?: string;
     description?: string;
     keywords?: string[];
-    slug?: string;
+    path?: string;
   };
   strategy?: string;        // Which strategy succeeded
+  warning?: string;         // Warning about potential issues (e.g., truncation)
   rawJson?: string;         // Original JSON string (for index_failed.md)
 }
 
@@ -95,8 +96,17 @@ export function extractMarkdownContent(
       .replace(/\\"/g, '"')
       .replace(/\\\\/g, '\\');
 
+    // Detect truncation: content extracted via regex from malformed JSON may be truncated
+    let warning: string | undefined;
+    const trimmed = rawContent.trimEnd();
+    const lastChar = trimmed[trimmed.length - 1];
+    if (lastChar && !/[.!?:)\]"'\n#*-]/.test(lastChar)) {
+      warning = `Content may be truncated (extracted via regex fallback, ends with "${lastChar}")`;
+      log.warn({ strategy: 'regex_content_field', contentLength: rawContent.length, lastChar, warning }, 'extract:possible_truncation');
+    }
+
     log.info({ strategy: 'regex_content_field', contentLength: rawContent.length }, 'extract:success');
-    return { success: true, content: rawContent, strategy: 'regex_content_field' };
+    return { success: true, content: rawContent, strategy: 'regex_content_field', warning };
   }
 
   // All strategies failed - return failure
@@ -115,7 +125,7 @@ function buildSuccess(content: string, parsed: any, strategy: string): Extractio
   const metadata: ExtractionResult['metadata'] = {};
   if (parsed.title) metadata.title = parsed.title;
   if (parsed.description) metadata.description = parsed.description;
-  if (parsed.slug) metadata.slug = parsed.slug;
+  if (parsed.path) metadata.path = parsed.path;
   if (parsed.keywords) {
     metadata.keywords = typeof parsed.keywords === 'string'
       ? parsed.keywords.split(',').map((k: string) => k.trim()).filter((k: string) => k.length > 0)

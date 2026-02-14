@@ -11,6 +11,7 @@ import * as path from 'path';
 import { USER_PROJECTS_DIR, getProjectPaths } from '../config/user-paths';
 import { resolvePath, projectExists, getArticles, getSeedArticles, getPublishableArticles } from './path-resolver';
 import { META_FILE } from '@blogpostgen/types';
+import { LegalPagesChoice } from './legal-pages';
 
 
 /**
@@ -305,7 +306,7 @@ const COMMAND_PROMPTS: CommandPrompts = {
     prompts: [
       { name: 'path', question: 'Project path', required: true },
       { name: 'title', question: 'Article title', required: true },
-      { name: 'slug', question: 'Article slug (optional, auto-generated from title)' },
+      { name: 'path', question: 'Article path (optional, auto-generated from title)' },
       { name: 'keywords', question: 'Keywords (comma-separated, optional)' },
     ],
   },
@@ -1173,22 +1174,22 @@ export async function promptWithDefault(
 }
 
 /**
- * Generate suggested slug for conflict resolution
+ * Generate suggested path for conflict resolution
  * Appends -2, -3, etc. based on existing suffix
  */
-function suggestNewSlug(originalSlug: string): string {
+function suggestNewPath(originalPath: string): string {
   // Check if already ends with -N
-  const match = originalSlug.match(/-(\d+)$/);
+  const match = originalPath.match(/-(\d+)$/);
   if (match) {
     const num = parseInt(match[1], 10);
-    return originalSlug.replace(/-\d+$/, `-${num + 1}`);
+    return originalPath.replace(/-\d+$/, `-${num + 1}`);
   }
-  return `${originalSlug}-2`;
+  return `${originalPath}-2`;
 }
 
 /**
- * Resolve conflicts interactively - show editable slug
- * User presses Enter to accept suggested slug or edits then presses Enter
+ * Resolve conflicts interactively - show editable path
+ * User presses Enter to accept suggested path or edits then presses Enter
  * Type 's' to skip the article
  */
 export async function resolveConflictsInteractive(
@@ -1212,21 +1213,21 @@ export async function resolveConflictsInteractive(
     console.error(`"${item.title}"`);
     console.error(`  ${status}`);
 
-    // Suggest modified slug
-    const suggestedSlug = suggestNewSlug(item.articlePath);
+    // Suggest modified path
+    const suggestedPath = suggestNewPath(item.articlePath);
 
     // Show editable prompt with suggested value
-    const newSlug = await promptWithDefault(
+    const newPath = await promptWithDefault(
       '  New URL (Enter to accept, or edit, or "s" to skip):',
-      suggestedSlug
+      suggestedPath
     );
 
-    if (newSlug === 's' || newSlug === 'skip') {
+    if (newPath === 's' || newPath === 'skip') {
       resolved.set(item.articlePath, 'skip');
       console.error('  → Skipped\n');
     } else {
-      resolved.set(item.articlePath, newSlug);
-      console.error(`  → Will create: ${newSlug}\n`);
+      resolved.set(item.articlePath, newPath);
+      console.error(`  → Will create: ${newPath}\n`);
     }
   }
 
@@ -1285,4 +1286,32 @@ export function displayBatchSummary(
       console.error(`    ${failedFullPath}`);
     }
   }
+}
+
+/**
+ * Prompt user for legal pages preference during project init.
+ * Returns LegalPagesChoice with mode and optional external URLs.
+ */
+export async function promptLegalPagesChoice(): Promise<LegalPagesChoice> {
+  console.error('\n=== Legal Pages (Privacy & Terms) ===\n');
+  console.error('  1. Built-in pages (recommended) - generates editable markdown pages');
+  console.error('  2. External links - point to your own privacy/terms URLs');
+  console.error('  3. Skip - no legal pages');
+  console.error('');
+
+  const answer = await prompt('Enter choice (1, 2, or 3)', '1');
+  const choice = parseInt(answer, 10);
+
+  if (choice === 2) {
+    const privacyUrl = await prompt('Privacy policy URL');
+    const termsUrl = await prompt('Terms of service URL');
+    return { mode: 'external', privacyUrl: privacyUrl || undefined, termsUrl: termsUrl || undefined };
+  }
+
+  if (choice === 3) {
+    return { mode: 'none' };
+  }
+
+  // Default to built-in
+  return { mode: 'builtin' };
 }

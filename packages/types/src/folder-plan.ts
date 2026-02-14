@@ -195,8 +195,8 @@ export interface IProjectConfig {
  * Internal link recommendation
  */
 export interface IInternalLink {
-  /** Target article slug */
-  slug: string;
+  /** Target article path */
+  path: string;
   /** Suggested anchor text */
   anchor: string;
 }
@@ -270,8 +270,6 @@ export interface IArticle {
   content?: string;
 
   // ---- DEPRECATED FIELDS (kept for backward compatibility) ----
-  /** @deprecated Folder path is the slug */
-  slug?: string;
   /** @deprecated Use project default */
   target_words?: number;
   /** @deprecated Use last_action instead */
@@ -367,8 +365,8 @@ export type ImportConflictType = 'new' | 'seed_replace' | 'skip';
 export interface IImportPreviewItem {
   /** Article title */
   title: string;
-  /** Original slug from plan */
-  slug: string;
+  /** Original path from plan */
+  path: string;
   /** Resolved article path */
   articlePath: string;
   /** Conflict type detected */

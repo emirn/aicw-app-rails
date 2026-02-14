@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from 'crypto';
 import { IContentPlan, IWebsiteInfo } from '../types';
 
-export const normalizeSlug = (slug: string): string => {
-  if (!slug) return '';
+export const normalizePath = (path: string): string => {
+  if (!path) return '';
   // Normalize to lowercase, ensure leading slash, remove duplicate slashes
-  let s = slug.trim().toLowerCase();
+  let s = path.trim().toLowerCase();
   if (!s.startsWith('/')) s = '/' + s;
   s = s.replace(/\/+/, '/');
   // Remove trailing slash except for root
@@ -18,39 +18,38 @@ const randSuffix = (): string => {
   return '-' + md5.slice(-6);
 };
 
-export const collectKnownSlugs = (
+export const collectKnownPaths = (
   websiteInfo?: IWebsiteInfo,
-  plan?: IContentPlan | { items?: { slug?: string }[] } | string[]
+  plan?: IContentPlan | { items?: { path?: string }[] } | string[]
 ): Set<string> => {
   const set = new Set<string>();
   if (websiteInfo) {
     (websiteInfo.pages_published || []).forEach((p) => {
-      if (p?.slug) set.add(normalizeSlug(p.slug));
+      if (p?.path) set.add(normalizePath(p.path));
     });
     (websiteInfo.main_pages || []).forEach((p) => {
-      if (p?.slug) set.add(normalizeSlug(p.slug));
+      if (p?.path) set.add(normalizePath(p.path));
     });
   }
   if (Array.isArray(plan)) {
-    plan.forEach((s) => s && set.add(normalizeSlug(String(s))));
+    plan.forEach((s) => s && set.add(normalizePath(String(s))));
   } else if (plan && (plan as any).items) {
     ((plan as any).items || []).forEach((it: any) => {
-      if (it?.slug) set.add(normalizeSlug(String(it.slug)));
+      if (it?.path) set.add(normalizePath(String(it.path)));
     });
   }
   return set;
 };
 
-export const ensureUniqueSlug = (
-  slug: string,
+export const ensureUniquePath = (
+  path: string,
   known: Set<string>
 ): string => {
-  if (!slug) return slug;
-  let candidate = normalizeSlug(slug);
+  if (!path) return path;
+  let candidate = normalizePath(path);
   while (known.has(candidate)) {
     candidate = candidate + randSuffix();
   }
   known.add(candidate);
   return candidate;
 };
-

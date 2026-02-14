@@ -11,8 +11,8 @@ import { getArticleFromContext, buildArticleOperation, updateArticle } from './u
 import { callAI } from '../services/ai.service';
 import { ACTION_CONFIG } from '../config/action-config';
 import { buildArticlePrompt } from '../utils/prompts';
-import { collectKnownSlugs, ensureUniqueSlug } from '../utils/slug';
-import { ensureSlug as makeSlug } from '../utils/articleUpdate';
+import { collectKnownPaths, ensureUniquePath } from '../utils/article-path';
+import { generatePathFromTitle } from '../utils/articleUpdate';
 import { config } from '../config/server-config';
 import { randomUUID } from 'crypto';
 import { stripDuplicateTitleH1 } from '../utils/content';
@@ -134,21 +134,59 @@ export async function handleGenerate(
 
     let generatedContent: string;
     let generatedTitle: string;
-    let generatedSlug: string;
+    let generatedPath: string;
     let generatedDescription: string | undefined;
     let generatedKeywords: string | string[] | undefined;
 
     if (extraction.success) {
       generatedContent = extraction.content;
       generatedTitle = extraction.metadata?.title || article.title || 'Untitled';
-      generatedSlug = extraction.metadata?.slug || '';
+      generatedPath = extraction.metadata?.path || '';
       generatedDescription = extraction.metadata?.description;
       generatedKeywords = extraction.metadata?.keywords;
       log.info({
         strategy: extraction.strategy,
         contentLength: generatedContent.length,
-        hasMetadata: !!extraction.metadata
+        hasMetadata: !!extraction.metadata,
+        warning: extraction.warning,
       }, 'generate:extraction_success');
+
+      // Quality validation: word count check
+      const wordCount = generatedContent.split(/\s+/).filter(w => w.length > 0).length;
+      const minWords = Math.floor(targetWords * 0.5);
+      if (wordCount < minWords) {
+        log.error({
+          wordCount,
+          targetWords,
+          minWords,
+          strategy: extraction.strategy,
+        }, 'generate:content_too_short');
+        return {
+          success: false,
+          error: `Generated content too short: ${wordCount} words (minimum: ${minWords}, target: ${targetWords}). AI response may have been truncated.`,
+          errorCode: 'CONTENT_TOO_SHORT',
+          prompt,
+          operations: [],
+        };
+      }
+
+      // Quality validation: truncation detection
+      const trimmedContent = generatedContent.trimEnd();
+      const lastChar = trimmedContent[trimmedContent.length - 1];
+      if (lastChar && !/[.!?:)\]"'\n#*-]/.test(lastChar)) {
+        log.error({
+          lastChar,
+          contentEnd: trimmedContent.substring(Math.max(0, trimmedContent.length - 100)),
+          strategy: extraction.strategy,
+        }, 'generate:content_truncated');
+        return {
+          success: false,
+          error: `Generated content appears truncated (ends with "${lastChar}" instead of sentence-ending punctuation). AI response may have been cut off.`,
+          errorCode: 'CONTENT_TRUNCATED',
+          prompt,
+          operations: [],
+        };
+      }
     } else {
       // All extraction strategies failed - this is a FAILURE, not a fallback
       // The article content is likely truncated JSON that cannot be recovered
@@ -171,12 +209,12 @@ export async function handleGenerate(
     // Strip duplicate H1 title from content if it matches the article title
     generatedContent = stripDuplicateTitleH1(generatedContent, generatedTitle);
 
-    // Ensure slug
-    const known = collectKnownSlugs(websiteInfo);
-    if (!generatedSlug) {
-      generatedSlug = makeSlug(generatedTitle);
+    // Ensure path
+    const known = collectKnownPaths(websiteInfo);
+    if (!generatedPath) {
+      generatedPath = generatePathFromTitle(generatedTitle);
     }
-    generatedSlug = ensureUniqueSlug(generatedSlug, known);
+    generatedPath = ensureUniquePath(generatedPath, known);
 
     // Normalize keywords to array if string
     let keywordsArray: string[] | undefined;
@@ -189,12 +227,13 @@ export async function handleGenerate(
     }
 
     // Build updated article with AI-generated fields (unified object)
+    // Note: last_pipeline is NOT set here — the CLI will set last_pipeline: 'generate'
+    // after all actions in the pipeline succeed (matching the enhance.ts pattern)
     const updatedArticle = updateArticle(article, {
       content: generatedContent,
       title: generatedTitle,
       description: generatedDescription || article.description,
       keywords: keywordsArray || article.keywords || [],
-      last_pipeline: 'generate',
     });
 
     log.info({ path: context.articlePath, words: generatedContent.split(/\s+/).length, tokens, cost_usd: usageStats.cost_usd }, 'generate:done');

@@ -93,9 +93,9 @@ export class Progress {
   /**
    * Show article complete
    */
-  articleComplete(slug: string): void {
+  articleComplete(articlePath: string): void {
     const time = this.elapsed().toFixed(1);
-    this.line(`  Completed: ${slug} (${time}s total)`);
+    this.line(`  Completed: ${articlePath} (${time}s total)`);
   }
 
   /**

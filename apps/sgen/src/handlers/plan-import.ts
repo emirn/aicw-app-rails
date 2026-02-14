@@ -13,16 +13,16 @@ import { callAI } from '../services/ai.service';
 import { ensureActionConfigForMode } from '../config/action-config';
 import { renderTemplateAbsolutePath } from '../utils/template';
 import { IProjectConfig } from '@blogpostgen/types';
-import { ensureSlug } from '../utils/articleUpdate';
+import { generatePathFromTitle } from '../utils/articleUpdate';
 
 /**
- * Normalize slug - preserves path structure (slashes)
+ * Normalize path - preserves path structure (slashes)
  * - Removes leading/trailing slashes
  * - Converts spaces and special chars to hyphens (but keeps /)
  * - Lowercases
  * - Handles both `/category/article-name` and plain `article-name` formats
  */
-function normalizeSlug(input: string): string {
+function normalizePath(input: string): string {
   return input
     .toLowerCase()
     .replace(/^\/+|\/+$/g, '')           // Remove leading/trailing slashes
@@ -200,9 +200,8 @@ export async function handlePlanImport(
     // Create article operations for each plan item
     const now = new Date().toISOString();
     for (const item of allItems) {
-      // Use provided slug if available, otherwise generate SEO-optimized slug from title
-      const slug = item.slug ? normalizeSlug(item.slug) : ensureSlug(item.title);
-      const articlePath = slug;
+      // Use provided path if available, otherwise generate SEO-optimized path from title
+      const articlePath = item.path ? normalizePath(item.path) : generatePathFromTitle(item.title);
 
       const meta: IArticle = {
         title: item.title,
