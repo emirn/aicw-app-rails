@@ -79,6 +79,7 @@ export async function handleStatus(
 interface StatusSummary {
   total: number;
   byPipeline: Record<string, number>;
+  totalCost: number;
 }
 
 // Build next-actions map from cli-actions.json (invert validLastActions)
@@ -124,7 +125,7 @@ function getNextActions(lastPipeline: string | null): string[] {
   return NEXT_ACTIONS[key] || [];
 }
 
-function buildStatusSummary(articles: Array<{ article: { last_pipeline?: string | null } }>): StatusSummary {
+function buildStatusSummary(articles: Array<{ article: { last_pipeline?: string | null; costs?: Array<{ cost: number }> } }>): StatusSummary {
   const byPipeline: Record<string, number> = {
     '(seed)': 0,
     'generate': 0,
@@ -132,6 +133,8 @@ function buildStatusSummary(articles: Array<{ article: { last_pipeline?: string 
     'interlink-articles': 0,
     'finalize': 0,
   };
+
+  let totalCost = 0;
 
   for (const item of articles) {
     const pipeline = item.article.last_pipeline || '(seed)';
@@ -141,11 +144,15 @@ function buildStatusSummary(articles: Array<{ article: { last_pipeline?: string 
       // Unknown pipeline, add it
       byPipeline[pipeline] = 1;
     }
+
+    const costs = item.article.costs || [];
+    totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
   }
 
   return {
     total: articles.length,
     byPipeline,
+    totalCost,
   };
 }
 
@@ -160,6 +167,7 @@ function formatProjectStatus(
     ...(config.url ? [`URL: ${config.url}`] : []),
     '',
     `Total articles: ${summary.total}`,
+    `Estimated total cost: $${summary.totalCost.toFixed(2)}`,
     '',
     'By pipeline:',
   ];
