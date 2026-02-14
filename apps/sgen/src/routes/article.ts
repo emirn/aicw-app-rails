@@ -479,7 +479,17 @@ export default async function articleRoutes(app: FastifyInstance) {
         const replacements = parseTextReplacements(content);
         if (replacements.length > 0) {
           const { result, applied, skipped } = applyTextReplacements(article.content, replacements);
-          updated = { ...article, content: result };
+
+          // Safety guard: reject if content shrunk by more than 30%
+          const shrinkage = 1 - (result.length / article.content.length);
+          if (shrinkage > 0.3) {
+            app.log.error({ mode, shrinkagePct: Math.round(shrinkage * 100) },
+              'text_replace:content_shrunk_>30%, preserving original');
+            updated = article;
+          } else {
+            updated = { ...article, content: result };
+          }
+
           if (skipped.length > 0) {
             app.log.warn({ mode, skipped }, 'text_replace:some_replacements_not_found');
           }

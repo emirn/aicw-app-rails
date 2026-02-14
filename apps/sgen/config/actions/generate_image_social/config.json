@@ -1,6 +1,6 @@
 {
   "description": "Generate OG/social preview image using hero image and article metadata",
-  "no_ai": true,
+  "local": true,
   "output_mode": "text_replace_all",
   "supports_custom_prompt": false,
   "supports_custom_config": false

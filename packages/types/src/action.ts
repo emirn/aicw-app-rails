@@ -49,8 +49,8 @@ export interface IActionConfig {
   extra_templates?: string[];
   // Enable native web search (OpenAI gpt-4o-*-search-preview models)
   web_search?: boolean;
-  // When true, action is handled locally without AI call (e.g., humanize_text_random)
-  no_ai?: boolean;
+  // When true, action runs locally without AI call — no model config or cost needed
+  local?: boolean;
   // When false, action cannot be used in force-enhance workflow (default: true)
   forcible?: boolean;
   // When true, allows per-project custom prompt templates (default: false)

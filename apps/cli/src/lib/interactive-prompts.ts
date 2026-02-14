@@ -980,7 +980,7 @@ interface ActionInfo {
   description: string;
   forcible: boolean;
   output_mode?: string;
-  no_ai?: boolean;
+  local?: boolean;
 }
 
 /**

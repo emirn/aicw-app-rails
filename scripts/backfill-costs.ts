@@ -24,7 +24,7 @@ const DATA_ROOT = path.resolve(REPO_ROOT, "../blogpostgen-data/data/projects");
 
 // ----- Types -----
 interface ActionConfig {
-  no_ai?: boolean;
+  local?: boolean;
   output_mode?: string;
   pricing?: {
     input_per_million: number;
@@ -46,8 +46,8 @@ interface ArticleMeta {
   [key: string]: unknown;
 }
 
-// ----- No-AI actions (cost = $0) -----
-const NO_AI_ACTIONS = new Set([
+// ----- Local actions (cost = $0) -----
+const LOCAL_ACTIONS = new Set([
   "add_toc",
   "humanize_text_random",
   "render_diagrams",
@@ -94,8 +94,8 @@ function estimateCost(
   actionInfo: ActionInfo | undefined,
   contentLength: number
 ): number {
-  // No-AI actions → $0
-  if (NO_AI_ACTIONS.has(actionName)) return 0;
+  // Local actions → $0
+  if (LOCAL_ACTIONS.has(actionName)) return 0;
 
   // Image hero → fixed rate
   if (actionName === "generate_image_hero") return IMAGE_HERO_COST;
@@ -103,8 +103,8 @@ function estimateCost(
   if (!actionInfo) return 0;
   const { config, promptTokens } = actionInfo;
 
-  // Actions marked no_ai in config → $0
-  if (config.no_ai) return 0;
+  // Actions marked local in config → $0
+  if (config.local) return 0;
 
   // Must have pricing to estimate
   if (!config.pricing) return 0;

@@ -1,14 +1,4 @@
-# MANDATORY OUTPUT FORMAT - READ FIRST
-
- ⚠️ YOUR RESPONSE WILL BE REJECTED IF YOU USE THIS FORMAT:
- - WRONG: `text. ([domain](url))`
-
- ✅ YOU MUST USE THIS FORMAT:
- - CORRECT: `[relevant phrase](url)`
-
- The link MUST be ON existing words, not appended after them.
-
-You are an expert researcher. Your task is to enhance this article by adding 3-5 authoritative external links. Use one link only once setting it to the one single most relevant phrase or a keyword.
+You are an expert researcher. Your task is to find 3-5 authoritative external links that support claims in this article.
 
 ## Authoritative Sources Only
 
@@ -28,18 +18,13 @@ Use links from these trusted categories:
 ## Requirements
 
 1. **Search the web** to find authoritative sources that support claims in the article
-2. Add **3-5 links** - quality over quantity. Use one link only once setting it to the one single most relevant phrase or a keyword.
-3. Insert links **naturally within the text** where they add value
-4. Use **descriptive anchor text** (not "click here" or raw URLs)
-5. Verify each link is from an authoritative source type listed above
-6. Do NOT use:
-   - Personal blogs
-   - Social media posts
-   - Unknown/unverified sources
-   - Affiliate or marketing sites (strictly prohibted!)
-   - Outdated sources (prefer recent, but classic references are OK)
-7. **Each URL must be used only once** - Never link to the same URL or domain multiple times in the article
-8. **Limit main subject links to 1** - If the article is about a specific product, company, or technology, you may include at most ONE link to that entity's official website. All other links must be to authoritative sources (as defined above).
+2. Find **3-5 links** - quality over quantity
+3. **anchor_text must appear VERBATIM in the article** — copy it exactly (preserve capitalization, punctuation, spacing)
+4. Choose anchor text that is **2-6 words** — a natural phrase or keyword from the article
+5. Do NOT pick anchor text that is already inside a markdown link `[...]()`
+6. **Each URL must be used only once** - never link to the same URL or domain multiple times
+7. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
+8. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
 
 ## Article to Enhance:
 
@@ -47,25 +32,22 @@ Use links from these trusted categories:
 
 ## Response Format
 
-Return a JSON object with text replacements. Each replacement has:
-- `find`: The EXACT text from the article to modify (copy it precisely, include enough context for unique matching)
-- `replace`: The same text with markdown link(s) added
+Return a JSON object with link insertions. Each entry has:
+- `anchor_text`: An exact 2-6 word phrase copied verbatim from the article
+- `url`: The authoritative source URL
 
-Example:
 ```json
 {
-  "replacements": [
+  "links": [
     {
-      "find": "Studies show that responding to leads within 5 minutes significantly increases conversion rates.",
-      "replace": "Studies show that [responding to leads within 5 minutes](https://hbr.org/...) significantly increases conversion rates."
+      "anchor_text": "44% more monthly sales",
+      "url": "https://hbr.org/2023/01/example-article"
     }
   ]
 }
 ```
 
 Rules:
-- Copy the `find` text EXACTLY from the article (preserve capitalization, punctuation)
-- Include enough surrounding context in `find` to ensure unique matching
-- Only include phrases that need links - skip phrases already linked
+- anchor_text must appear EXACTLY as-is in the article text above
 - Do NOT wrap the response in code fences
 - Do NOT include any text before or after the JSON

@@ -1,0 +1,94 @@
+/**
+ * humanize_text action handler
+ *
+ * Hybrid action: applies CSV replacements locally, then calls AI for orthography fix.
+ * This avoids the 24K char limit issue from embedding the full CSV in the prompt.
+ */
+
+import { ActionHandlerFn } from './types';
+import { buildArticleOperation, updateArticle } from '../utils';
+import { ensureActionConfigForMode } from '../../config/action-config';
+import { callAI } from '../../services/ai.service';
+import { config } from '../../config/server-config';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, log }) => {
+  const { findSafeZones } = await import('../../utils/random-typos');
+  const csvPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'humanize_text', 'replacements.csv');
+
+  // Load and parse CSV
+  let csv = '';
+  try { csv = readFileSync(csvPath, 'utf8'); } catch { }
+  const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lines = csv.split(/\r?\n/).filter(l => l.trim() && !/^\s*#/.test(l));
+  const pairs: { from: string; to: string }[] = [];
+  for (const line of lines) {
+    const idx = line.indexOf(',');
+    if (idx <= 0) continue;
+    const from = line.slice(0, idx).trim().replace(/^"|"$/g, '');
+    const to = line.slice(idx + 1).trim().replace(/^"|"$/g, '');
+    if (from) pairs.push({ from, to });
+  }
+
+  // Step 1: Apply CSV replacements with safe zones (longest first)
+  pairs.sort((a, b) => b.from.length - a.from.length);
+  let text = article.content || '';
+  const safeZones = findSafeZones(text);
+
+  for (const { from, to } of pairs) {
+    const re = new RegExp(`\\b${escapeRegExp(from)}\\b`, 'gi');
+    text = text.replace(re, (match, offset) => {
+      for (const zone of safeZones) {
+        if (offset >= zone.start && offset < zone.end) return match;
+      }
+      if (to.includes('|')) {
+        const variants = to.split('|');
+        return variants[Math.floor(Math.random() * variants.length)];
+      }
+      return to;
+    });
+  }
+
+  let changes = ['humanize_text (static CSV) applied'];
+  let tokensUsed = 0;
+  let costUsd = 0;
+
+  // Step 2: AI orthography fix
+  try {
+    const fixPromptPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'humanize_text', 'fix_orthography.md');
+    const { renderTemplateAbsolutePath } = await import('../../utils/template');
+    const prompt = renderTemplateAbsolutePath(fixPromptPath, { content: text });
+
+    const cfg = ensureActionConfigForMode('humanize_text' as any);
+    const provider = cfg?.ai_provider || 'openrouter';
+    const modelId = cfg?.ai_model_id || config.ai.defaultModel;
+
+    log.info({ path: context.articlePath, mode: 'humanize_text', action: 'fix_orthography' }, 'enhance:humanize_text:ai_start');
+    const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url, pricing: cfg?.pricing });
+
+    if (aiRes.content && typeof aiRes.content === 'string') {
+      text = aiRes.content;
+      changes.push('orthography fixed (AI)');
+    }
+    tokensUsed = aiRes.tokens || 0;
+    costUsd = aiRes.usageStats.cost_usd || 0;
+  } catch (e: any) {
+    log.warn({ err: e }, 'enhance:humanize_text:orthography_fix_failed');
+  }
+
+  const updatedArticleObj = updateArticle(normalizedMeta, {
+    content: text,
+  });
+
+  const wordCount = text.split(/\s+/).length;
+  log.info({ path: context.articlePath, mode: 'humanize_text', tokens: tokensUsed, cost_usd: costUsd, words: wordCount }, 'enhance:humanize_text:done');
+
+  return {
+    success: true,
+    message: `Humanized article (${changes.join(', ')})`,
+    tokensUsed,
+    costUsd,
+    operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, 'humanize_text')],
+  };
+};
