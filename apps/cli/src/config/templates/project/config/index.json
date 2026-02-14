@@ -16,7 +16,7 @@
             "type": "text",
             "text": "",
             "image_url": "",
-            "show_border": true
+            "style": "plain"
         },
         "colors": {
             "primary": "#1E40AF",

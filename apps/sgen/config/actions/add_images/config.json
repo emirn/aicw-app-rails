@@ -2,5 +2,9 @@
   "ai_provider": "openrouter",
   "ai_model_id": "openai/gpt-4o-mini",
   "output_mode": "insert_content",
-  "description": "Enhance article with relevant images/illustrations"
+  "description": "Enhance article with relevant images/illustrations",
+  "pricing": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  }
 }

@@ -34,6 +34,8 @@ const loadPerActionConfigs = (): ActionConfigMap => {
           web_search: cfg.web_search,
           no_ai: cfg.no_ai,
           forcible: cfg.forcible,
+          // Pricing (co-located with model/provider)
+          pricing: cfg.pricing,
           // Custom prompt/config support
           supports_custom_prompt: cfg.supports_custom_prompt,
           supports_custom_config: cfg.supports_custom_config,

@@ -3,5 +3,9 @@
   "ai_model_id": "anthropic/claude-4.5-sonnet",
   "output_mode": "insert_content",
   "description": "Insert Mermaid diagrams at key sections",
-  "supports_custom_config": false
+  "supports_custom_config": false,
+  "pricing": {
+    "input_per_million": 3,
+    "output_per_million": 15
+  }
 }

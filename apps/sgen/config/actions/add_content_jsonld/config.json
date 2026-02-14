@@ -2,5 +2,9 @@
   "ai_provider": "openrouter",
   "ai_model_id": "openai/gpt-4o-mini",
   "output_mode": "insert_content_bottom",
-  "description": "Generate JSON-LD schema.org blocks (Article, WebPage, BreadcrumbList, Organization) for article content"
+  "description": "Generate JSON-LD schema.org blocks (Article, WebPage, BreadcrumbList, Organization) for article content",
+  "pricing": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  }
 }

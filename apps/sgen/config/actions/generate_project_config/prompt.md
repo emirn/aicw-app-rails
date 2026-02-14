@@ -28,7 +28,13 @@ Generate a JSON object matching the IProjectBranding schema below. Every field m
     "type": "text",             // Always "text" (no image generation)
     "text": string,             // Logo text (usually brand name or abbreviation)
     "image_url": "",            // Always empty
-    "show_border": boolean      // true for professional/corporate, false for creative/casual
+    "style": "plain" | "bordered" | "pill" | "underline-hover" | "gradient" | "spaced-caps"
+    // plain — Clean bold text, no decoration. Good default.
+    // bordered — Rounded border in brand color. Professional/corporate.
+    // pill — Solid colored badge with white text. Modern/SaaS.
+    // underline-hover — Sliding underline on hover. Editorial/blog.
+    // gradient — Gradient text (primary→secondary). Creative/tech.
+    // spaced-caps — Uppercase + letter-spacing. Luxury/minimalist.
   },
   "colors": {
     "primary": string,          // Primary brand color (#RRGGBB) — main buttons, links, headers

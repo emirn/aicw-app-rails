@@ -81,6 +81,7 @@ async function processChunk(
     provider: cfg.ai_provider || 'openrouter',
     modelId: cfg.ai_model_id || 'openai/gpt-4o',
     baseUrl: cfg.ai_base_url,
+    pricing: cfg.pricing,
   });
 
   if (typeof content !== 'object' || !content.items) {

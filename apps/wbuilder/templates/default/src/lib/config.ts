@@ -1,5 +1,7 @@
 import siteConfigData from '../../data/site-config.json';
 
+export type LogoTextStyle = 'plain' | 'bordered' | 'pill' | 'underline-hover' | 'gradient' | 'spaced-caps';
+
 export interface SiteConfig {
   branding: {
     badge?: string;
@@ -16,7 +18,9 @@ export interface SiteConfig {
       type: 'text' | 'image';
       text?: string;
       image_url?: string;
+      /** @deprecated Use `style` instead */
       show_border?: boolean;
+      style?: LogoTextStyle;
     };
     colors: {
       primary: string;
@@ -269,7 +273,7 @@ const defaultConfig: SiteConfig = {
     logo: {
       type: 'text',
       text: 'Blog',
-      show_border: true,
+      style: 'plain',
     },
     colors: {
       primary: '',
@@ -428,6 +432,18 @@ function getFirstLetter(siteName: string): string {
   if (!siteName?.trim()) return '?';
   const match = siteName.trim().match(/[a-zA-Z0-9]/);
   return match ? match[0].toUpperCase() : '?';
+}
+
+/**
+ * Resolve the effective logo text style with backward compatibility.
+ * - If `style` is set, use it directly.
+ * - If `show_border: true` (legacy), map to 'bordered'.
+ * - Otherwise, default to 'plain'.
+ */
+export function getLogoTextStyle(config: SiteConfig): LogoTextStyle {
+  if (config.branding.logo.style) return config.branding.logo.style;
+  if (config.branding.logo.show_border) return 'bordered';
+  return 'plain';
 }
 
 function isLightColor(hex: string): boolean {

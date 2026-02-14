@@ -87,6 +87,7 @@ export default async function articleRoutes(app: FastifyInstance) {
         provider,
         modelId,
         baseUrl: genCfg?.ai_base_url,
+        pricing: genCfg?.pricing,
       });
 
       let article: IApiArticle;
@@ -327,7 +328,7 @@ export default async function articleRoutes(app: FastifyInstance) {
           const prompt = renderTemplateAbsolutePath(fixPromptPath, vars);
 
           app.log.info({ mode: 'humanize_text', action: 'fix_orthography' }, 'ai_fix:start');
-          const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url });
+          const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url, pricing: cfg?.pricing });
 
           if (aiRes.content && typeof aiRes.content === 'string') {
             text = aiRes.content; // Update text with AI fixed version
@@ -422,6 +423,7 @@ export default async function articleRoutes(app: FastifyInstance) {
         modelId,
         baseUrl: defaultCfg?.ai_base_url,
         webSearch: defaultCfg?.web_search,
+        pricing: defaultCfg?.pricing,
       });
 
       let updated: IApiArticle;
