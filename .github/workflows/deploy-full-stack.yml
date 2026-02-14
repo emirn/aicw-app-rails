@@ -60,7 +60,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Rails image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: apps/web
           file: apps/web/deployment/full-stack/Dockerfile.web
@@ -77,7 +77,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=aicw-app-rails
 
       - name: Build and push sgen image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/sgen/Dockerfile
@@ -92,7 +92,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=aicw-sgen
 
       - name: Build and push website-builder image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: apps/wbuilder
           file: apps/wbuilder/api-server/Dockerfile
