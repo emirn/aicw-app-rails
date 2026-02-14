@@ -394,3 +394,82 @@ export function deduplicateReplacementsByUrl(
   return { deduplicated, removed };
 }
 
+// ============================================================================
+// Link Insertion Mode - safe anchor-text-based link insertion
+// ============================================================================
+
+export interface LinkInsertion {
+  anchor_text: string;
+  url: string;
+}
+
+/**
+ * Parse link insertions from AI response.
+ * Expected format: { "links": [{ "anchor_text": "...", "url": "https://..." }] }
+ */
+export function parseLinkInsertions(content: any): LinkInsertion[] {
+  if (typeof content !== 'object' || !content) return [];
+  const links = content.links;
+  if (!Array.isArray(links)) return [];
+  return links.filter(
+    (l: any) =>
+      typeof l.anchor_text === 'string' &&
+      l.anchor_text.trim().length > 0 &&
+      typeof l.url === 'string' &&
+      l.url.startsWith('http')
+  );
+}
+
+/**
+ * Apply link insertions to content by wrapping anchor text with markdown links.
+ * - Sorts by longest anchor_text first to prevent partial matches
+ * - Replaces FIRST occurrence only
+ * - Skips if anchor_text is already inside a markdown link [...]()
+ * - Normalizes whitespace for matching
+ */
+export function applyLinkInsertions(
+  content: string,
+  links: LinkInsertion[]
+): { result: string; applied: number; skipped: string[] } {
+  // Sort longest first to prevent partial match issues
+  const sorted = [...links].sort(
+    (a, b) => b.anchor_text.length - a.anchor_text.length
+  );
+
+  let result = content;
+  let applied = 0;
+  const skipped: string[] = [];
+
+  for (const { anchor_text, url } of sorted) {
+    // Build regex that matches normalized whitespace (first occurrence only)
+    const pattern = escapeRegExp(anchor_text).replace(/\s+/g, '\\s+');
+    const regex = new RegExp(pattern);
+
+    const match = regex.exec(result);
+    if (!match) {
+      skipped.push(anchor_text.substring(0, 60));
+      continue;
+    }
+
+    // Check if match is already inside a markdown link
+    const before = result.substring(0, match.index);
+    const after = result.substring(match.index + match[0].length);
+
+    // Already linked: look for [ before and ]( after without intervening ] or [
+    const lastOpenBracket = before.lastIndexOf('[');
+    const lastCloseBracket = before.lastIndexOf(']');
+    if (lastOpenBracket > lastCloseBracket && after.match(/^\]\(/)) {
+      skipped.push(`${anchor_text.substring(0, 40)} (already linked)`);
+      continue;
+    }
+
+    // Wrap matched text with markdown link
+    result = result.substring(0, match.index) +
+      `[${match[0]}](${url})` +
+      result.substring(match.index + match[0].length);
+    applied++;
+  }
+
+  return { result, applied, skipped };
+}
+
