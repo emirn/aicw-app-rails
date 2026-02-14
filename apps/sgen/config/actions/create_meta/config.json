@@ -2,5 +2,5 @@
   "ai_provider": "openrouter",
   "ai_model_id": "openai/gpt-4o-mini",
   "output_mode": "text_replace_all",
-  "description": "Generate slug, title, description, and keywords"
+  "description": "Generate path, title, description, and keywords"
 }

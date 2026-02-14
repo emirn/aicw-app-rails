@@ -258,7 +258,7 @@ async function scanWebsite(config: TestConfig, cached: CachedData, isCompetitor:
   const scanRequest = {
     article: {
       id: 'scan-1',
-      slug: '',
+      path: '',
       title: 'Website Scan',
       description: 'Scan website',
       keywords: '',
@@ -318,7 +318,7 @@ async function getCompetitors(config: TestConfig, websiteInfo: any, cached: Cach
   const competitorRequest = {
     article: {
       id: 'comp-1',
-      slug: '',
+      path: '',
       title: 'Get Competitors',
       description: 'Find competitors',
       keywords: '',
@@ -413,7 +413,7 @@ async function generateContentPlan(config: TestConfig, websiteInfo: any, competi
   const planRequest = {
     article: {
       id: 'plan-1',
-      slug: '',
+      path: '',
       title: 'Content Plan',
       description: 'Generate content plan',
       keywords: '',
@@ -609,7 +609,7 @@ function analyzeResults(config: TestConfig, articles: any[]) {
     log(`  Article ${i + 1}: "${article.title}"`);
     log(`    - Title length: ${article.title.length} chars ${article.title.length <= 60 ? '✅' : '⚠️'}`);
     log(`    - Description length: ${article.description.length} chars ${article.description.length <= 155 ? '✅' : '⚠️'}`);
-    log(`    - Slug: ${article.slug}`);
+    log(`    - Path: ${article.path}`);
   });
   
   // Token usage

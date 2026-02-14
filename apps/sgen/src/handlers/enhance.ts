@@ -154,11 +154,10 @@ export async function handleEnhance(
   }
 
   // Build article object for prompt builder
-  // Use article path directly as slug (path IS the URL path)
-  const derivedSlug = context.articlePath || '';
+  const articlePath = context.articlePath || '';
   const article: IApiArticle = {
-    id: normalizedMeta.slug || `article-${randomUUID()}`,
-    slug: normalizedMeta.slug || derivedSlug,
+    id: `article-${randomUUID()}`,
+    path: articlePath,
     title: normalizedMeta.title || 'Untitled',
     description: normalizedMeta.description || '',
     keywords: Array.isArray(normalizedMeta.keywords)

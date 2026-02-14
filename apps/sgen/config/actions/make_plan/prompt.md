@@ -18,7 +18,7 @@ Generate a comprehensive SEO content plan with **{{target_articles}} articles**.
 ## Strategic Guidelines
 
 ### 1. Topic Organization
-- Group related articles together using folder paths in slugs (e.g., `/category/article-name`)
+- Group related articles together using folder paths (e.g., `/category/article-name`)
 - Build topical authority by covering related topics comprehensively
 - Avoid keyword cannibalization across articles
 

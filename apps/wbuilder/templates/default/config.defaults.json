@@ -78,13 +78,6 @@
           { "label": "Home", "url": "/" },
           { "label": "Contacts", "url": "/contacts/" }
         ]
-      },
-      {
-        "title": "Legal",
-        "links": [
-          { "label": "Privacy", "url": "/privacy/" },
-          { "label": "Terms", "url": "/terms/" }
-        ]
       }
     ],
     "social_links": {

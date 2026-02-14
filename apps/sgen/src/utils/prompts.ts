@@ -95,14 +95,14 @@ export const buildUpdatePrompt = (
 
   if (mode === 'add_links') {
     const links = (context?.related_articles as IPage[] | undefined)
-      ?.map((p) => `- [${p.title}](${p.slug})`)
+      ?.map((p) => `- [${p.title}](${p.path})`)
       .join('\n') || '';
     vars.links = links;
   }
   if (mode === 'add_internal_links') {
     // Links from parsed sitemap, passed via context.sitemap_links
-    const links = (context?.sitemap_links as Array<{ slug: string; title: string }> | undefined)
-      ?.map((l) => `- [${l.title}](${l.slug})`)
+    const links = (context?.sitemap_links as Array<{ path: string; title: string }> | undefined)
+      ?.map((l) => `- [${l.title}](${l.path})`)
       .join('\n') || '';
     vars.links = links;
   }
@@ -120,13 +120,13 @@ export const buildUpdatePrompt = (
   if (mode === 'add_content_jsonld') {
     const websiteInfo = context?.website_info as IWebsiteInfo | undefined;
     vars.website_url = websiteInfo?.url || '';
-    vars.article_slug = article.slug || '';
+    vars.article_path = article.path || '';
     vars.organization_name = websiteInfo?.title || 'Organization';
   }
   if (mode === 'add_faq_jsonld') {
     const websiteInfo = context?.website_info as IWebsiteInfo | undefined;
     vars.website_url = websiteInfo?.url || '';
-    vars.article_slug = article.slug || '';
+    vars.article_path = article.path || '';
     vars.faq_content = context?.faq_content || '';
   }
 

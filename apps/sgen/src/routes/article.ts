@@ -12,8 +12,8 @@ import { config } from '../config/server-config';
 import { buildArticlePrompt, buildUpdatePrompt } from '../utils/prompts';
 import { ACTION_CONFIG, ensureActionConfigForMode, isValidActionMode, VALID_ACTION_MODES } from '../config/action-config';
 import { ensureTemplateExistsNonEmpty, ensureNonEmptyText } from '../utils/guards';
-import { mergeUpdate, MergeResult, parseLinePatches as updParseLinePatches, applyPatches as updApplyPatches, extractContentText, ensureSlug as makeSlug, parseTextReplacements, applyTextReplacements } from '../utils/articleUpdate';
-import { collectKnownSlugs, ensureUniqueSlug } from '../utils/slug';
+import { mergeUpdate, MergeResult, parseLinePatches as updParseLinePatches, applyPatches as updApplyPatches, extractContentText, generatePathFromTitle, parseTextReplacements, applyTextReplacements } from '../utils/articleUpdate';
+import { collectKnownPaths, ensureUniquePath } from '../utils/article-path';
 import { buildDebugInfo } from '../utils/debug';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -95,7 +95,7 @@ export default async function articleRoutes(app: FastifyInstance) {
         // AI returned proper JSON with IArticle structure
         article = {
           id: content.id || `article-${randomUUID()}`,
-          slug: content.slug || '',
+          path: content.path || '',
           title: content.title || website_info.title,
           description: content.description || description,
           keywords: content.keywords || website_info.focus_keywords,
@@ -114,7 +114,7 @@ export default async function articleRoutes(app: FastifyInstance) {
 
         article = {
           id: `article-${randomUUID()}`,
-          slug: '',
+          path: '',
           title: extractedTitle,
           description,
           keywords: website_info.focus_keywords,
@@ -125,13 +125,13 @@ export default async function articleRoutes(app: FastifyInstance) {
       // Strip duplicate H1 title from content if it matches the article title
       article.content = stripDuplicateTitleH1(article.content, article.title);
 
-      // Ensure slug exists and is unique vs site published/main pages
-      const known = collectKnownSlugs(website_info);
-      if (!article.slug || !article.slug.trim()) {
-        if (article.title) article.slug = makeSlug(article.title);
+      // Ensure path exists and is unique vs site published/main pages
+      const known = collectKnownPaths(website_info);
+      if (!article.path || !article.path.trim()) {
+        if (article.title) article.path = generatePathFromTitle(article.title);
       }
-      if (article.slug) {
-        article.slug = ensureUniqueSlug(article.slug, known);
+      if (article.path) {
+        article.path = ensureUniquePath(article.path, known);
       }
 
       const response: INewArticleResponse = {
@@ -505,12 +505,12 @@ export default async function articleRoutes(app: FastifyInstance) {
       const projectUrl = context?.website_info?.url;
       updated.content = cleanMarkdownUrls(updated.content, projectUrl);
 
-      // Enforce unique slug if present using provided context website_info and optional plan
+      // Enforce unique path if present using provided context website_info and optional plan
       try {
-        const known = collectKnownSlugs(context?.website_info, context?.plan || context?.plan_slugs);
-        if (updated.slug) updated.slug = ensureUniqueSlug(updated.slug, known);
+        const known = collectKnownPaths(context?.website_info, context?.plan || context?.plan_paths);
+        if (updated.path) updated.path = ensureUniquePath(updated.path, known);
       } catch (e) {
-        app.log.warn({ err: e }, 'Failed to ensure unique slug');
+        app.log.warn({ err: e }, 'Failed to ensure unique path');
       }
 
       const response: IArticleUpdateResponse = {

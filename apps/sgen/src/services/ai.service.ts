@@ -173,7 +173,7 @@ const buildMockArticleMd = (topic: string): string => {
   return `# ${topic}\n\nA curated list of top AI tools shaping 2025.\n\n## How We Selected\n- Market adoption and momentum\n- Product maturity and roadmap\n- Clear ROI and time-to-value\n\n## The List\n${tools.join('\n')}\n\n## Key Takeaways\n- Consolidate your stack where possible.\n- Prioritize integrations and data governance.\n- Pilot quickly, measure, and iterate.\n\n## Conclusion\nChoosing the right tools in 2025 means balancing capability, adoption risk, and integration depth.`;
 };
 
-const makeSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+const makePath = (title: string) => title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
 
 const mockAIResponse = (prompt: string) => {
   const startTime = Date.now();
@@ -188,7 +188,7 @@ const mockAIResponse = (prompt: string) => {
   const topicMatch = prompt.match(/Write a\s+(.+?)\./i) || prompt.match(/for\s+(.+?)\s*\n/i);
   const defaultTitle = 'Top 25 AI Tools for 2025';
   const title = defaultTitle;
-  const slug = makeSlug(title);
+  const articlePath = makePath(title);
   const content = buildMockArticleMd(title);
 
   // Build debug info for mock responses
@@ -198,7 +198,7 @@ const mockAIResponse = (prompt: string) => {
 
   if (wantsMetaOnly) {
     const meta = {
-      slug,
+      path: articlePath,
       title,
       description: 'Explore 25 must‑know AI tools shaping 2025 innovation.',
       keywords: 'AI tools, 2025, automation, productivity, machine learning',
@@ -216,7 +216,7 @@ const mockAIResponse = (prompt: string) => {
   if (wantsFull) {
     const article = {
       id: 'mock-article-001',
-      slug,
+      path: articlePath,
       title,
       description: 'Explore 25 must‑know AI tools shaping 2025 innovation.',
       keywords: 'AI tools, 2025, automation, productivity, machine learning',
@@ -243,16 +243,16 @@ const mockAIResponse = (prompt: string) => {
       items: Array.from({ length: 12 }, (_, i) => {
         const n = i + 1;
         const t = `AI Support Tooling ${n}`;
-        const s = makeSlug(`ai-support-tooling-${n}`);
+        const s = makePath(`ai-support-tooling-${n}`);
         const cluster = n <= 4 ? clusters[0] : n <= 8 ? clusters[1] : clusters[2];
         const internal = ['/blog/ai-customer-support', '/blog/help-desk-automation'];
         const link_recommendations = [
-          { slug: internal[0], anchor_text: 'AI in customer support' },
-          { slug: internal[1], anchor_text: 'help desk automation' },
+          { path: internal[0], anchor_text: 'AI in customer support' },
+          { path: internal[1], anchor_text: 'help desk automation' },
         ];
         return {
           id: `plan-${n}`,
-          slug: `/blog/${s}`,
+          path: `/blog/${s}`,
           title: `What Is ${t}? Benefits, Use Cases, and ROI`,
           description: `Explain ${t}, when to use it, pros/cons, and how Ayodesk fits. Include implementation tips.`,
           target_keywords: ['AI support', t, 'help desk automation', 'customer service AI'],
@@ -281,10 +281,10 @@ const mockAIResponse = (prompt: string) => {
       focus_keywords: 'customer support, AI, automation',
       focus_instruction: 'Focus on practical automation for support teams',
       pages_published: [
-        { id: 'p1', slug: '/blog/intro', title: 'Intro', description: 'Intro page', keywords: 'intro' }
+        { id: 'p1', path: '/blog/intro', title: 'Intro', description: 'Intro page', keywords: 'intro' }
       ],
       main_pages: [
-        { id: 'm1', slug: '/', title: title, description: `${title} home`, keywords: 'home', content: '...' }
+        { id: 'm1', path: '/', title: title, description: `${title} home`, keywords: 'home', content: '...' }
       ]
     });
     const arr = [

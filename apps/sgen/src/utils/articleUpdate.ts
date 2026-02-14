@@ -33,7 +33,7 @@ export interface ApplyPatchesResult {
 }
 
 /**
- * Stopwords to filter from slugs for cleaner, shorter URLs.
+ * Stopwords to filter from paths for cleaner, shorter URLs.
  * Based on SEO best practices (2025-2026): 3-5 words optimal.
  */
 const STOPWORDS = new Set([
@@ -43,7 +43,7 @@ const STOPWORDS = new Set([
 ]);
 
 /**
- * Generate a clean, SEO-friendly slug from a title.
+ * Generate a clean, SEO-friendly path from a title.
  * - Removes stopwords for shorter URLs
  * - Limits to maxWords (default 5) for optimal SEO
  * - Uses hyphens between words
@@ -52,7 +52,7 @@ const STOPWORDS = new Set([
  *   "How to Detect Article Created by AI" → "detect-article-created-ai"
  *   "The Best AI Tools for Content Creation" → "best-ai-tools-content-creation"
  */
-export const ensureSlug = (title: string, maxWords: number = 5): string => {
+export const generatePathFromTitle = (title: string, maxWords: number = 5): string => {
   const normalized = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
   const words = normalized.split(/\s+/)
     .filter(word => word.length >= 2 && !STOPWORDS.has(word))
@@ -100,12 +100,12 @@ export const mergeUpdate = (base: IApiArticle, mode: string, content: any, rawCo
   if (mode === 'create_meta' && typeof content === 'object' && content) {
     const merged: IApiArticle = {
       ...base,
-      slug: content.slug || base.slug,
+      path: content.path || base.path,
       title: content.title || base.title,
       description: content.description || base.description,
       keywords: content.keywords || base.keywords,
     } as IApiArticle;
-    if (!merged.slug && merged.title) merged.slug = ensureSlug(merged.title);
+    if (!merged.path && merged.title) merged.path = generatePathFromTitle(merged.title);
     return { article: merged, rejected: false };
   }
   if (typeof content === 'object' && content?.content) {

@@ -40,7 +40,7 @@ export function planToMarkdown(plan: ContentPlan, websiteInfo: WebsiteInfo): str
     const item = plan.items[i];
     lines.push(`### ${i + 1}. ${item.title}`);
     lines.push('');
-    lines.push(`- **Slug**: ${item.slug}`);
+    lines.push(`- **Path**: ${item.path}`);
     lines.push(`- **Keywords**: ${(item.target_keywords || []).join(', ')}`);
     lines.push(`- **Target Words**: ${item.target_words || 2000}`);
     lines.push(`- **Search Intent**: ${item.search_intent || 'Informational'}`);
@@ -75,7 +75,7 @@ export function markdownToPlan(markdown: string): ContentPlan {
     const title = match[2].trim();
 
     // Extract fields
-    const slug = extractField(articleBlock, 'Slug') || slugify(title);
+    const articlePath = extractField(articleBlock, 'Path') || pathify(title);
     const keywords = extractField(articleBlock, 'Keywords')?.split(',').map(k => k.trim()).filter(Boolean) || [];
     const targetWords = parseInt(extractField(articleBlock, 'Target Words') || '2000', 10);
     const searchIntent = extractField(articleBlock, 'Search Intent') || 'Informational';
@@ -94,7 +94,7 @@ export function markdownToPlan(markdown: string): ContentPlan {
 
     items.push({
       id: `item-${items.length + 1}`,
-      slug,
+      path: articlePath,
       title,
       description: userNotes ? `${description}\n\nUser notes: ${userNotes}` : description,
       target_keywords: keywords,
@@ -129,17 +129,17 @@ function extractField(block: string, fieldName: string): string | undefined {
 }
 
 /**
- * Stopwords to filter from slugs for cleaner, shorter URLs.
+ * Stopwords to filter from paths for cleaner, shorter URLs.
  * Based on SEO best practices (2025-2026): 3-5 words optimal.
  */
-const STOPWORDS = new Set([
+const STOPWORDS_FOR_PATHS = new Set([
   'a', 'an', 'the', 'and', 'or', 'but', 'of', 'by', 'for', 'with',
   'at', 'in', 'to', 'on', 'as', 'is', 'it', 'how', 'what', 'why', 'when',
   'where', 'which', 'who', 'your', 'my', 'our', 'their', 'this', 'that'
 ]);
 
 /**
- * Generate a clean, SEO-friendly slug from a title.
+ * Generate a clean, SEO-friendly path from a title.
  * - Removes stopwords for shorter URLs
  * - Limits to maxWords (default 5) for optimal SEO
  * - Uses hyphens between words
@@ -148,10 +148,10 @@ const STOPWORDS = new Set([
  *   "How to Detect Article Created by AI" → "detect-article-created-ai"
  *   "The Best AI Tools for Content Creation" → "best-ai-tools-content-creation"
  */
-function slugify(title: string, maxWords: number = 5): string {
+function pathify(title: string, maxWords: number = 5): string {
   const normalized = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
   const words = normalized.split(/\s+/)
-    .filter(word => word.length >= 2 && !STOPWORDS.has(word))
+    .filter(word => word.length >= 2 && !STOPWORDS_FOR_PATHS.has(word))
     .slice(0, maxWords);
   return words.join('-') || 'article';
 }
@@ -289,7 +289,7 @@ export function generateArticleBrief(
     lines.push('');
     const pagesToShow = existingPages.slice(0, 10);
     for (const page of pagesToShow) {
-      lines.push(`- [${page.title}](/${page.slug})`);
+      lines.push(`- [${page.title}](/${page.path})`);
     }
     if (existingPages.length > 10) {
       lines.push(`- ... and ${existingPages.length - 10} more`);
@@ -337,7 +337,7 @@ export async function generateDraftFiles(
   for (let i = 0; i < plan.items.length; i++) {
     const item = plan.items[i];
     const metadata = planItemToDraftMetadata(item, i);
-    const filename = `${String(i + 1).padStart(2, '0')}-${item.slug}.md`;
+    const filename = `${String(i + 1).padStart(2, '0')}-${item.path}.md`;
     const filepath = path.join(paths.drafts, filename);
 
     await saveDraftFile(filepath, metadata, '');
@@ -355,7 +355,7 @@ export async function loadDraftsAsContentPlan(projectName: string): Promise<Cont
 
   const items: ContentPlanItem[] = drafts.map((draft, index) => ({
     id: draft.metadata.id,
-    slug: draft.metadata.slug,
+    path: draft.metadata.path,
     title: draft.metadata.title,
     description: draft.metadata.description + (draft.seedContent ? `\n\nSeed content:\n${draft.seedContent}` : ''),
     target_keywords: draft.metadata.keywords.split(',').map(k => k.trim()).filter(Boolean),
@@ -381,7 +381,7 @@ export async function loadDraftsAsContentPlan(projectName: string): Promise<Cont
 export function draftToContentPlanItem(draft: Draft): ContentPlanItem {
   return {
     id: draft.metadata.id,
-    slug: draft.metadata.slug,
+    path: draft.metadata.path,
     title: draft.metadata.title,
     description: draft.metadata.description + (draft.seedContent ? `\n\nSeed content:\n${draft.seedContent}` : ''),
     target_keywords: draft.metadata.keywords.split(',').map(k => k.trim()).filter(Boolean),

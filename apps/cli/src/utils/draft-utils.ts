@@ -10,7 +10,7 @@ import { ContentPlanItem } from '../types';
  */
 export interface DraftMetadata {
   id: string;
-  slug: string;
+  path: string;
   title: string;
   description: string;
   keywords: string;
@@ -65,7 +65,7 @@ export async function saveDraftFile(
 export function planItemToDraftMetadata(item: ContentPlanItem, index: number): DraftMetadata {
   return {
     id: item.id || `draft-${index + 1}`,
-    slug: item.slug,
+    path: item.path,
     title: item.title,
     description: item.description || '',
     keywords: Array.isArray(item.target_keywords)
@@ -188,7 +188,7 @@ export async function createDraftFromPlanItem(
 ): Promise<string> {
   const paths = getProjectPaths(projectName);
   const metadata = planItemToDraftMetadata(item, index);
-  const filename = `${String(index + 1).padStart(2, '0')}-${item.slug}.md`;
+  const filename = `${String(index + 1).padStart(2, '0')}-${item.path}.md`;
   const filepath = path.join(paths.drafts, filename);
 
   await saveDraftFile(filepath, metadata, '');

@@ -45,7 +45,7 @@ export interface SiteConfig {
 }
 
 export interface AstroArticle {
-  slug: string;
+  path: string;
   meta: {
     title: string;
     description?: string;

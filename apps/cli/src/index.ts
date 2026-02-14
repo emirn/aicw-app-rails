@@ -43,11 +43,13 @@ import {
   selectIllustrationStyle,
   promptInput,
   parseArticleSelection,
+  promptLegalPagesChoice,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
 import path from 'path';
-import { initializeProject } from './lib/project-config';
+import { initializeProject, loadProjectConfig, saveProjectConfig } from './lib/project-config';
+import { createBuiltinLegalPages, getLegalFooterColumns, LegalPagesChoice } from './lib/legal-pages';
 import { createArticleFolder, articleFolderExists, buildPublished, updateArticleMeta, addAppliedAction, getArticleMeta } from './lib/folder-manager';
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
@@ -469,6 +471,30 @@ async function main(): Promise<void> {
           ...(aiBranding ? { branding: aiBranding } : { illustrationStyle: illustrationStyle || undefined }),
         });
 
+        // Legal pages setup
+        const legalChoice = await promptLegalPagesChoice();
+        if (legalChoice.mode === 'builtin') {
+          const siteUrl = projectUrl ? (projectUrl.startsWith('http') ? projectUrl : `https://${projectUrl}`) : 'https://example.com';
+          const legalResult = await createBuiltinLegalPages(projectDir, projectName, siteUrl);
+          if (legalResult.created.length > 0) {
+            logger.log(`Created legal pages: ${legalResult.created.join(', ')}`);
+          }
+        }
+        if (legalChoice.mode !== 'none') {
+          // Update footer columns in project config
+          const config = await loadProjectConfig(projectDir);
+          if (config) {
+            if (!config.publish_to_local_folder) {
+              config.publish_to_local_folder = { enabled: false, path: '', content_subfolder: 'articles', assets_subfolder: 'assets', template_settings: {} };
+            }
+            const ts = (config.publish_to_local_folder.template_settings || {}) as Record<string, any>;
+            if (!ts.footer) ts.footer = {};
+            ts.footer.columns = getLegalFooterColumns(legalChoice);
+            config.publish_to_local_folder.template_settings = ts;
+            await saveProjectConfig(projectDir, config);
+          }
+        }
+
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
 
@@ -544,6 +570,34 @@ async function main(): Promise<void> {
         logger.log('\nSkipped (already exist):');
         for (const p of result.skipped) {
           logger.log(`  ${p}`);
+        }
+      }
+
+      // Check if legal pages are missing and offer to add them
+      const privacyExists = existsSync(path.join(reinitProjectPaths.root, 'pages', 'privacy', 'index.md'));
+      const termsExists = existsSync(path.join(reinitProjectPaths.root, 'pages', 'terms', 'index.md'));
+      if (!privacyExists || !termsExists) {
+        logger.log('\nLegal pages not found.');
+        const legalChoice = await promptLegalPagesChoice();
+        const reinitConfig = await loadProjectConfig(reinitProjectPaths.root);
+        if (legalChoice.mode === 'builtin') {
+          const siteName = reinitConfig?.title || selectedProject;
+          const siteUrl = reinitConfig?.url || 'https://example.com';
+          const legalResult = await createBuiltinLegalPages(reinitProjectPaths.root, siteName, siteUrl);
+          if (legalResult.created.length > 0) {
+            logger.log(`Created legal pages: ${legalResult.created.join(', ')}`);
+          }
+        }
+        if (legalChoice.mode !== 'none' && reinitConfig) {
+          if (!reinitConfig.publish_to_local_folder) {
+            reinitConfig.publish_to_local_folder = { enabled: false, path: '', content_subfolder: 'articles', assets_subfolder: 'assets', template_settings: {} };
+          }
+          const ts = (reinitConfig.publish_to_local_folder.template_settings || {}) as Record<string, any>;
+          if (!ts.footer) ts.footer = {};
+          ts.footer.columns = getLegalFooterColumns(legalChoice);
+          reinitConfig.publish_to_local_folder.template_settings = ts;
+          await saveProjectConfig(reinitProjectPaths.root, reinitConfig);
+          logger.log('Updated footer configuration.');
         }
       }
 

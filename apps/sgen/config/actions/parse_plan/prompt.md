@@ -29,7 +29,7 @@ The user has provided the following free-form content plan. This may be:
 Parse the above free-form text and extract all article ideas. For each idea:
 
 1. **Create an SEO-optimized title** - Make it compelling and keyword-rich
-2. **Generate a URL-friendly slug** - Lowercase, hyphenated, preserve path structure if specified
+2. **Generate a URL-friendly path** - Lowercase, hyphenated, preserve path structure if specified
 3. **Write a clear description** - Suitable for SEO meta description (155 chars max)
 4. **Extract/suggest target keywords** - 3-5 relevant keywords per article
 5. **Suggest word count** - Based on topic complexity (typically 1500-2500 words)
@@ -42,7 +42,7 @@ Parse the above free-form text and extract all article ideas. For each idea:
 - **Fill gaps**: If keywords aren't specified, infer reasonable values
 - **Avoid duplication**: Merge similar ideas into single articles when appropriate
 - **SEO-first titles**: Make titles that work for search while being compelling
-- **Preserve path structure**: If input specifies a slug with path segments like `/ai-search-engines/baidu-ernie`, preserve the folder structure in your output - do NOT flatten to `ai-search-engines-baidu-ernie`
+- **Preserve path structure**: If input specifies a path with segments like `/ai-search-engines/baidu-ernie`, preserve the folder structure in your output - do NOT flatten to `ai-search-engines-baidu-ernie`
 
 ---
 

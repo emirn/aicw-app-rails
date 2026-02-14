@@ -124,7 +124,7 @@ export async function publishToLocalFolder(
     for (const folder of pageFolders.filter(f => f.isDirectory())) {
       const pageDir = path.join(effectivePagesDir, folder.name);
 
-      // Copy index.md or index.mdx → src/content/pages/{slug}.md(x)
+      // Copy index.md or index.mdx → src/content/pages/{path}.md(x)
       const indexMdx = path.join(pageDir, 'index.mdx');
       const indexMd = path.join(pageDir, 'index.md');
       const sourceFile = existsSync(indexMdx) ? indexMdx : existsSync(indexMd) ? indexMd : null;
@@ -135,7 +135,7 @@ export async function publishToLocalFolder(
         logger.log(`  → page: ${folder.name}${ext}`);
       }
 
-      // Copy assets/ → public/assets/pages/{slug}/
+      // Copy assets/ → public/assets/pages/{path}/
       const assetsDir = path.join(pageDir, 'assets');
       if (existsSync(assetsDir)) {
         const destAssets = path.join(pagesAssetsDest, folder.name);
