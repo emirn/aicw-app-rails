@@ -1,88 +1,24 @@
 import fetch from 'node-fetch';
 import { config } from '../config/server-config';
-import { readFileSync, statSync } from 'fs';
-import { join } from 'path';
 import { withRetry } from '../utils/retry';
 
-// Load pricing configuration with file-stat based cache invalidation
-interface ModelPricing {
-  input_per_million: number;
-  output_per_million: number;
-  description?: string;
-}
-
-interface PricingConfig {
-  models: Record<string, ModelPricing>;
-  default_input_output_ratio: number;
-  updated_at: string;
-}
-
-interface CachedConfig<T> {
-  data: T;
-  mtime: number;  // File modification time in ms
-}
-
-let pricingCache: CachedConfig<PricingConfig> | null = null;
-const PRICING_CONFIG_PATH = join(__dirname, '..', '..', 'config', 'pricing.json');
-
-function loadPricingConfig(): PricingConfig {
-  try {
-    const stat = statSync(PRICING_CONFIG_PATH);
-    const currentMtime = stat.mtimeMs;
-
-    // Return cached config if file hasn't changed
-    if (pricingCache && pricingCache.mtime === currentMtime) {
-      return pricingCache.data;
-    }
-
-    // Reload config
-    const content = readFileSync(PRICING_CONFIG_PATH, 'utf-8');
-    const data = JSON.parse(content) as PricingConfig;
-    pricingCache = { data, mtime: currentMtime };
-    return data;
-  } catch (error) {
-    // Fallback pricing if config file not found
-    console.warn('Failed to load pricing.json, using defaults');
-    return {
-      models: {
-        'default': { input_per_million: 0.15, output_per_million: 0.60 }
-      },
-      default_input_output_ratio: 0.7,
-      updated_at: 'fallback'
-    };
-  }
-}
-
 /**
- * Calculate cost in USD for a given model and token usage.
- * Handles both OpenRouter format (openai/gpt-4o) and native format (gpt-4o).
+ * Calculate cost in USD from per-action pricing and token usage.
  */
 export function calculateCost(
-  modelId: string,
+  pricing: { input_per_million: number; output_per_million: number; fixed_cost_per_call?: number },
   totalTokens: number,
   inputTokens?: number,
   outputTokens?: number
 ): number {
-  const pricing = loadPricingConfig();
-  // Try exact match, then prefixed version (for native OpenAI IDs), then default
-  const modelPricing = pricing.models[modelId]
-    || pricing.models[`openai/${modelId}`]
-    || pricing.models['default'];
-
-  // If we have exact input/output breakdown, use it
+  const fixedCost = pricing.fixed_cost_per_call || 0;
   if (inputTokens !== undefined && outputTokens !== undefined) {
-    const inputCost = (inputTokens * modelPricing.input_per_million) / 1_000_000;
-    const outputCost = (outputTokens * modelPricing.output_per_million) / 1_000_000;
-    return inputCost + outputCost;
+    return (inputTokens * pricing.input_per_million + outputTokens * pricing.output_per_million) / 1_000_000 + fixedCost;
   }
-
-  // Otherwise estimate using the default ratio
-  const ratio = pricing.default_input_output_ratio;
-  const estimatedInput = Math.floor(totalTokens * ratio);
+  // Estimate 70/30 split
+  const estimatedInput = Math.floor(totalTokens * 0.7);
   const estimatedOutput = totalTokens - estimatedInput;
-  const inputCost = (estimatedInput * modelPricing.input_per_million) / 1_000_000;
-  const outputCost = (estimatedOutput * modelPricing.output_per_million) / 1_000_000;
-  return inputCost + outputCost;
+  return (estimatedInput * pricing.input_per_million + estimatedOutput * pricing.output_per_million) / 1_000_000 + fixedCost;
 }
 
 export interface IUsageStats {
@@ -342,6 +278,7 @@ export const callAI = async (
     modelId?: string;
     baseUrl?: string;
     webSearch?: boolean;
+    pricing?: { input_per_million: number; output_per_million: number };
   }
 ): Promise<AICallResult> => {
   const startTime = Date.now();
@@ -430,8 +367,9 @@ export const callAI = async (
   const inputTokens = data?.usage?.prompt_tokens || 0;
   const outputTokens = data?.usage?.completion_tokens || 0;
   const generationTime = Date.now() - startTime;
-  // Use original modelId for cost calculation (pricing.json uses OpenRouter format)
-  const costUsd = calculateCost(modelId, tokens, inputTokens, outputTokens);
+  // Calculate cost using per-action pricing (fallback to zero if no pricing provided)
+  const actionPricing = opts?.pricing || { input_per_million: 0, output_per_million: 0 };
+  const costUsd = calculateCost(actionPricing, tokens, inputTokens, outputTokens);
 
   const debugInfo = process.env.DEBUG_MODE === 'true'
     ? { model_used: normalizedModelId, generation_time_ms: generationTime }
