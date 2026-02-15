@@ -6,6 +6,7 @@
  */
 
 import { IProjectConfig, IArticle, IPromptParts } from '@blogpostgen/types';
+import { ContentStats } from '../utils/content-stats';
 
 /**
  * Context sent from CLI to API
@@ -120,6 +121,9 @@ export interface ActionExecuteResponse {
 
   /** Read-only data (for status action) */
   data?: Record<string, any>;
+
+  /** Content stats (before/after word counts, headings, links, checklists) */
+  contentStats?: ContentStats;
 }
 
 /**

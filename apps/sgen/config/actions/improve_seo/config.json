@@ -1,7 +1,7 @@
 {
   "ai_provider": "openrouter",
   "ai_model_id": "openai/gpt-4o",
-  "output_mode": "text_replace_all",
+  "output_mode": "text_replace",
   "description": "Improve SEO with target keywords and structure",
   "pricing": {
     "input_per_million": 2.5,

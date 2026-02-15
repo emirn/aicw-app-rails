@@ -12,8 +12,10 @@ import { callAI } from '../../services/ai.service';
 import { config } from '../../config/server-config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { countContentStats, buildContentStats } from '../../utils/content-stats';
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, log }) => {
+  const statsBefore = countContentStats(article.content || '');
   const { findSafeZones } = await import('../../utils/random-typos');
   const csvPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'humanize_text', 'replacements.csv');
 
@@ -68,8 +70,13 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url, pricing: cfg?.pricing });
 
     if (aiRes.content && typeof aiRes.content === 'string') {
-      text = aiRes.content;
-      changes.push('orthography fixed (AI)');
+      const shrinkage = 1 - (aiRes.content.length / text.length);
+      if (shrinkage > 0.3) {
+        log.error({ shrinkagePct: Math.round(shrinkage * 100) }, 'humanize_text:orthography_shrunk_>30%, preserving original');
+      } else {
+        text = aiRes.content;
+        changes.push('orthography fixed (AI)');
+      }
     }
     tokensUsed = aiRes.tokens || 0;
     costUsd = aiRes.usageStats.cost_usd || 0;
@@ -81,14 +88,16 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     content: text,
   });
 
-  const wordCount = text.split(/\s+/).length;
-  log.info({ path: context.articlePath, mode: 'humanize_text', tokens: tokensUsed, cost_usd: costUsd, words: wordCount }, 'enhance:humanize_text:done');
+  const statsAfter = countContentStats(text);
+  const contentStats = buildContentStats(statsBefore, statsAfter);
+  log.info({ path: context.articlePath, mode: 'humanize_text', tokens: tokensUsed, cost_usd: costUsd, words: statsAfter.words }, 'enhance:humanize_text:done');
 
   return {
     success: true,
     message: `Humanized article (${changes.join(', ')})`,
     tokensUsed,
     costUsd,
+    contentStats,
     operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, 'humanize_text')],
   };
 };

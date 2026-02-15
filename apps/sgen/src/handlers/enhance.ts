@@ -19,6 +19,7 @@ import { extractMarkdownContent, needsNormalization } from '../utils/json-conten
 import { randomUUID } from 'crypto';
 import { resolveProjectMacros, resolveProjectMacrosInText } from '../utils/variables';
 import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
+import { countContentStats, buildContentStats } from '../utils/content-stats';
 
 export async function handleEnhance(
   context: ActionContext,
@@ -289,7 +290,9 @@ export async function handleEnhance(
 
     prompt = buildUpdatePrompt(article, mode, contextForPrompt, outMode);
 
-    log.info({ path: context.articlePath, mode, output_mode: outMode }, 'enhance:start');
+    const statsBefore = countContentStats(article.content);
+    const wordsBefore = statsBefore.words;
+    log.info({ path: context.articlePath, mode, output_mode: outMode, words_before: wordsBefore }, 'enhance:start');
 
     const provider = cfg?.ai_provider || 'openrouter';
     const modelId = cfg?.ai_model_id || (provider === 'openai'
@@ -350,21 +353,22 @@ export async function handleEnhance(
           faq: text,
         });
 
-        const wordCount = article.content.split(/\s+/).length;
+        const contentStats = buildContentStats(statsBefore, countContentStats(article.content));
 
         log.info({
           path: context.articlePath,
           mode,
           tokens,
           cost_usd: usageStats.cost_usd,
-          words: wordCount,
+          words: contentStats.words_after,
         }, 'enhance:done (faq stored in meta)');
 
         return {
           success: true,
-          message: `Added FAQ section (stored separately, ${wordCount} words in article)`,
+          message: `Added FAQ section (stored separately, ${contentStats.words_after} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
+          contentStats,
           prompt,
           rawResponse: flags.debug ? rawContent : undefined,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
@@ -377,21 +381,22 @@ export async function handleEnhance(
           content_jsonld: text,
         });
 
-        const wordCount = article.content.split(/\s+/).length;
+        const contentStats = buildContentStats(statsBefore, countContentStats(article.content));
 
         log.info({
           path: context.articlePath,
           mode,
           tokens,
           cost_usd: usageStats.cost_usd,
-          words: wordCount,
+          words: contentStats.words_after,
         }, 'enhance:done (content_jsonld stored in meta)');
 
         return {
           success: true,
-          message: `Added content JSON-LD schema (stored separately, ${wordCount} words in article)`,
+          message: `Added content JSON-LD schema (stored separately, ${contentStats.words_after} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
+          contentStats,
           prompt,
           rawResponse: flags.debug ? rawContent : undefined,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
@@ -404,21 +409,22 @@ export async function handleEnhance(
           faq_jsonld: text,
         });
 
-        const wordCount = article.content.split(/\s+/).length;
+        const contentStats = buildContentStats(statsBefore, countContentStats(article.content));
 
         log.info({
           path: context.articlePath,
           mode,
           tokens,
           cost_usd: usageStats.cost_usd,
-          words: wordCount,
+          words: contentStats.words_after,
         }, 'enhance:done (faq_jsonld stored in meta)');
 
         return {
           success: true,
-          message: `Added FAQ JSON-LD schema (stored separately, ${wordCount} words in article)`,
+          message: `Added FAQ JSON-LD schema (stored separately, ${contentStats.words_after} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
+          contentStats,
           prompt,
           rawResponse: flags.debug ? rawContent : undefined,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
@@ -511,21 +517,26 @@ export async function handleEnhance(
 
     const updatedArticleObj = updateArticle(normalizedMeta, metaUpdates);
 
-    const wordCount = updatedArticle.content.split(/\s+/).length;
+    const statsAfter = countContentStats(updatedArticle.content);
+    const contentStats = buildContentStats(statsBefore, statsAfter);
 
     log.info({
       path: context.articlePath,
       mode,
       tokens,
       cost_usd: usageStats.cost_usd,
-      words: wordCount,
+      words_before: contentStats.words_before,
+      words_after: contentStats.words_after,
+      word_delta: contentStats.word_delta,
+      word_delta_pct: contentStats.word_delta_pct,
     }, 'enhance:done');
 
     return {
       success: true,
-      message: `Enhanced article with ${mode} (${wordCount} words)`,
+      message: `Enhanced article with ${mode} (${statsAfter.words} words)`,
       tokensUsed: tokens,
       costUsd: usageStats.cost_usd,
+      contentStats,
       prompt,  // Include for history tracking
       rawResponse: flags.debug ? rawContent : undefined,  // Include raw AI response when debug flag set
       operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],

@@ -90,6 +90,19 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatContentStats(stats: any): string {
+  if (!stats) return '';
+  const parts: string[] = [];
+  parts.push(`words: ${stats.words_before}→${stats.words_after} (${stats.word_delta >= 0 ? '+' : ''}${stats.word_delta_pct}%)`);
+  if (stats.links_before !== stats.links_after) {
+    parts.push(`links: ${stats.links_before}→${stats.links_after}`);
+  }
+  if (stats.headings_before !== stats.headings_after) {
+    parts.push(`headings: ${stats.headings_before}→${stats.headings_after}`);
+  }
+  return parts.join(' | ');
+}
+
 /**
  * Local actions handled entirely by CLI (no sgen API needed)
  */
@@ -927,7 +940,8 @@ async function main(): Promise<void> {
         if (result.success) {
           totalTokens += result.tokensUsed || 0;
           totalCost += result.costUsd || 0;
-          logger.log(`  DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
+          const statsStr = formatContentStats(result.contentStats);
+          logger.log(`  DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
           batchResults.push({ path: articlePath, title: articlePath, success: true });
         } else {
           logger.log(`  FAILED: ${result.error}`);
@@ -1546,7 +1560,10 @@ async function main(): Promise<void> {
     }
 
     // Check if selected action is a pipeline (from API)
-    const pipelineConfigResult = await executor.getPipelineConfig(finalAction);
+    const NON_PIPELINE_ACTIONS = ['status', 'list-actions'];
+    const pipelineConfigResult = NON_PIPELINE_ACTIONS.includes(finalAction)
+      ? { success: false as const }
+      : await executor.getPipelineConfig(finalAction);
     if (pipelineConfigResult.success && pipelineConfigResult.config) {
       const pipelineConfig = pipelineConfigResult.config;
 
@@ -1753,7 +1770,8 @@ async function main(): Promise<void> {
                   // Action executed successfully
                   totalTokens += result.tokensUsed || 0;
                   totalCost += result.costUsd || 0;
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
+                  const statsStr = formatContentStats(result.contentStats);
+                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
@@ -1867,6 +1885,10 @@ async function main(): Promise<void> {
     if (result.success) {
       if (result.message) {
         logger.log(result.message);
+      }
+      const statsStr = formatContentStats(result.contentStats);
+      if (statsStr) {
+        logger.log(statsStr);
       }
       if (result.tokensUsed || result.costUsd) {
         logger.log(`Tokens: ${result.tokensUsed || 0}, Cost: $${(result.costUsd || 0).toFixed(4)}`);
@@ -2355,7 +2377,8 @@ async function main(): Promise<void> {
                 if (result.success) {
                   totalTokens += result.tokensUsed || 0;
                   totalCost += result.costUsd || 0;
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
+                  const statsStr = formatContentStats(result.contentStats);
+                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
@@ -2857,6 +2880,11 @@ async function main(): Promise<void> {
   // Output result
   if (result.message) {
     logger.log(result.message);
+  }
+
+  const statsStr = formatContentStats(result.contentStats);
+  if (statsStr) {
+    logger.log(statsStr);
   }
 
   if (result.tokensUsed || result.costUsd) {

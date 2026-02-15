@@ -26,6 +26,14 @@ function getBundledCustomMd(actionName: string): string | null {
 }
 
 /**
+ * Read a bundled file by name from CLI's config directory
+ */
+function getBundledFile(actionName: string, filename: string): string | null {
+  const p = path.join(BUNDLED_DIR, actionName, filename);
+  return existsSync(p) ? readFileSync(p, 'utf-8') : null;
+}
+
+/**
  * Metadata for a created file
  */
 export interface CreatedFile {
@@ -115,6 +123,28 @@ export async function reinitProject(
             actionName,
             description: cfg.description || '',
             fileType: 'prompt',
+          });
+        }
+      }
+    }
+
+    // Handle add_external_links -> domains.txt (bundled default)
+    if (actionName === 'add_external_links') {
+      const defaultTxt = getBundledFile(actionName, 'domains.txt');
+      if (defaultTxt) {
+        const txtPath = path.join(actionDir, 'domains.txt');
+        const relativePath = path.relative(paths.root, txtPath);
+
+        if (await fileExists(txtPath)) {
+          result.skipped.push(relativePath);
+        } else {
+          await fs.mkdir(actionDir, { recursive: true });
+          await fs.writeFile(txtPath, defaultTxt);
+          result.created.push({
+            path: relativePath,
+            actionName,
+            description: cfg.description || 'Allowed domains for external link insertion',
+            fileType: 'config',
           });
         }
       }

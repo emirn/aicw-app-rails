@@ -137,6 +137,7 @@ interface ActionResponse {
     errors: Array<{ path: string; error: string }>;
   };
   data?: Record<string, any>;
+  contentStats?: any;
 }
 
 /**
@@ -378,9 +379,15 @@ export class APIExecutor {
     tokensUsed?: number;
     costUsd?: number;
     skipped?: boolean;  // True if action was skipped (e.g., already applied)
+    contentStats?: any;
   }> {
     // Build context from path
     const context = await this.buildContext(action, pathArg, flags);
+
+    // Status without project: list all projects locally
+    if (action === 'status' && !context.projectName) {
+      return this.handleAllProjectsStatus();
+    }
 
     this.logger.log(`Executing: ${action}`);
 
@@ -473,6 +480,52 @@ export class APIExecutor {
         tokensUsed: response.tokensUsed,
         costUsd: response.costUsd,
         skipped: response.skipped,
+        contentStats: response.contentStats,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Handle status for all projects (no specific project selected)
+   */
+  private async handleAllProjectsStatus(): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      // Dynamic import to avoid circular dependency
+      const { listAvailableProjects } = await import('./interactive-prompts');
+      const projects = await listAvailableProjects();
+
+      if (projects.length === 0) {
+        return {
+          success: true,
+          message: 'No projects found.',
+        };
+      }
+
+      const lines: string[] = [`Found ${projects.length} project(s):\n`];
+
+      for (const project of projects) {
+        const resolved = resolvePath(project.name);
+        const config = await getProjectConfig(resolved);
+        const url = config?.url || '(no URL)';
+        lines.push(`  ${project.name}`);
+        lines.push(`    URL: ${url}`);
+        lines.push(`    Articles: ${project.articleCount}`);
+        lines.push('');
+      }
+
+      return {
+        success: true,
+        message: lines.join('\n'),
       };
     } catch (error) {
       return {
@@ -572,8 +625,11 @@ export class APIExecutor {
       return context;
     }
 
-    // No path provided - project path is required for all actions
+    // No path provided
     if (!pathArg) {
+      if (action === 'status') {
+        return context; // Empty context — handled in executeAction
+      }
       throw new Error('Project path is required for all actions.');
     }
 
@@ -730,6 +786,16 @@ export class APIExecutor {
         if (actionConfig?.variables) {
           flags.custom_variables = actionConfig.variables;
           this.logger.log('Loaded custom generate_image_hero variables');
+        }
+      }
+
+      // For enhance action with add_external_links mode, load project-level allowed-domains.txt
+      if (action === 'enhance' && flags.mode === 'add_external_links') {
+        const projectPaths = getProjectPaths(resolved.projectName);
+        const domainsTxt = await loadActionPrompt(projectPaths.root, 'add_external_links', 'domains.txt');
+        if (domainsTxt) {
+          flags.domains_txt = domainsTxt;
+          this.logger.log('Loaded project domains.txt for add_external_links');
         }
       }
 
