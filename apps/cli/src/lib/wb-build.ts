@@ -10,6 +10,7 @@ import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
 import { parsePublishedFolder } from './published-parser.js';
 import { normalizeUrl } from '../url-utils.js';
+import { getProjectTmpDir } from '../config/user-paths.js';
 import type {
   BuildAstroSiteOptions,
   SiteConfig,
@@ -140,7 +141,7 @@ export async function buildWebsiteLocal(
   }
 
   // 3. Create job directory for assets
-  const jobDir = path.join(projectRoot, '.blogpostgen', 'wb-build-job');
+  const jobDir = path.join(getProjectTmpDir(projectName), 'wb-build-job');
   await fs.mkdir(jobDir, { recursive: true });
 
   // 4. Copy assets from published-assets/ to job directory

@@ -54,6 +54,7 @@ export const USER_PROJECTS_DIR = path.join(USER_DATA_DIR, 'projects');
 export const USER_CACHE_DIR = path.join(USER_DATA_DIR, 'cache');
 export const USER_LOGS_DIR = path.join(USER_DATA_DIR, 'logs');
 export const USER_CONFIG_DIR = path.join(USER_DATA_DIR, 'config');
+export const USER_TMP_DIR = path.join(USER_DATA_DIR, '.tmp');
 export const USER_SETTINGS_PATH = path.join(USER_DATA_DIR, 'settings.json');
 
 /**
@@ -84,6 +85,13 @@ export function getUserProjectDir(projectName: string): string {
 }
 
 /**
+ * Get temporary directory for a specific project
+ */
+export function getProjectTmpDir(projectName: string): string {
+  return path.join(USER_TMP_DIR, projectName);
+}
+
+/**
  * Get project subdirectories
  */
 export function getProjectPaths(projectName: string) {
@@ -97,7 +105,6 @@ export function getProjectPaths(projectName: string) {
     // @deprecated - use drafts instead
     content: path.join(projectDir, 'drafts'),
     projectYaml: path.join(projectDir, '_project.yaml'),
-    blogpostgenDir: path.join(projectDir, '.blogpostgen'),
     // @deprecated - legacy paths for old draft system
     draftsProcessed: path.join(projectDir, 'drafts', '_processed'),
     articlePhase: (phase: string) => path.join(projectDir, 'articles', phase),
@@ -178,6 +185,7 @@ export async function initializeUserDirectories(): Promise<void> {
     LOGS_SGEN_DIR,
     LOGS_PGEN_DIR,  // Keep for backward compatibility
     USER_CONFIG_DIR,
+    USER_TMP_DIR,
   ];
 
   for (const dir of directories) {
