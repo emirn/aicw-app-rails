@@ -110,6 +110,15 @@ export const mergeUpdate = (base: IApiArticle, mode: string, content: any, rawCo
   }
   if (typeof content === 'object' && content?.content) {
     const text = String(content.content);
+    // Guard: reject if content shrunk by more than 30% (prevents AI summarization/truncation)
+    if (base.content && text.length < base.content.length * 0.7) {
+      console.error(`mergeUpdate: JSON content shrunk by >${Math.round((1 - text.length / base.content.length) * 100)}% (${base.content.length} -> ${text.length}), preserving original`);
+      return {
+        article: base,
+        rejected: true,
+        reason: `Content shrunk by >${Math.round((1 - text.length / base.content.length) * 100)}% (${base.content.length} -> ${text.length} chars)`
+      };
+    }
     return { article: { ...base, content: text }, rejected: false };
   }
   if (typeof content === 'object' && content?.id) {
@@ -133,14 +142,14 @@ export const mergeUpdate = (base: IApiArticle, mode: string, content: any, rawCo
     };
   }
 
-  // SAFETY: Refuse to replace if content shrinks by more than 50%
-  // This prevents data loss when AI returns partial/malformed content
-  if (base.content && contentText.length < base.content.length * 0.5) {
-    console.error(`mergeUpdate: Content shrunk by >50% (${base.content.length} -> ${contentText.length}), preserving original`);
+  // SAFETY: Refuse to replace if content shrinks by more than 30%
+  // This prevents data loss when AI returns partial/summarized content
+  if (base.content && contentText.length < base.content.length * 0.7) {
+    console.error(`mergeUpdate: Content shrunk by >30% (${base.content.length} -> ${contentText.length}), preserving original`);
     return {
       article: base,
       rejected: true,
-      reason: `Content shrunk by >50% (${base.content.length} -> ${contentText.length} chars)`
+      reason: `Content shrunk by >30% (${base.content.length} -> ${contentText.length} chars)`
     };
   }
 
