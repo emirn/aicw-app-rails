@@ -681,6 +681,7 @@ export async function addCostEntry(
     word_delta_pct: number;
     links_before: number;
     links_after: number;
+    changes?: number;
   }
 ): Promise<void> {
   const meta = await readArticleMeta(folderPath);

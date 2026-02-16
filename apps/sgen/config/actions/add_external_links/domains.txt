@@ -142,6 +142,35 @@ dropbox.tech
 airbnb.io
 slack.engineering
 
+# Accounting & invoicing
+quickbooks.intuit.com
+freshbooks.com
+xero.com
+wave.com
+zoho.com
+accountingtools.com
+bench.co
+
+# Legal & compliance
+nolo.com
+law.cornell.edu
+findlaw.com
+justia.com
+legalzoom.com
+
+# Payments & fintech
+paypal.com
+square.com
+braintreepayments.com
+
+# Small business & personal finance
+score.org
+nerdwallet.com
+bankrate.com
+thebalancemoney.com
+fundera.com
+nav.com
+
 # Vertical & government
 investopedia.com
 healthline.com

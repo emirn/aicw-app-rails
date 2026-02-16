@@ -16,12 +16,12 @@ import { countContentStats, buildContentStats } from '../../utils/content-stats'
 import { join } from 'path';
 import { readFileSync } from 'fs';
 
-interface AllowedDomainsConfig {
+interface DomainList {
   domains: string[];
   patterns: string[];
 }
 
-function parseAllowedDomains(content: string): AllowedDomainsConfig {
+function parseDomainList(content: string): DomainList {
   const domains: string[] = [];
   const patterns: string[] = [];
   for (const raw of content.split('\n')) {
@@ -33,15 +33,24 @@ function parseAllowedDomains(content: string): AllowedDomainsConfig {
   return { domains, patterns };
 }
 
-function isDomainAllowed(url: string, allowedDomains: string[], patterns: string[]): boolean {
+function isDomainBlocked(url: string, blocklist: DomainList): boolean {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
-    if (allowedDomains.some(d => hostname === d || hostname.endsWith('.' + d))) return true;
-    for (const p of patterns) {
+    if (blocklist.domains.some(d => hostname === d || hostname.endsWith('.' + d))) return true;
+    for (const p of blocklist.patterns) {
       const suffix = p.replace('*', '');
       if (hostname.endsWith(suffix)) return true;
     }
     return false;
+  } catch {
+    return true; // reject unparseable URLs
+  }
+}
+
+function isHomepageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname === '/' || parsed.pathname === '';
   } catch {
     return false;
   }
@@ -65,12 +74,21 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   const domainsPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'domains.txt');
   const domainsContent = flags.domains_txt || readFileSync(domainsPath, 'utf8');
 
-  // 3. Load and render prompt template with dynamic target and domains
+  // 3. Extract ~100-word excerpt (body text only, no headings)
+  const excerptWords = article.content
+    .split('\n')
+    .filter(line => !line.trimStart().startsWith('#') && line.trim().length > 0)
+    .join(' ')
+    .split(/\s+/)
+    .slice(0, 100)
+    .join(' ');
+
+  // 4. Load and render prompt template with dynamic target and domains
   const { renderTemplateAbsolutePath } = await import('../../utils/template');
   const promptPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'prompt.md');
-  const prompt = renderTemplateAbsolutePath(promptPath, { content: article.content, target_links: targetLinks, domains: domainsContent });
+  const prompt = renderTemplateAbsolutePath(promptPath, { content: article.content, target_links: targetLinks, domains: domainsContent, title: article.title || '', keywords: article.keywords || '', excerpt: excerptWords });
 
-  // 4. Call AI
+  // 5. Call AI
   const provider = cfg?.ai_provider || 'openrouter';
   const modelId = cfg?.ai_model_id || (provider === 'openai'
     ? config.ai.defaultModel.replace(/^openai\//, '')
@@ -89,7 +107,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   let links = parseLinkInsertions(content);
 
   if (links.length === 0) {
-    log.warn({ mode, rawContentLength: rawContent?.length, rawContentSnippet: rawContent?.substring(0, 300) },
+    log.warn({ mode, rawContentLength: rawContent?.length, rawContentFull: rawContent },
       'add_external_links:no_links_parsed');
     const contentStats = buildContentStats(statsBefore, statsBefore);
     return {
@@ -106,34 +124,63 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     };
   }
 
-  // 6. Domain allowlist validation — reject links to non-allowlisted domains
-  const allowlist = parseAllowedDomains(domainsContent);
-  const allowedLinks: typeof links = [];
-  const rejectedDomains: string[] = [];
-  for (const link of links) {
-    if (isDomainAllowed(link.url, allowlist.domains, allowlist.patterns)) {
-      allowedLinks.push(link);
-    } else {
+  // 6. Domain blocklist — reject links from disallowed domains
+  const disallowPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'disallow_domains.txt');
+  let disallowContent = '';
+  try { disallowContent = readFileSync(disallowPath, 'utf8'); } catch { /* no blocklist file = no rejections */ }
+  const blocklist = parseDomainList(disallowContent);
+  const blockedDomains: string[] = [];
+  links = links.filter(link => {
+    if (isDomainBlocked(link.url, blocklist)) {
       try {
-        const hostname = new URL(link.url).hostname;
-        rejectedDomains.push(`${hostname} (${link.url})`);
+        blockedDomains.push(`${new URL(link.url).hostname} (${link.url})`);
       } catch {
-        rejectedDomains.push(link.url);
+        blockedDomains.push(link.url);
       }
+      return false;
     }
+    return true;
+  });
+  if (blockedDomains.length > 0) {
+    log.warn({ mode, blocked: blockedDomains }, 'add_external_links:domains_blocked');
   }
-  if (rejectedDomains.length > 0) {
-    log.warn({ mode, rejected: rejectedDomains }, 'add_external_links:domains_not_allowlisted');
-  }
-  links = allowedLinks;
 
-  if (links.length === 0) {
-    log.warn({ mode, rejectedDomains }, 'add_external_links:all_links_rejected_by_allowlist');
+  if (links.length === 0 && blockedDomains.length > 0) {
     const contentStats = buildContentStats(statsBefore, statsBefore);
     return {
       success: true,
       skipped: true,
-      message: `No external links passed domain allowlist (${rejectedDomains.length} rejected)`,
+      message: `All links rejected by blocklist (${blockedDomains.length} blocked)`,
+      tokensUsed: tokens,
+      costUsd: usageStats.cost_usd,
+      contentStats,
+      prompt,
+      rawResponse: rawContent,
+      operations: [],
+      requireChanges: cfg?.require_changes,
+    };
+  }
+
+  // 6b. Homepage URL filter — reject URLs that point to domain root instead of a specific page
+  const rejectedHomepages: string[] = [];
+  links = links.filter(link => {
+    if (isHomepageUrl(link.url)) {
+      rejectedHomepages.push(link.url);
+      return false;
+    }
+    return true;
+  });
+  if (rejectedHomepages.length > 0) {
+    log.warn({ mode, rejectedHomepages }, 'add_external_links:homepage_urls_rejected');
+  }
+
+  if (links.length === 0) {
+    log.warn({ mode, rejectedHomepages }, 'add_external_links:all_links_rejected_as_homepages');
+    const contentStats = buildContentStats(statsBefore, statsBefore);
+    return {
+      success: true,
+      skipped: true,
+      message: `No external links had specific page URLs (${rejectedHomepages.length} homepage URLs rejected)`,
       tokensUsed: tokens,
       costUsd: usageStats.cost_usd,
       contentStats,
@@ -168,6 +215,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
 
   const statsAfter = countContentStats(cleanedContent);
   const contentStats = buildContentStats(statsBefore, statsAfter);
+  contentStats.changes = applied;
 
   log.info({
     path: context.articlePath,
@@ -176,7 +224,8 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     cost_usd: usageStats.cost_usd,
     words: statsAfter.words,
     links_applied: applied,
-    links_rejected: rejectedDomains.length,
+    links_blocked: blockedDomains.length,
+    links_rejected_homepage: rejectedHomepages.length,
   }, 'enhance:add_external_links:done');
 
   return {

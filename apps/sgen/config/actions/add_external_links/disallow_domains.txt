@@ -1,0 +1,7 @@
+# disallow_domains.txt — domains/patterns that are ALWAYS rejected
+# Lines starting with # are comments, blank lines ignored
+# Wildcard patterns: *.ru matches any .ru domain
+
+# Country TLDs with high spam/low-quality content risk
+*.ru
+*.cn

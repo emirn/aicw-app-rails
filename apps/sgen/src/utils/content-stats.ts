@@ -22,6 +22,7 @@ export interface ContentStats {
   links_after: number;
   checklists_before: number;
   checklists_after: number;
+  changes?: number;
 }
 
 export function countContentStats(content: string): ContentStatsSnapshot {
