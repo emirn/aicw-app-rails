@@ -33,14 +33,6 @@ function parseAllowedDomains(content: string): AllowedDomainsConfig {
   return { domains, patterns };
 }
 
-function loadAllowedDomains(flagsContent?: string): AllowedDomainsConfig {
-  if (flagsContent) {
-    return parseAllowedDomains(flagsContent);
-  }
-  const configPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'domains.txt');
-  return parseAllowedDomains(readFileSync(configPath, 'utf8'));
-}
-
 function isDomainAllowed(url: string, allowedDomains: string[], patterns: string[]): boolean {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
@@ -69,12 +61,16 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   // 1. Compute dynamic target link count based on article length
   const targetLinks = computeTargetLinks(statsBefore.words);
 
-  // 2. Load and render prompt template with dynamic target
+  // 2. Resolve domains content once (project override or bundled default)
+  const domainsPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'domains.txt');
+  const domainsContent = flags.domains_txt || readFileSync(domainsPath, 'utf8');
+
+  // 3. Load and render prompt template with dynamic target and domains
   const { renderTemplateAbsolutePath } = await import('../../utils/template');
   const promptPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'prompt.md');
-  const prompt = renderTemplateAbsolutePath(promptPath, { content: article.content, target_links: targetLinks });
+  const prompt = renderTemplateAbsolutePath(promptPath, { content: article.content, target_links: targetLinks, domains: domainsContent });
 
-  // 3. Call AI
+  // 4. Call AI
   const provider = cfg?.ai_provider || 'openrouter';
   const modelId = cfg?.ai_model_id || (provider === 'openai'
     ? config.ai.defaultModel.replace(/^openai\//, '')
@@ -90,7 +86,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     pricing: cfg?.pricing,
   });
 
-  // 4. Parse response as link insertions
+  // 5. Parse response as link insertions
   let links = parseLinkInsertions(content);
 
   if (links.length === 0) {
@@ -111,7 +107,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     };
   }
 
-  // 5. Deduplicate URLs (simple Set-based check)
+  // 6. Deduplicate URLs (simple Set-based check)
   const seenUrls = new Set<string>();
   const deduped: typeof links = [];
   const removedDups: string[] = [];
@@ -128,8 +124,8 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   }
   links = deduped;
 
-  // 6. Domain allowlist validation — reject links to non-allowlisted domains
-  const allowlist = loadAllowedDomains(flags.domains_txt);
+  // 7. Domain allowlist validation — reject links to non-allowlisted domains
+  const allowlist = parseAllowedDomains(domainsContent);
   const allowedLinks: typeof links = [];
   const rejectedDomains: string[] = [];
   for (const link of links) {
@@ -167,7 +163,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     };
   }
 
-  // 7. Apply link insertions
+  // 8. Apply link insertions
   const { result, applied, skipped } = applyLinkInsertions(article.content, links);
 
   if (skipped.length > 0) {
@@ -175,7 +171,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   }
   log.info({ mode, total: links.length, applied, skipped: skipped.length }, 'link_insert:applied');
 
-  // 8. Clean URLs (remove tracking params)
+  // 9. Clean URLs (remove tracking params)
   const projectUrl = context.projectConfig?.url;
   const normalizeUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -184,7 +180,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   };
   const cleanedContent = cleanMarkdownUrls(result, normalizeUrl(projectUrl));
 
-  // 9. Build updated article
+  // 10. Build updated article
   const updatedArticleObj = updateArticle(normalizedMeta, {
     content: cleanedContent,
   });

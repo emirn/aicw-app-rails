@@ -24,6 +24,7 @@ import {
   createArticleFolder,
   articleFolderExists,
   readArticleMeta,
+  readArticle,
   archiveVersion,
 } from './folder-manager';
 import { getContentDir } from './project-config';
@@ -448,7 +449,7 @@ export async function importPlan(
 
         // At seed stage - archive old version and replace
         try {
-          const oldContent = await fs.readFile(path.join(folderPath, 'content.md'), 'utf-8');
+          const oldContent = await readArticle(folderPath) || '';
           const oldMeta = await fs.readFile(path.join(folderPath, META_FILE), 'utf-8');
           await archiveVersion(folderPath, oldContent, oldMeta, 'plan-import-replaced');
         } catch {

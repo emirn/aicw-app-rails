@@ -16,7 +16,7 @@ import { countContentStats, buildContentStats } from '../../utils/content-stats'
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, log }) => {
   const statsBefore = countContentStats(article.content || '');
-  const { findSafeZones } = await import('../../utils/random-typos');
+  const { maskSafeZones } = await import('../../utils/random-typos');
   const csvPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'humanize_text', 'replacements.csv');
 
   // Load and parse CSV
@@ -33,17 +33,17 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     if (from) pairs.push({ from, to });
   }
 
-  // Step 1: Apply CSV replacements with safe zones (longest first)
+  // Step 1: Apply CSV replacements with safe zone protection (placeholder approach)
   pairs.sort((a, b) => b.from.length - a.from.length);
   let text = article.content || '';
-  const safeZones = findSafeZones(text);
+
+  // Protect safe zones by replacing with placeholders before CSV processing
+  const { masked, restore } = maskSafeZones(text);
+  let maskedText = masked;
 
   for (const { from, to } of pairs) {
     const re = new RegExp(`\\b${escapeRegExp(from)}\\b`, 'gi');
-    text = text.replace(re, (match, offset) => {
-      for (const zone of safeZones) {
-        if (offset >= zone.start && offset < zone.end) return match;
-      }
+    maskedText = maskedText.replace(re, (match) => {
       if (to.includes('|')) {
         const variants = to.split('|');
         return variants[Math.floor(Math.random() * variants.length)];
@@ -51,6 +51,9 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
       return to;
     });
   }
+
+  // Restore safe zones from placeholders
+  text = restore(maskedText);
 
   let changes = ['humanize_text (static CSV) applied'];
   let tokensUsed = 0;

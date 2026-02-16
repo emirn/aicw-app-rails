@@ -27,7 +27,7 @@ export interface ContentStats {
 export function countContentStats(content: string): ContentStatsSnapshot {
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
   const headings = (content.match(/^#{1,6}\s/gm) || []).length;
-  const links = (content.match(/\[([^\]]+)\]\(([^)]+)\)/g) || []).length;
+  const links = (content.match(/(?<!!)\[([^\]]+)\]\(([^)]+)\)/g) || []).length;
   const checklists = (content.match(/^- \[[ x]\]/gm) || []).length;
   return { words, headings, links, checklists };
 }

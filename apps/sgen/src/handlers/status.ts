@@ -8,6 +8,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ActionContext, ActionExecuteResponse } from './types';
+import { loadPipelinesConfig } from '../config/pipelines-config';
 
 export async function handleStatus(
   context: ActionContext,
@@ -55,7 +56,7 @@ export async function handleStatus(
 
   // Return project status with article summary
   const articles = context.articles || [];
-  const summary = buildStatusSummary(articles);
+  const summary = buildStatusSummary(articles, context.totalCost);
 
   log.info({ project: context.projectName, total: articles.length }, 'status:project');
 
@@ -125,28 +126,32 @@ function getNextActions(lastPipeline: string | null): string[] {
   return NEXT_ACTIONS[key] || [];
 }
 
-function buildStatusSummary(articles: Array<{ article: { last_pipeline?: string | null; costs?: Array<{ cost: number }> } }>): StatusSummary {
-  const byPipeline: Record<string, number> = {
-    '(seed)': 0,
-    'generate': 0,
-    'enhance': 0,
-    'interlink-articles': 0,
-    'finalize': 0,
-  };
+function buildStatusSummary(
+  articles: Array<{ article: { last_pipeline?: string | null; costs?: Array<{ cost: number }> } }>,
+  preCalculatedTotalCost?: number
+): StatusSummary {
+  // Seed byPipeline from pipelines.json — no hardcoded names
+  const pipelinesConfig = loadPipelinesConfig();
+  const byPipeline: Record<string, number> = { '(seed)': 0 };
+  for (const name of Object.keys(pipelinesConfig.pipelines)) {
+    byPipeline[name] = 0;
+  }
 
-  let totalCost = 0;
+  let totalCost = preCalculatedTotalCost ?? 0;
 
   for (const item of articles) {
     const pipeline = item.article.last_pipeline || '(seed)';
     if (byPipeline[pipeline] !== undefined) {
       byPipeline[pipeline]++;
     } else {
-      // Unknown pipeline, add it
       byPipeline[pipeline] = 1;
     }
 
-    const costs = item.article.costs || [];
-    totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
+    // Only sum from article costs if no pre-calculated value provided (backward compat)
+    if (preCalculatedTotalCost === undefined) {
+      const costs = item.article.costs || [];
+      totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
+    }
   }
 
   return {
