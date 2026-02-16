@@ -595,8 +595,8 @@ function truncateTitle(title: string, maxLen: number = 50): string {
   return title.slice(0, maxLen - 3) + '...';
 }
 
-const MAX_TITLE_LENGTH = 200;
-const MAX_OLDEST_ARTICLES_TO_SHOW = 10;
+const MAX_TITLE_LENGTH = 60;
+const MAX_OLDEST_ARTICLES_TO_SHOW = 25;
 
 /**
  * Result of parsing article selection input
@@ -841,7 +841,7 @@ export async function selectArticlesForGeneration(
     const priority = getPriorityIndicator(article.priority);
     const date = formatDate(article.created_at);
     const title = truncateTitle(article.title, MAX_TITLE_LENGTH);
-    console.error(`  ${String(i + 1).padStart(2)}. ${priority} ${date.padEnd(14)} ${title}`);
+    console.error(`  ${String(i + 1).padStart(2)}. ${priority} ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
@@ -881,7 +881,7 @@ export async function selectArticlesForGeneration(
     console.error(`\nSelected ${selectedPaths.length} article(s):`);
     for (const p of selectedPaths.slice(0, 10)) {
       const info = sorted.find(a => a.path === p);
-      console.error(`  - ${info ? truncateTitle(info.title, 80) : p}`);
+      console.error(`  - ${info ? truncateTitle(info.title || info.path, 60) : p}  ${p}/`);
     }
     if (selectedPaths.length > 10) {
       console.error(`  ... and ${selectedPaths.length - 10} more`);
@@ -919,7 +919,7 @@ export async function selectArticlesForEnhancement(
     const article = displayArticles[i];
     const date = article.created_at ? formatDate(article.created_at) : 'Unknown';
     const title = truncateTitle(article.title || article.path, MAX_TITLE_LENGTH);
-    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title}`);
+    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (articles.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
@@ -959,7 +959,7 @@ export async function selectArticlesForEnhancement(
     console.error(`\nSelected ${selectedPaths.length} article(s):`);
     for (const p of selectedPaths.slice(0, 10)) {
       const info = articles.find(a => a.path === p);
-      console.error(`  - ${info ? truncateTitle(info.title || info.path, 80) : p}`);
+      console.error(`  - ${info ? truncateTitle(info.title || info.path, 60) : p}  ${p}/`);
     }
     if (selectedPaths.length > 10) {
       console.error(`  ... and ${selectedPaths.length - 10} more`);
@@ -1073,8 +1073,7 @@ export async function selectArticlesForForceEnhance(
     const article = displayArticles[i];
     const date = article.meta.updated_at ? formatDate(article.meta.updated_at) : 'Unknown';
     const title = truncateTitle(article.meta.title || article.path, MAX_TITLE_LENGTH);
-    const appliedCount = article.meta.applied_actions?.length || 0;
-    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title} (${appliedCount} actions)`);
+    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {

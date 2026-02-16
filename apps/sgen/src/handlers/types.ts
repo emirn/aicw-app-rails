@@ -34,6 +34,8 @@ export interface ActionContext {
     path: string;
     article: IArticle;
   }>;
+  /** Pre-calculated total cost (CLI computes before stripping costs from articles) */
+  totalCost?: number;
 }
 
 /**

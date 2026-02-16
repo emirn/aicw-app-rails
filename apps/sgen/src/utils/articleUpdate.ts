@@ -472,6 +472,22 @@ export function applyLinkInsertions(
       continue;
     }
 
+    // Guard: skip matches inside markdown headers
+    const lineStart = result.lastIndexOf('\n', match.index) + 1;
+    const lineEnd = result.indexOf('\n', match.index + match[0].length);
+    const line = result.substring(lineStart, lineEnd === -1 ? result.length : lineEnd);
+    if (/^\s*#{1,6}\s/.test(line)) {
+      skipped.push(`${anchor_text.substring(0, 40)} (in header)`);
+      continue;
+    }
+
+    // Guard: skip if anchor text dominates a short standalone line
+    const lineText = line.replace(/^\s*#{1,6}\s*/, '').trim();
+    if (lineText.length < 100 && match[0].length > lineText.length * 0.5) {
+      skipped.push(`${anchor_text.substring(0, 40)} (standalone line)`);
+      continue;
+    }
+
     // Wrap matched text with markdown link
     result = result.substring(0, match.index) +
       `[${match[0]}](${url})` +

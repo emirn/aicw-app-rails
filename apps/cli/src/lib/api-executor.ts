@@ -67,6 +67,41 @@ function validateBrandingColors(config: IProjectConfig, projectDir: string): str
 }
 
 /**
+ * Strip fields from IArticle that sgen doesn't need.
+ * Uses destructuring so keys are absent (not undefined) — this ensures
+ * saveArticleWithPipeline's { ...diskMeta, ...sgenResponse } preserves disk values.
+ */
+function stripArticleForApi(article: IArticle): IArticle {
+  const { costs, last_action, status, search_intent, funnel_stage, priority, cluster, ...rest } = article;
+  return rest as IArticle;
+}
+
+/**
+ * Content shrinkage guard — reject operations that destroy too much content.
+ * Runs BEFORE file writes so damaged content never hits disk.
+ */
+const SHRINKAGE_THRESHOLD = -30; // reject if words decreased by more than 30%
+
+function checkContentShrinkage(stats: any, mode?: string): string | null {
+  if (!stats || stats.words_before === 0) return null;
+
+  // Check word count shrinkage
+  if (stats.word_delta_pct <= SHRINKAGE_THRESHOLD) {
+    return `Content shrunk by ${Math.abs(stats.word_delta_pct)}% ` +
+      `(${stats.words_before}→${stats.words_after} words) during ${mode || 'unknown'}. ` +
+      `Exceeds ${Math.abs(SHRINKAGE_THRESHOLD)}% threshold — skipping write to preserve content.`;
+  }
+
+  // Check checklist wipeout (checklists existed before but gone after)
+  if (stats.checklists_before > 0 && stats.checklists_after === 0) {
+    return `All ${stats.checklists_before} checklist items were removed during ${mode || 'unknown'}. ` +
+      `Skipping write to preserve checklist content.`;
+  }
+
+  return null;
+}
+
+/**
  * Context sent to API
  * Uses unified article object pattern: article contains all metadata and content
  */
@@ -87,6 +122,8 @@ interface ActionContext {
     path: string;
     article: IArticle;
   }>;
+  /** Pre-calculated total cost across all articles (for status display, since costs are stripped from articles) */
+  totalCost?: number;
 }
 
 /**
@@ -420,6 +457,19 @@ export class APIExecutor {
         };
       }
 
+      // Content shrinkage guard: reject if content decreased too much
+      if (response.contentStats) {
+        const rejection = checkContentShrinkage(response.contentStats, flags.mode);
+        if (rejection) {
+          this.logger.log(`  GUARD: ${rejection}`);
+          return {
+            success: false,
+            error: rejection,
+            contentStats: response.contentStats,
+          };
+        }
+      }
+
       // Execute file operations
       const operationErrors: string[] = [];
       for (const op of response.operations || []) {
@@ -469,7 +519,10 @@ export class APIExecutor {
         try {
           const costPaths = getProjectPaths(context.projectName);
           const folderPath = path.join(costPaths.content, context.articlePath);
-          await addCostEntry(folderPath, action, response.costUsd || 0);
+          if (!flags.mode) {
+            throw new Error(`Cost tracking requires flags.mode but got action='${action}' without mode`);
+          }
+          await addCostEntry(folderPath, flags.mode, response.costUsd || 0);
         } catch { /* non-fatal */ }
       }
 
@@ -673,18 +726,26 @@ export class APIExecutor {
       if ((flags.all || action === 'status') && !resolved.isArticle) {
         const articles = await getArticles(resolved);
         context.articles = [];
+        let totalCost = 0;
 
         for (const articleItem of articles) {
-          // Build unified article object with content
+          const costs = articleItem.meta.costs || [];
+          totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
+
+          // Build unified article object with content (stripped of billing data)
           const unifiedArticle: IArticle = {
-            ...articleItem.meta,
+            ...stripArticleForApi(articleItem.meta),
             content: articleItem.content || '',
-          };
+          } as IArticle;
 
           context.articles.push({
             path: articleItem.path,
             article: unifiedArticle,
           });
+        }
+
+        if (action === 'status') {
+          context.totalCost = totalCost;
         }
       }
 
@@ -692,11 +753,11 @@ export class APIExecutor {
       if (resolved.isArticle) {
         const articleData = await readArticleContent(resolved);
         if (articleData) {
-          // Build unified article object with content
+          // Build unified article object with content (stripped of billing data)
           context.article = {
-            ...articleData.meta,
+            ...stripArticleForApi(articleData.meta),
             content: articleData.articleContent || '',
-          };
+          } as IArticle;
         }
       }
 

@@ -1,30 +1,10 @@
 You are an expert researcher. Your task is to find **{{target_links}}** authoritative external links that support claims in this article.
 
-## Authoritative Sources Only
+## Allowed Domains
 
-Use links from these trusted categories:
-- **Tech news**: Ars Technica, The Verge, Wired, TechCrunch, ZDNet, VentureBeat, CNET, The Register, PCMag, Engadget
-- **Major publications**: Forbes, Bloomberg, The Economist, WSJ, HBR, MIT Tech Review, Fast Company
-- **News outlets**: Reuters, AP, BBC, NYT, Washington Post, The Guardian, CNBC
-- **Research firms**: Gartner, Forrester, McKinsey, Statista
-- **Universities**: .edu domains (Stanford, MIT, Harvard, etc.)
-- **Academic repos**: arXiv, Nature, IEEE, ACM, PubMed, Google Scholar
-- **Government**: .gov domains, WHO, European Commission, UN
-- **Standards/nonprofits**: W3C, IETF, ISO, OWASP, Mozilla, Apache, Linux Foundation, EFF
-- **Tech research blogs**: Google AI, Microsoft Research, OpenAI, Anthropic
-- **Engineering blogs**: Netflix, Cloudflare, Stripe, Uber, Spotify, Airbnb, Slack, LinkedIn, Dropbox
-- **Developer platforms**: Stack Overflow, GitHub, MDN, DigitalOcean, Kubernetes.io
-- **Official docs**: Vendor documentation, language docs (python.org, nodejs.org, go.dev, rust-lang.org)
-- **Wikipedia**: For factual/historical context
+Only use links from these allowed domains and patterns:
 
-## Preferred domains (examples)
-
-Tech: arstechnica.com, theverge.com, wired.com, techcrunch.com, zdnet.com, venturebeat.com, cnet.com, theregister.com
-Business: forbes.com, hbr.org, bloomberg.com, economist.com, wsj.com, ft.com, cnbc.com
-Academic: arxiv.org, nature.com, ieee.org, scholar.google.com, any .edu domain
-Gov: any .gov domain, who.int, europa.eu
-Tech docs: developer.mozilla.org, cloud.google.com, aws.amazon.com, stackoverflow.com
-Engineering blogs: netflixtechblog.com, blog.cloudflare.com, engineering.fb.com, stripe.com, airbnb.io
+{{domains}}
 
 ## Requirements
 
@@ -33,9 +13,11 @@ Engineering blogs: netflixtechblog.com, blog.cloudflare.com, engineering.fb.com,
 3. **anchor_text must appear VERBATIM in the article** — copy it exactly (preserve capitalization, punctuation, spacing)
 4. Choose anchor text that is **2-6 words** — a natural phrase or keyword from the article
 5. Do NOT pick anchor text that is already inside a markdown link `[...]()`
-6. **Each URL must be used only once** - never link to the same URL or domain multiple times
-7. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
-8. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
+6. Do NOT pick anchor text from markdown headings (lines starting with #, ##, ###, etc.)
+7. Do NOT pick anchor text that is a standalone short line like a caption, label, or single-sentence paragraph — only link phrases within substantial body paragraphs
+8. **Each URL must be used only once** - never link to the same URL or domain multiple times
+9. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
+10. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
 
 ## Article to Enhance:
 

@@ -70,9 +70,6 @@ import { syncActionPrompts } from './lib/prompt-sync';
 import {
   migrateToUnifiedFormat,
   checkMigrationNeeded,
-  migrateFaqFromContentProject,
-  migrateJsonldFromContentProject,
-  migrateContentExtractAllProject,
   migrateBackfillPublishedAt,
 } from './lib/migrate';
 import { verifyProject, fixArticles } from './lib/pipeline-verify';
@@ -118,9 +115,6 @@ const LOCAL_ACTIONS = [
   // Utility group (101-199)
   { name: 'force-enhance', description: 'Re-run actions on enhanced articles', usage: 'blogpostgen force-enhance <project>', group: 'utility' },
   { name: 'migrate', description: 'Migrate project to unified index.json format', usage: 'blogpostgen migrate <project>', group: 'utility' },
-  { name: 'migrate-faq', description: 'Extract FAQ from content to faq.md', usage: 'blogpostgen migrate-faq <project>', group: 'utility' },
-  { name: 'migrate-jsonld', description: 'Extract JSON-LD from content to jsonld.md', usage: 'blogpostgen migrate-jsonld <project>', group: 'utility' },
-  { name: 'migrate-content', description: 'Extract both FAQ and JSON-LD from content', usage: 'blogpostgen migrate-content <project>', group: 'utility' },
   { name: 'migrate-published-at', description: 'Backfill published_at from updated_at', usage: 'blogpostgen migrate-published-at <project>', group: 'utility' },
   { name: 'pipeline-verify', description: 'Verify pipeline state & applied actions', usage: 'blogpostgen pipeline-verify <project> [--fix]', group: 'utility' },
   { name: 'assets-cleanup', description: 'Find and remove unreferenced article assets', usage: 'blogpostgen assets-cleanup <project>', group: 'utility' },
@@ -1007,98 +1001,6 @@ async function main(): Promise<void> {
         }
       }
       logger.log('');
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle migrate-faq (extract FAQ from content to faq.md)
-    if (finalAction === 'migrate-faq') {
-      const selectedProject = await selectProject();
-      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
-        if (selectedProject === CREATE_NEW_PROJECT) {
-          logger.log('Please create a project first with project-init.');
-          await pressEnterToContinue();
-        }
-        continue;
-      }
-
-      logger.log(`\nExtracting FAQ from content for: ${selectedProject}`);
-
-      const result = await migrateFaqFromContentProject(selectedProject);
-
-      logger.log('');
-      logger.log(chalk.green('Migration complete!'));
-      logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-      logger.log(`  Skipped (no FAQ): ${result.skipped}`);
-      if (result.errors.length > 0) {
-        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-        for (const err of result.errors) {
-          logger.log(`    - ${err.path}: ${err.error}`);
-        }
-      }
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle migrate-jsonld (extract JSON-LD from content to jsonld.md)
-    if (finalAction === 'migrate-jsonld') {
-      const selectedProject = await selectProject();
-      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
-        if (selectedProject === CREATE_NEW_PROJECT) {
-          logger.log('Please create a project first with project-init.');
-          await pressEnterToContinue();
-        }
-        continue;
-      }
-
-      logger.log(`\nExtracting JSON-LD from content for: ${selectedProject}`);
-
-      const result = await migrateJsonldFromContentProject(selectedProject);
-
-      logger.log('');
-      logger.log(chalk.green('Migration complete!'));
-      logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-      logger.log(`  Skipped (no JSON-LD): ${result.skipped}`);
-      if (result.errors.length > 0) {
-        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-        for (const err of result.errors) {
-          logger.log(`    - ${err.path}: ${err.error}`);
-        }
-      }
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle migrate-content (extract both FAQ and JSON-LD from content)
-    if (finalAction === 'migrate-content') {
-      const selectedProject = await selectProject();
-      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
-        if (selectedProject === CREATE_NEW_PROJECT) {
-          logger.log('Please create a project first with project-init.');
-          await pressEnterToContinue();
-        }
-        continue;
-      }
-
-      logger.log(`\nExtracting FAQ and JSON-LD from content for: ${selectedProject}`);
-
-      const result = await migrateContentExtractAllProject(selectedProject);
-
-      logger.log('');
-      logger.log(chalk.green('Migration complete!'));
-      logger.log(`  Total articles: ${result.total}`);
-      logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-      logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-      logger.log(`  Skipped (no FAQ/JSON-LD): ${result.skipped}`);
-      if (result.errors.length > 0) {
-        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-        for (const err of result.errors) {
-          logger.log(`    - ${err.path}: ${err.error}`);
-        }
-      }
 
       await pressEnterToContinue();
       continue;
@@ -2193,7 +2095,7 @@ async function main(): Promise<void> {
 
             logger.log(`[${i + 1}/${selectedPaths.length}] Generating: ${articlePath}`);
 
-            const result = await executor.executeAction('generate', fullPath, finalFlags, { debug });
+            const result = await executor.executeAction('generate', fullPath, { ...finalFlags, mode: 'write_draft' }, { debug });
 
             if (result.success) {
               totalTokens += result.tokensUsed || 0;
@@ -2618,92 +2520,6 @@ async function main(): Promise<void> {
     if (migrateResult.articles.errors.length > 0) {
       logger.log(chalk.red(`  Errors: ${migrateResult.articles.errors.length}`));
       for (const err of migrateResult.articles.errors) {
-        logger.log(`    - ${err.path}: ${err.error}`);
-      }
-      process.exit(1);
-    }
-
-    process.exit(0);
-  }
-
-  // Handle migrate-faq action (local - no API needed)
-  if (finalAction === 'migrate-faq') {
-    if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen migrate-faq <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-
-    logger.log(`Extracting FAQ from content for: ${selectedProject}`);
-
-    const result = await migrateFaqFromContentProject(selectedProject);
-
-    logger.log('');
-    logger.log(chalk.green('Migration complete!'));
-    logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-    logger.log(`  Skipped (no FAQ): ${result.skipped}`);
-    if (result.errors.length > 0) {
-      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-      for (const err of result.errors) {
-        logger.log(`    - ${err.path}: ${err.error}`);
-      }
-      process.exit(1);
-    }
-
-    process.exit(0);
-  }
-
-  // Handle migrate-jsonld action (local - no API needed)
-  if (finalAction === 'migrate-jsonld') {
-    if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen migrate-jsonld <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-
-    logger.log(`Extracting JSON-LD from content for: ${selectedProject}`);
-
-    const result = await migrateJsonldFromContentProject(selectedProject);
-
-    logger.log('');
-    logger.log(chalk.green('Migration complete!'));
-    logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-    logger.log(`  Skipped (no JSON-LD): ${result.skipped}`);
-    if (result.errors.length > 0) {
-      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-      for (const err of result.errors) {
-        logger.log(`    - ${err.path}: ${err.error}`);
-      }
-      process.exit(1);
-    }
-
-    process.exit(0);
-  }
-
-  // Handle migrate-content action (local - no API needed)
-  if (finalAction === 'migrate-content') {
-    if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen migrate-content <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-
-    logger.log(`Extracting FAQ and JSON-LD from content for: ${selectedProject}`);
-
-    const result = await migrateContentExtractAllProject(selectedProject);
-
-    logger.log('');
-    logger.log(chalk.green('Migration complete!'));
-    logger.log(`  Total articles: ${result.total}`);
-    logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-    logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-    logger.log(`  Skipped (no FAQ/JSON-LD): ${result.skipped}`);
-    if (result.errors.length > 0) {
-      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-      for (const err of result.errors) {
         logger.log(`    - ${err.path}: ${err.error}`);
       }
       process.exit(1);
