@@ -112,7 +112,7 @@ function parseSimpleArticle(block: string, index: number): ParseArticleResult {
   return {
     item: {
       id: `plan-${index + 1}`,
-      slug: url!.trim().replace(/^\//, ''), // Remove leading slash if present
+      path: url!.trim().replace(/^\//, ''), // Remove leading slash if present
       title: title!.trim(),
       description: description!.trim(),
       target_keywords: keywords
@@ -179,7 +179,7 @@ export function planToSimpleText(plan: ContentPlan): string {
   return plan.items.map((item) => {
     const lines: string[] = [];
     lines.push(`TITLE: ${item.title}`);
-    lines.push(`URL: ${item.slug}`);
+    lines.push(`URL: ${item.path}`);
     if (item.target_keywords?.length) {
       lines.push(`KEYWORDS: ${item.target_keywords.join(', ')}`);
     }

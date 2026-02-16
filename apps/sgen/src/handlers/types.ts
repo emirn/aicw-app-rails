@@ -6,6 +6,7 @@
  */
 
 import { IProjectConfig, IArticle, IPromptParts } from '@blogpostgen/types';
+import { ContentStats } from '../utils/content-stats';
 
 /**
  * Context sent from CLI to API
@@ -33,6 +34,8 @@ export interface ActionContext {
     path: string;
     article: IArticle;
   }>;
+  /** Pre-calculated total cost (CLI computes before stripping costs from articles) */
+  totalCost?: number;
 }
 
 /**
@@ -120,6 +123,12 @@ export interface ActionExecuteResponse {
 
   /** Read-only data (for status action) */
   data?: Record<string, any>;
+
+  /** Content stats (before/after word counts, headings, links, checklists) */
+  contentStats?: ContentStats;
+
+  /** When true, CLI should fail if action made no content changes */
+  requireChanges?: boolean;
 }
 
 /**

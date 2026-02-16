@@ -14,7 +14,7 @@
       "type": "text",
       "text": "BRAND",
       "image_url": "",
-      "show_border": true
+      "style": "plain"
     },
     "colors": {
       "primary": "",
@@ -77,13 +77,6 @@
         "links": [
           { "label": "Home", "url": "/" },
           { "label": "Contacts", "url": "/contacts/" }
-        ]
-      },
-      {
-        "title": "Legal",
-        "links": [
-          { "label": "Privacy", "url": "/privacy/" },
-          { "label": "Terms", "url": "/terms/" }
         ]
       }
     ],

@@ -19,7 +19,7 @@ For each idea above, create one or more article proposals:
 
 1. **Expand each idea** into a concrete article proposal with:
    - An SEO-optimized title (50-65 characters)
-   - A URL-friendly slug (lowercase, hyphenated, no trailing slash)
+   - A URL-friendly path (lowercase, hyphenated, no trailing slash)
    - 3-5 target keywords (primary + related)
    - A clear description (max 155 characters) that serves as both a writing brief and meta description
 

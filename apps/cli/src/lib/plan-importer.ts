@@ -24,23 +24,24 @@ import {
   createArticleFolder,
   articleFolderExists,
   readArticleMeta,
+  readArticle,
   archiveVersion,
 } from './folder-manager';
 import { getContentDir } from './project-config';
 import { simplePlanToPlan, SimplePlanParseResult } from './simple-plan-parser';
 
 /**
- * Stopwords to filter from slugs for cleaner, shorter URLs.
+ * Stopwords to filter from paths for cleaner, shorter URLs.
  * Based on SEO best practices (2025-2026): 3-5 words optimal.
  */
-const STOPWORDS = new Set([
+const STOPWORDS_FOR_PATHS = new Set([
   'a', 'an', 'the', 'and', 'or', 'but', 'of', 'by', 'for', 'with',
   'at', 'in', 'to', 'on', 'as', 'is', 'it', 'how', 'what', 'why', 'when',
   'where', 'which', 'who', 'your', 'my', 'our', 'their', 'this', 'that'
 ]);
 
 /**
- * Generate a clean, SEO-friendly slug from a title.
+ * Generate a clean, SEO-friendly path from a title.
  * - Removes stopwords for shorter URLs
  * - Limits to maxWords (default 5) for optimal SEO
  * - Uses hyphens between words
@@ -49,10 +50,10 @@ const STOPWORDS = new Set([
  *   "How to Detect Article Created by AI" → "detect-article-created-ai"
  *   "The Best AI Tools for Content Creation" → "best-ai-tools-content-creation"
  */
-function slugify(title: string, maxWords: number = 5): string {
+function pathify(title: string, maxWords: number = 5): string {
   const normalized = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
   const words = normalized.split(/\s+/)
-    .filter(word => word.length >= 2 && !STOPWORDS.has(word))
+    .filter(word => word.length >= 2 && !STOPWORDS_FOR_PATHS.has(word))
     .slice(0, maxWords);
   return words.join('-') || 'article';
 }
@@ -123,7 +124,7 @@ export async function analyzeImport(
 
     preview.push({
       title: item.title,
-      slug: item.slug,
+      path: item.path,
       articlePath,
       conflict,
       existingPipeline,
@@ -281,13 +282,13 @@ export function planItemToArticleMeta(
 ): { meta: IArticle; path: string } {
   const now = new Date().toISOString();
 
-  // Determine path: use slug, potentially with a default prefix
-  // If slug contains slashes, treat as full path
+  // Determine path: use item path, potentially with a default prefix
+  // If path contains slashes, treat as full path
   let articlePath: string;
-  if (item.slug.includes('/')) {
-    articlePath = item.slug;
+  if (item.path.includes('/')) {
+    articlePath = item.path;
   } else {
-    articlePath = `${defaultPath}/${item.slug}`;
+    articlePath = `${defaultPath}/${item.path}`;
   }
 
   // Get publish date from plan item (ContentPlanItem has date field)
@@ -299,7 +300,7 @@ export function planItemToArticleMeta(
     keywords: item.target_keywords || [],
     // No last_pipeline = seed article (ready for generate pipeline)
     internal_links: (item as IContentPlanItem).link_recommendations?.map((l) => ({
-      slug: l.slug,
+      path: l.path,
       anchor: l.anchor_text,
     })),
     // Transfer publish date from plan item (ContentPlanItem has date field)
@@ -448,7 +449,7 @@ export async function importPlan(
 
         // At seed stage - archive old version and replace
         try {
-          const oldContent = await fs.readFile(path.join(folderPath, 'content.md'), 'utf-8');
+          const oldContent = await readArticle(folderPath) || '';
           const oldMeta = await fs.readFile(path.join(folderPath, META_FILE), 'utf-8');
           await archiveVersion(folderPath, oldContent, oldMeta, 'plan-import-replaced');
         } catch {
@@ -471,7 +472,7 @@ export async function importPlan(
       }
     } catch (error) {
       result.errors.push({
-        path: item.slug,
+        path: item.path,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -552,12 +553,12 @@ export function ideaToContentPlanItem(
   idea: string,
   index: number
 ): ContentPlanItem {
-  // Generate SEO-optimized slug from idea (removes stopwords, limits to 5 words)
-  const slug = slugify(idea);
+  // Generate SEO-optimized path from idea (removes stopwords, limits to 5 words)
+  const articlePath = pathify(idea);
 
   return {
     id: `idea-${index + 1}`,
-    slug,
+    path: articlePath,
     title: idea,
     description: idea,
     target_keywords: [],

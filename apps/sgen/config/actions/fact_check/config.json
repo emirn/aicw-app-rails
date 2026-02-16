@@ -2,5 +2,11 @@
   "ai_provider": "openrouter",
   "ai_model_id": "perplexity/sonar",
   "output_mode": "text_replace",
-  "description": "Verify facts using Perplexity Sonar with built-in web search and citations"
+  "description": "Verify facts using Perplexity Sonar with built-in web search and citations",
+  "pricing": {
+    "input_per_million": 1,
+    "output_per_million": 1,
+    "fixed_cost_per_call": 0.005,
+    "comment": "Perplexity Sonar charges $5/1K searches on top of token pricing"
+  }
 }

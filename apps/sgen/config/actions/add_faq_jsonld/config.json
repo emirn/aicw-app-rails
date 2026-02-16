@@ -2,5 +2,9 @@
   "ai_provider": "openrouter",
   "ai_model_id": "openai/gpt-4o-mini",
   "output_mode": "insert_content_bottom",
-  "description": "Generate JSON-LD FAQPage schema from FAQ section"
+  "description": "Generate JSON-LD FAQPage schema from FAQ section",
+  "pricing": {
+    "input_per_million": 0.15,
+    "output_per_million": 0.6
+  }
 }

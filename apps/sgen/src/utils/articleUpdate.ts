@@ -33,7 +33,7 @@ export interface ApplyPatchesResult {
 }
 
 /**
- * Stopwords to filter from slugs for cleaner, shorter URLs.
+ * Stopwords to filter from paths for cleaner, shorter URLs.
  * Based on SEO best practices (2025-2026): 3-5 words optimal.
  */
 const STOPWORDS = new Set([
@@ -43,7 +43,7 @@ const STOPWORDS = new Set([
 ]);
 
 /**
- * Generate a clean, SEO-friendly slug from a title.
+ * Generate a clean, SEO-friendly path from a title.
  * - Removes stopwords for shorter URLs
  * - Limits to maxWords (default 5) for optimal SEO
  * - Uses hyphens between words
@@ -52,7 +52,7 @@ const STOPWORDS = new Set([
  *   "How to Detect Article Created by AI" → "detect-article-created-ai"
  *   "The Best AI Tools for Content Creation" → "best-ai-tools-content-creation"
  */
-export const ensureSlug = (title: string, maxWords: number = 5): string => {
+export const generatePathFromTitle = (title: string, maxWords: number = 5): string => {
   const normalized = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
   const words = normalized.split(/\s+/)
     .filter(word => word.length >= 2 && !STOPWORDS.has(word))
@@ -100,16 +100,25 @@ export const mergeUpdate = (base: IApiArticle, mode: string, content: any, rawCo
   if (mode === 'create_meta' && typeof content === 'object' && content) {
     const merged: IApiArticle = {
       ...base,
-      slug: content.slug || base.slug,
+      path: content.path || base.path,
       title: content.title || base.title,
       description: content.description || base.description,
       keywords: content.keywords || base.keywords,
     } as IApiArticle;
-    if (!merged.slug && merged.title) merged.slug = ensureSlug(merged.title);
+    if (!merged.path && merged.title) merged.path = generatePathFromTitle(merged.title);
     return { article: merged, rejected: false };
   }
   if (typeof content === 'object' && content?.content) {
     const text = String(content.content);
+    // Guard: reject if content shrunk by more than 30% (prevents AI summarization/truncation)
+    if (base.content && text.length < base.content.length * 0.7) {
+      console.error(`mergeUpdate: JSON content shrunk by >${Math.round((1 - text.length / base.content.length) * 100)}% (${base.content.length} -> ${text.length}), preserving original`);
+      return {
+        article: base,
+        rejected: true,
+        reason: `Content shrunk by >${Math.round((1 - text.length / base.content.length) * 100)}% (${base.content.length} -> ${text.length} chars)`
+      };
+    }
     return { article: { ...base, content: text }, rejected: false };
   }
   if (typeof content === 'object' && content?.id) {
@@ -133,14 +142,14 @@ export const mergeUpdate = (base: IApiArticle, mode: string, content: any, rawCo
     };
   }
 
-  // SAFETY: Refuse to replace if content shrinks by more than 50%
-  // This prevents data loss when AI returns partial/malformed content
-  if (base.content && contentText.length < base.content.length * 0.5) {
-    console.error(`mergeUpdate: Content shrunk by >50% (${base.content.length} -> ${contentText.length}), preserving original`);
+  // SAFETY: Refuse to replace if content shrinks by more than 30%
+  // This prevents data loss when AI returns partial/summarized content
+  if (base.content && contentText.length < base.content.length * 0.7) {
+    console.error(`mergeUpdate: Content shrunk by >30% (${base.content.length} -> ${contentText.length}), preserving original`);
     return {
       article: base,
       rejected: true,
-      reason: `Content shrunk by >50% (${base.content.length} -> ${contentText.length} chars)`
+      reason: `Content shrunk by >30% (${base.content.length} -> ${contentText.length} chars)`
     };
   }
 
@@ -392,5 +401,115 @@ export function deduplicateReplacementsByUrl(
   }
 
   return { deduplicated, removed };
+}
+
+// ============================================================================
+// Link Insertion Mode - safe anchor-text-based link insertion
+// ============================================================================
+
+export interface LinkInsertion {
+  anchor_text: string;
+  url: string;
+}
+
+/**
+ * Parse link insertions from AI response.
+ * Expected format: { "links": [{ "anchor_text": "...", "url": "https://..." }] }
+ */
+export function parseLinkInsertions(content: any): LinkInsertion[] {
+  // Fallback: when content is a string (JSON parse failed), extract markdown links
+  if (typeof content === 'string') {
+    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    let match;
+    const links: LinkInsertion[] = [];
+    while ((match = linkRegex.exec(content)) !== null) {
+      const anchor = match[1].trim();
+      const url = match[2].trim();
+      if (anchor.length > 0 && url.startsWith('http')) {
+        links.push({ anchor_text: anchor, url });
+      }
+    }
+    return links;
+  }
+
+  if (typeof content !== 'object' || !content) return [];
+  const linksArr = content.links;
+  if (!Array.isArray(linksArr)) return [];
+  return linksArr.filter(
+    (l: any) =>
+      typeof l.anchor_text === 'string' &&
+      l.anchor_text.trim().length > 0 &&
+      typeof l.url === 'string' &&
+      l.url.startsWith('http')
+  );
+}
+
+/**
+ * Apply link insertions to content by wrapping anchor text with markdown links.
+ * - Sorts by longest anchor_text first to prevent partial matches
+ * - Replaces FIRST occurrence only
+ * - Skips if anchor_text is already inside a markdown link [...]()
+ * - Normalizes whitespace for matching
+ */
+export function applyLinkInsertions(
+  content: string,
+  links: LinkInsertion[]
+): { result: string; applied: number; skipped: string[] } {
+  // Sort longest first to prevent partial match issues
+  const sorted = [...links].sort(
+    (a, b) => b.anchor_text.length - a.anchor_text.length
+  );
+
+  let result = content;
+  let applied = 0;
+  const skipped: string[] = [];
+
+  for (const { anchor_text, url } of sorted) {
+    // Build regex that matches normalized whitespace (first occurrence only)
+    const pattern = escapeRegExp(anchor_text).replace(/\s+/g, '\\s+');
+    const regex = new RegExp(pattern);
+
+    const match = regex.exec(result);
+    if (!match) {
+      skipped.push(anchor_text.substring(0, 60));
+      continue;
+    }
+
+    // Check if match is already inside a markdown link
+    const before = result.substring(0, match.index);
+    const after = result.substring(match.index + match[0].length);
+
+    // Already linked: look for [ before and ]( after without intervening ] or [
+    const lastOpenBracket = before.lastIndexOf('[');
+    const lastCloseBracket = before.lastIndexOf(']');
+    if (lastOpenBracket > lastCloseBracket && after.match(/^\]\(/)) {
+      skipped.push(`${anchor_text.substring(0, 40)} (already linked)`);
+      continue;
+    }
+
+    // Guard: skip matches inside markdown headers
+    const lineStart = result.lastIndexOf('\n', match.index) + 1;
+    const lineEnd = result.indexOf('\n', match.index + match[0].length);
+    const line = result.substring(lineStart, lineEnd === -1 ? result.length : lineEnd);
+    if (/^\s*#{1,6}\s/.test(line)) {
+      skipped.push(`${anchor_text.substring(0, 40)} (in header)`);
+      continue;
+    }
+
+    // Guard: skip if anchor text dominates a short standalone line
+    const lineText = line.replace(/^\s*#{1,6}\s*/, '').trim();
+    if (lineText.length < 100 && match[0].length > lineText.length * 0.5) {
+      skipped.push(`${anchor_text.substring(0, 40)} (standalone line)`);
+      continue;
+    }
+
+    // Wrap matched text with markdown link
+    result = result.substring(0, match.index) +
+      `[${match[0]}](${url})` +
+      result.substring(match.index + match[0].length);
+    applied++;
+  }
+
+  return { result, applied, skipped };
 }
 

@@ -98,6 +98,17 @@ export interface IBrandingSite {
 }
 
 /**
+ * Text logo display style
+ * - plain: Bold text, no decoration
+ * - bordered: Rounded border in primary color
+ * - pill: Solid primary background, white text, fully rounded
+ * - underline-hover: Sliding underline on hover
+ * - gradient: Primary→secondary gradient text
+ * - spaced-caps: Uppercase with wide letter-spacing
+ */
+export type LogoTextStyle = 'plain' | 'bordered' | 'pill' | 'underline-hover' | 'gradient' | 'spaced-caps';
+
+/**
  * Logo configuration
  */
 export interface IBrandingLogo {
@@ -105,7 +116,10 @@ export interface IBrandingLogo {
   text?: string;
   /** URL or data URI (data:image/png;base64,...) */
   image_url?: string;
+  /** @deprecated Use `style` instead. Kept for backward compatibility. */
   show_border?: boolean;
+  /** Text logo display style. Defaults to 'plain'. */
+  style?: LogoTextStyle;
 }
 
 /**
@@ -195,10 +209,31 @@ export interface IProjectConfig {
  * Internal link recommendation
  */
 export interface IInternalLink {
-  /** Target article slug */
-  slug: string;
+  /** Target article path */
+  path: string;
   /** Suggested anchor text */
   anchor: string;
+}
+
+/**
+ * Cost tracking entry for an article action
+ */
+export interface ICostEntry {
+  /** ISO timestamp of when the cost was incurred */
+  created_at: string;
+  /** Action name (e.g., "write_draft", "fact_check") */
+  action: string;
+  /** Cost in USD (0 for no-AI actions) */
+  cost: number;
+  /** Content stats snapshot (before/after word counts, links, etc.) */
+  stats?: {
+    words_before: number;
+    words_after: number;
+    word_delta: number;
+    word_delta_pct: number;
+    links_before: number;
+    links_after: number;
+  };
 }
 
 /**
@@ -241,6 +276,9 @@ export interface IArticle {
   /** Track which enhancement actions have been applied */
   applied_actions?: string[];
 
+  /** Cost tracking entries for actions applied to this article */
+  costs?: ICostEntry[];
+
   /** Path to hero image (relative to assets folder) */
   image_hero?: string;
 
@@ -270,8 +308,6 @@ export interface IArticle {
   content?: string;
 
   // ---- DEPRECATED FIELDS (kept for backward compatibility) ----
-  /** @deprecated Folder path is the slug */
-  slug?: string;
   /** @deprecated Use project default */
   target_words?: number;
   /** @deprecated Use last_action instead */
@@ -367,8 +403,8 @@ export type ImportConflictType = 'new' | 'seed_replace' | 'skip';
 export interface IImportPreviewItem {
   /** Article title */
   title: string;
-  /** Original slug from plan */
-  slug: string;
+  /** Original path from plan */
+  path: string;
   /** Resolved article path */
   articlePath: string;
   /** Conflict type detected */

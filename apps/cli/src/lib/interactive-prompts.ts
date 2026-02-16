@@ -11,6 +11,7 @@ import * as path from 'path';
 import { USER_PROJECTS_DIR, getProjectPaths } from '../config/user-paths';
 import { resolvePath, projectExists, getArticles, getSeedArticles, getPublishableArticles } from './path-resolver';
 import { META_FILE } from '@blogpostgen/types';
+import { LegalPagesChoice } from './legal-pages';
 
 
 /**
@@ -305,7 +306,7 @@ const COMMAND_PROMPTS: CommandPrompts = {
     prompts: [
       { name: 'path', question: 'Project path', required: true },
       { name: 'title', question: 'Article title', required: true },
-      { name: 'slug', question: 'Article slug (optional, auto-generated from title)' },
+      { name: 'path', question: 'Article path (optional, auto-generated from title)' },
       { name: 'keywords', question: 'Keywords (comma-separated, optional)' },
     ],
   },
@@ -594,8 +595,8 @@ function truncateTitle(title: string, maxLen: number = 50): string {
   return title.slice(0, maxLen - 3) + '...';
 }
 
-const MAX_TITLE_LENGTH = 200;
-const MAX_OLDEST_ARTICLES_TO_SHOW = 10;
+const MAX_TITLE_LENGTH = 60;
+const MAX_OLDEST_ARTICLES_TO_SHOW = 25;
 
 /**
  * Result of parsing article selection input
@@ -840,7 +841,7 @@ export async function selectArticlesForGeneration(
     const priority = getPriorityIndicator(article.priority);
     const date = formatDate(article.created_at);
     const title = truncateTitle(article.title, MAX_TITLE_LENGTH);
-    console.error(`  ${String(i + 1).padStart(2)}. ${priority} ${date.padEnd(14)} ${title}`);
+    console.error(`  ${String(i + 1).padStart(2)}. ${priority} ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
@@ -880,7 +881,7 @@ export async function selectArticlesForGeneration(
     console.error(`\nSelected ${selectedPaths.length} article(s):`);
     for (const p of selectedPaths.slice(0, 10)) {
       const info = sorted.find(a => a.path === p);
-      console.error(`  - ${info ? truncateTitle(info.title, 80) : p}`);
+      console.error(`  - ${info ? truncateTitle(info.title || info.path, 60) : p}  ${p}/`);
     }
     if (selectedPaths.length > 10) {
       console.error(`  ... and ${selectedPaths.length - 10} more`);
@@ -918,7 +919,7 @@ export async function selectArticlesForEnhancement(
     const article = displayArticles[i];
     const date = article.created_at ? formatDate(article.created_at) : 'Unknown';
     const title = truncateTitle(article.title || article.path, MAX_TITLE_LENGTH);
-    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title}`);
+    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (articles.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
@@ -958,7 +959,7 @@ export async function selectArticlesForEnhancement(
     console.error(`\nSelected ${selectedPaths.length} article(s):`);
     for (const p of selectedPaths.slice(0, 10)) {
       const info = articles.find(a => a.path === p);
-      console.error(`  - ${info ? truncateTitle(info.title || info.path, 80) : p}`);
+      console.error(`  - ${info ? truncateTitle(info.title || info.path, 60) : p}  ${p}/`);
     }
     if (selectedPaths.length > 10) {
       console.error(`  ... and ${selectedPaths.length - 10} more`);
@@ -979,7 +980,7 @@ interface ActionInfo {
   description: string;
   forcible: boolean;
   output_mode?: string;
-  no_ai?: boolean;
+  local?: boolean;
 }
 
 /**
@@ -1072,8 +1073,7 @@ export async function selectArticlesForForceEnhance(
     const article = displayArticles[i];
     const date = article.meta.updated_at ? formatDate(article.meta.updated_at) : 'Unknown';
     const title = truncateTitle(article.meta.title || article.path, MAX_TITLE_LENGTH);
-    const appliedCount = article.meta.applied_actions?.length || 0;
-    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title} (${appliedCount} actions)`);
+    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
@@ -1173,22 +1173,22 @@ export async function promptWithDefault(
 }
 
 /**
- * Generate suggested slug for conflict resolution
+ * Generate suggested path for conflict resolution
  * Appends -2, -3, etc. based on existing suffix
  */
-function suggestNewSlug(originalSlug: string): string {
+function suggestNewPath(originalPath: string): string {
   // Check if already ends with -N
-  const match = originalSlug.match(/-(\d+)$/);
+  const match = originalPath.match(/-(\d+)$/);
   if (match) {
     const num = parseInt(match[1], 10);
-    return originalSlug.replace(/-\d+$/, `-${num + 1}`);
+    return originalPath.replace(/-\d+$/, `-${num + 1}`);
   }
-  return `${originalSlug}-2`;
+  return `${originalPath}-2`;
 }
 
 /**
- * Resolve conflicts interactively - show editable slug
- * User presses Enter to accept suggested slug or edits then presses Enter
+ * Resolve conflicts interactively - show editable path
+ * User presses Enter to accept suggested path or edits then presses Enter
  * Type 's' to skip the article
  */
 export async function resolveConflictsInteractive(
@@ -1212,21 +1212,21 @@ export async function resolveConflictsInteractive(
     console.error(`"${item.title}"`);
     console.error(`  ${status}`);
 
-    // Suggest modified slug
-    const suggestedSlug = suggestNewSlug(item.articlePath);
+    // Suggest modified path
+    const suggestedPath = suggestNewPath(item.articlePath);
 
     // Show editable prompt with suggested value
-    const newSlug = await promptWithDefault(
+    const newPath = await promptWithDefault(
       '  New URL (Enter to accept, or edit, or "s" to skip):',
-      suggestedSlug
+      suggestedPath
     );
 
-    if (newSlug === 's' || newSlug === 'skip') {
+    if (newPath === 's' || newPath === 'skip') {
       resolved.set(item.articlePath, 'skip');
       console.error('  → Skipped\n');
     } else {
-      resolved.set(item.articlePath, newSlug);
-      console.error(`  → Will create: ${newSlug}\n`);
+      resolved.set(item.articlePath, newPath);
+      console.error(`  → Will create: ${newPath}\n`);
     }
   }
 
@@ -1285,4 +1285,32 @@ export function displayBatchSummary(
       console.error(`    ${failedFullPath}`);
     }
   }
+}
+
+/**
+ * Prompt user for legal pages preference during project init.
+ * Returns LegalPagesChoice with mode and optional external URLs.
+ */
+export async function promptLegalPagesChoice(): Promise<LegalPagesChoice> {
+  console.error('\n=== Legal Pages (Privacy & Terms) ===\n');
+  console.error('  1. Built-in pages (recommended) - generates editable markdown pages');
+  console.error('  2. External links - point to your own privacy/terms URLs');
+  console.error('  3. Skip - no legal pages');
+  console.error('');
+
+  const answer = await prompt('Enter choice (1, 2, or 3)', '1');
+  const choice = parseInt(answer, 10);
+
+  if (choice === 2) {
+    const privacyUrl = await prompt('Privacy policy URL');
+    const termsUrl = await prompt('Terms of service URL');
+    return { mode: 'external', privacyUrl: privacyUrl || undefined, termsUrl: termsUrl || undefined };
+  }
+
+  if (choice === 3) {
+    return { mode: 'none' };
+  }
+
+  // Default to built-in
+  return { mode: 'builtin' };
 }

@@ -1,6 +1,7 @@
 ---
 import type { SiteConfig } from '../lib/config';
-import { replacePlaceholders } from '../lib/config';
+import { replacePlaceholders, getLogoTextStyle } from '../lib/config';
+import type { LogoTextStyle } from '../lib/config';
 
 interface Props {
   config: SiteConfig;
@@ -12,6 +13,10 @@ const currentYear = new Date().getFullYear();
 const copyrightText = config.footer.copyright_text
   ? replacePlaceholders(config.footer.copyright_text, config)
   : `${currentYear} ${config.branding.site.name}`;
+
+// In footer context, bordered and pill are too heavy — fall back to plain
+const rawLogoStyle = getLogoTextStyle(config);
+const footerLogoStyle: LogoTextStyle = (rawLogoStyle === 'bordered' || rawLogoStyle === 'pill') ? 'plain' : rawLogoStyle;
 ---
 
 <footer class="bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
@@ -21,11 +26,21 @@ const copyrightText = config.footer.copyright_text
         <!-- Logo and Tagline Column -->
         {config.footer.show_logo && (
           <div class="col-span-2 md:col-span-1">
-            <a href="/" class="inline-block font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-2">
+            <a href="/" class:list={[
+              "inline-block font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] mb-2",
+              footerLogoStyle === 'underline-hover' && 'logo-underline-hover',
+            ]}>
               {config.branding.logo.type === 'image' && config.branding.logo.image_url ? (
                 <img src={config.branding.logo.image_url} alt={config.branding.site.name} class="h-8 w-auto" />
               ) : (
-                <span>{config.branding.logo.text || config.branding.brand_name || config.branding.site.name}</span>
+                <span
+                  class:list={[
+                    footerLogoStyle === 'gradient' && 'logo-gradient',
+                    footerLogoStyle === 'spaced-caps' && 'uppercase tracking-[0.12em]',
+                  ]}
+                >
+                  {config.branding.logo.text || config.branding.brand_name || config.branding.site.name}
+                </span>
               )}
             </a>
             {config.footer.show_tagline && config.branding.site.tagline && (

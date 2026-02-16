@@ -119,6 +119,7 @@ export async function handleGenerate(
       provider,
       modelId,
       baseUrl: genCfg?.ai_base_url,
+      pricing: genCfg?.pricing,
     });
 
     // Debug: Log content type and structure

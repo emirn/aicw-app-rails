@@ -1,6 +1,10 @@
 {
   "ai_provider": "openrouter",
   "ai_model_id": "openai/gpt-4o",
-  "output_mode": "text_replace_all",
-  "description": "Condense article text by removing verbosity, redundancy, and filler while preserving value"
+  "output_mode": "text_replace",
+  "description": "Condense article text by removing verbosity, redundancy, and filler while preserving value",
+  "pricing": {
+    "input_per_million": 2.5,
+    "output_per_million": 10
+  }
 }

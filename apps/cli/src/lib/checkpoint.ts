@@ -125,7 +125,7 @@ export function createCheckpoint(
     total_actions: totalActions,
     article_state: {
       id: '',
-      slug: '',
+      path: '',
       title: '',
       description: '',
       keywords: '',

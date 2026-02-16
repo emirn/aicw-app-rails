@@ -1,88 +1,24 @@
 import fetch from 'node-fetch';
 import { config } from '../config/server-config';
-import { readFileSync, statSync } from 'fs';
-import { join } from 'path';
 import { withRetry } from '../utils/retry';
 
-// Load pricing configuration with file-stat based cache invalidation
-interface ModelPricing {
-  input_per_million: number;
-  output_per_million: number;
-  description?: string;
-}
-
-interface PricingConfig {
-  models: Record<string, ModelPricing>;
-  default_input_output_ratio: number;
-  updated_at: string;
-}
-
-interface CachedConfig<T> {
-  data: T;
-  mtime: number;  // File modification time in ms
-}
-
-let pricingCache: CachedConfig<PricingConfig> | null = null;
-const PRICING_CONFIG_PATH = join(__dirname, '..', '..', 'config', 'pricing.json');
-
-function loadPricingConfig(): PricingConfig {
-  try {
-    const stat = statSync(PRICING_CONFIG_PATH);
-    const currentMtime = stat.mtimeMs;
-
-    // Return cached config if file hasn't changed
-    if (pricingCache && pricingCache.mtime === currentMtime) {
-      return pricingCache.data;
-    }
-
-    // Reload config
-    const content = readFileSync(PRICING_CONFIG_PATH, 'utf-8');
-    const data = JSON.parse(content) as PricingConfig;
-    pricingCache = { data, mtime: currentMtime };
-    return data;
-  } catch (error) {
-    // Fallback pricing if config file not found
-    console.warn('Failed to load pricing.json, using defaults');
-    return {
-      models: {
-        'default': { input_per_million: 0.15, output_per_million: 0.60 }
-      },
-      default_input_output_ratio: 0.7,
-      updated_at: 'fallback'
-    };
-  }
-}
-
 /**
- * Calculate cost in USD for a given model and token usage.
- * Handles both OpenRouter format (openai/gpt-4o) and native format (gpt-4o).
+ * Calculate cost in USD from per-action pricing and token usage.
  */
 export function calculateCost(
-  modelId: string,
+  pricing: { input_per_million: number; output_per_million: number; fixed_cost_per_call?: number },
   totalTokens: number,
   inputTokens?: number,
   outputTokens?: number
 ): number {
-  const pricing = loadPricingConfig();
-  // Try exact match, then prefixed version (for native OpenAI IDs), then default
-  const modelPricing = pricing.models[modelId]
-    || pricing.models[`openai/${modelId}`]
-    || pricing.models['default'];
-
-  // If we have exact input/output breakdown, use it
+  const fixedCost = pricing.fixed_cost_per_call || 0;
   if (inputTokens !== undefined && outputTokens !== undefined) {
-    const inputCost = (inputTokens * modelPricing.input_per_million) / 1_000_000;
-    const outputCost = (outputTokens * modelPricing.output_per_million) / 1_000_000;
-    return inputCost + outputCost;
+    return (inputTokens * pricing.input_per_million + outputTokens * pricing.output_per_million) / 1_000_000 + fixedCost;
   }
-
-  // Otherwise estimate using the default ratio
-  const ratio = pricing.default_input_output_ratio;
-  const estimatedInput = Math.floor(totalTokens * ratio);
+  // Estimate 70/30 split
+  const estimatedInput = Math.floor(totalTokens * 0.7);
   const estimatedOutput = totalTokens - estimatedInput;
-  const inputCost = (estimatedInput * modelPricing.input_per_million) / 1_000_000;
-  const outputCost = (estimatedOutput * modelPricing.output_per_million) / 1_000_000;
-  return inputCost + outputCost;
+  return (estimatedInput * pricing.input_per_million + estimatedOutput * pricing.output_per_million) / 1_000_000 + fixedCost;
 }
 
 export interface IUsageStats {
@@ -173,7 +109,7 @@ const buildMockArticleMd = (topic: string): string => {
   return `# ${topic}\n\nA curated list of top AI tools shaping 2025.\n\n## How We Selected\n- Market adoption and momentum\n- Product maturity and roadmap\n- Clear ROI and time-to-value\n\n## The List\n${tools.join('\n')}\n\n## Key Takeaways\n- Consolidate your stack where possible.\n- Prioritize integrations and data governance.\n- Pilot quickly, measure, and iterate.\n\n## Conclusion\nChoosing the right tools in 2025 means balancing capability, adoption risk, and integration depth.`;
 };
 
-const makeSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+const makePath = (title: string) => title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
 
 const mockAIResponse = (prompt: string) => {
   const startTime = Date.now();
@@ -188,7 +124,7 @@ const mockAIResponse = (prompt: string) => {
   const topicMatch = prompt.match(/Write a\s+(.+?)\./i) || prompt.match(/for\s+(.+?)\s*\n/i);
   const defaultTitle = 'Top 25 AI Tools for 2025';
   const title = defaultTitle;
-  const slug = makeSlug(title);
+  const articlePath = makePath(title);
   const content = buildMockArticleMd(title);
 
   // Build debug info for mock responses
@@ -198,7 +134,7 @@ const mockAIResponse = (prompt: string) => {
 
   if (wantsMetaOnly) {
     const meta = {
-      slug,
+      path: articlePath,
       title,
       description: 'Explore 25 must‑know AI tools shaping 2025 innovation.',
       keywords: 'AI tools, 2025, automation, productivity, machine learning',
@@ -216,7 +152,7 @@ const mockAIResponse = (prompt: string) => {
   if (wantsFull) {
     const article = {
       id: 'mock-article-001',
-      slug,
+      path: articlePath,
       title,
       description: 'Explore 25 must‑know AI tools shaping 2025 innovation.',
       keywords: 'AI tools, 2025, automation, productivity, machine learning',
@@ -243,16 +179,16 @@ const mockAIResponse = (prompt: string) => {
       items: Array.from({ length: 12 }, (_, i) => {
         const n = i + 1;
         const t = `AI Support Tooling ${n}`;
-        const s = makeSlug(`ai-support-tooling-${n}`);
+        const s = makePath(`ai-support-tooling-${n}`);
         const cluster = n <= 4 ? clusters[0] : n <= 8 ? clusters[1] : clusters[2];
         const internal = ['/blog/ai-customer-support', '/blog/help-desk-automation'];
         const link_recommendations = [
-          { slug: internal[0], anchor_text: 'AI in customer support' },
-          { slug: internal[1], anchor_text: 'help desk automation' },
+          { path: internal[0], anchor_text: 'AI in customer support' },
+          { path: internal[1], anchor_text: 'help desk automation' },
         ];
         return {
           id: `plan-${n}`,
-          slug: `/blog/${s}`,
+          path: `/blog/${s}`,
           title: `What Is ${t}? Benefits, Use Cases, and ROI`,
           description: `Explain ${t}, when to use it, pros/cons, and how Ayodesk fits. Include implementation tips.`,
           target_keywords: ['AI support', t, 'help desk automation', 'customer service AI'],
@@ -281,10 +217,10 @@ const mockAIResponse = (prompt: string) => {
       focus_keywords: 'customer support, AI, automation',
       focus_instruction: 'Focus on practical automation for support teams',
       pages_published: [
-        { id: 'p1', slug: '/blog/intro', title: 'Intro', description: 'Intro page', keywords: 'intro' }
+        { id: 'p1', path: '/blog/intro', title: 'Intro', description: 'Intro page', keywords: 'intro' }
       ],
       main_pages: [
-        { id: 'm1', slug: '/', title: title, description: `${title} home`, keywords: 'home', content: '...' }
+        { id: 'm1', path: '/', title: title, description: `${title} home`, keywords: 'home', content: '...' }
       ]
     });
     const arr = [
@@ -342,6 +278,8 @@ export const callAI = async (
     modelId?: string;
     baseUrl?: string;
     webSearch?: boolean;
+    pricing?: { input_per_million: number; output_per_million: number };
+    responseFormat?: { type: string };
   }
 ): Promise<AICallResult> => {
   const startTime = Date.now();
@@ -398,6 +336,7 @@ export const callAI = async (
             messages: [{ role: 'user', content: prompt }],
             max_tokens: config.ai.maxTokens,
             ...(opts?.webSearch && { web_search_options: {} }),
+            ...(opts?.responseFormat && { response_format: opts.responseFormat }),
           }),
           // @ts-ignore
           signal: controller.signal,
@@ -430,8 +369,9 @@ export const callAI = async (
   const inputTokens = data?.usage?.prompt_tokens || 0;
   const outputTokens = data?.usage?.completion_tokens || 0;
   const generationTime = Date.now() - startTime;
-  // Use original modelId for cost calculation (pricing.json uses OpenRouter format)
-  const costUsd = calculateCost(modelId, tokens, inputTokens, outputTokens);
+  // Calculate cost using per-action pricing (fallback to zero if no pricing provided)
+  const actionPricing = opts?.pricing || { input_per_million: 0, output_per_million: 0 };
+  const costUsd = calculateCost(actionPricing, tokens, inputTokens, outputTokens);
 
   const debugInfo = process.env.DEBUG_MODE === 'true'
     ? { model_used: normalizedModelId, generation_time_ms: generationTime }

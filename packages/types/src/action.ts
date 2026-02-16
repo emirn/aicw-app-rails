@@ -49,8 +49,8 @@ export interface IActionConfig {
   extra_templates?: string[];
   // Enable native web search (OpenAI gpt-4o-*-search-preview models)
   web_search?: boolean;
-  // When true, action is handled locally without AI call (e.g., humanize_text_random)
-  no_ai?: boolean;
+  // When true, action runs locally without AI call — no model config or cost needed
+  local?: boolean;
   // When false, action cannot be used in force-enhance workflow (default: true)
   forcible?: boolean;
   // When true, allows per-project custom prompt templates (default: false)
@@ -59,10 +59,19 @@ export interface IActionConfig {
   supports_custom_prompt?: boolean;
   // When true, allows per-project config overrides with custom variables (default: false)
   supports_custom_config?: boolean;
+  // Per-action pricing (co-located with model/provider for easy maintenance)
+  pricing?: {
+    input_per_million: number;
+    output_per_million: number;
+    fixed_cost_per_call?: number;  // Fixed USD fee added per call (e.g. search fees)
+    comment?: string;              // Human-readable pricing note
+  };
   // Custom variables for prompt template (e.g., brand colors)
   variables?: Record<string, string>;
   // Color variables with {{project.*}} macros for branding (resolved at runtime)
   colors?: Record<string, string>;
+  // When true, action must produce content changes or it's treated as a failure (stops pipeline)
+  require_changes?: boolean;
 
   // === Internal fields (populated by server, not stored in config.json) ===
   // Absolute path to prompt.md (internal use only)

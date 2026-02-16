@@ -212,6 +212,45 @@ function mergeOverlappingZones(zones: SafeZone[]): SafeZone[] {
 }
 
 /**
+ * Replace safe zone content with unique placeholders.
+ * Returns masked text and a restore function to put the content back.
+ *
+ * Uses a format unlikely to match any CSV replacement pattern:
+ * \x00SAFE_0\x00, \x00SAFE_1\x00, etc.
+ */
+export function maskSafeZones(text: string): {
+  masked: string;
+  restore: (text: string) => string;
+} {
+  const zones = findSafeZones(text);
+  const stored: { placeholder: string; content: string }[] = [];
+  let masked = text;
+
+  // Process in reverse order so indices stay valid during replacement
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const zone = zones[i];
+    const content = masked.slice(zone.start, zone.end);
+    const placeholder = `\x00SAFE_${i}\x00`;
+    stored.push({ placeholder, content });
+    masked = masked.slice(0, zone.start) + placeholder + masked.slice(zone.end);
+  }
+
+  // Reverse stored so restore processes in forward order
+  stored.reverse();
+
+  return {
+    masked,
+    restore: (processedText: string) => {
+      let result = processedText;
+      for (const { placeholder, content } of stored) {
+        result = result.replace(placeholder, content);
+      }
+      return result;
+    },
+  };
+}
+
+/**
  * Check if a position is within a safe zone
  */
 function isInSafeZone(pos: number, zones: SafeZone[]): boolean {

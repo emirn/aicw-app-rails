@@ -11,17 +11,15 @@ import { getArticleFromContext, buildArticleOperation, updateArticle } from './u
 import { callAI } from '../services/ai.service';
 import { ensureActionConfigForMode } from '../config/action-config';
 import { buildUpdatePrompt } from '../utils/prompts';
-import { mergeUpdate, MergeResult, parseLinePatches, applyPatches, extractContentText, parseTextReplacements, applyTextReplacements, fixCitationPattern, deduplicateReplacementsByUrl } from '../utils/articleUpdate';
+import { mergeUpdate, MergeResult, parseLinePatches, applyPatches, extractContentText, parseTextReplacements, applyTextReplacements, fixCitationPattern } from '../utils/articleUpdate';
 import { cleanMarkdownUrls } from '../utils/url-cleaner';
 import { config } from '../config/server-config';
 import { loadPipelinesConfig } from '../config/pipelines-config';
 import { extractMarkdownContent, needsNormalization } from '../utils/json-content-extractor';
 import { randomUUID } from 'crypto';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { resolveProjectMacros, resolveProjectMacrosInText } from '../utils/variables';
 import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
-import { convertBase64ToWebp } from '../utils/webp-converter';
+import { countContentStats, buildContentStats } from '../utils/content-stats';
 
 export async function handleEnhance(
   context: ActionContext,
@@ -154,11 +152,10 @@ export async function handleEnhance(
   }
 
   // Build article object for prompt builder
-  // Use article path directly as slug (path IS the URL path)
-  const derivedSlug = context.articlePath || '';
+  const articlePath = context.articlePath || '';
   const article: IApiArticle = {
-    id: normalizedMeta.slug || `article-${randomUUID()}`,
-    slug: normalizedMeta.slug || derivedSlug,
+    id: `article-${randomUUID()}`,
+    path: articlePath,
     title: normalizedMeta.title || 'Untitled',
     description: normalizedMeta.description || '',
     keywords: Array.isArray(normalizedMeta.keywords)
@@ -216,498 +213,18 @@ export async function handleEnhance(
     const cfg = ensureActionConfigForMode(mode as any);
     const outMode = cfg?.output_mode || 'text_replace_all';
 
-    // Handle no_ai actions locally (no AI call)
-    if (cfg?.no_ai) {
-      log.info({ path: context.articlePath, mode }, 'enhance:local_action');
-
-      // Handle humanize_text_random locally
-      if (mode === 'humanize_text_random') {
-        const { applyRandomTypos, loadTyposFromCSV, DEFAULT_TYPO_CONFIG } = await import('../utils/random-typos');
-        const typosPath = join(__dirname, '..', '..', 'config', 'actions', 'humanize_text_random', 'typos.csv');
-
-        let csvContent = '';
-        try {
-          csvContent = readFileSync(typosPath, 'utf8');
-        } catch {
-          log.warn({ mode }, 'humanize_text_random: No typos.csv found, using algorithmic typos only');
-        }
-
-        const commonTypos = loadTyposFromCSV(csvContent);
-        const rate = (context as any)?.typo_rate ?? DEFAULT_TYPO_CONFIG.rate;
-
-        const { result, typosApplied } = applyRandomTypos(
-          article.content || '',
-          commonTypos,
-          { rate }
-        );
-
-        // Build updated article (unified object)
-        const updatedArticleObj = updateArticle(normalizedMeta, {
-          content: result,
-        });
-
-        log.info({ path: context.articlePath, mode, typos_applied: typosApplied.length }, 'enhance:local_action:done');
-
-        return {
-          success: true,
-          message: `Applied ${typosApplied.length} typos`,
-          tokensUsed: 0,
-          costUsd: 0,
-          operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
-        };
-      }
-
-      // Handle generate_image_hero (image generation via Recraft)
-      if (mode === 'generate_image_hero') {
-        const brandingColors = requireBrandingColors(
-          (context.projectConfig as any)?.branding?.colors,
-          'generate_image_hero'
-        );
-        const { generateRecraftImage } = await import('../services/recraft-image.service');
-        const { replaceVariables } = await import('../utils/variables');
-
-        // Get article description - required for image prompt
-        const description = normalizedMeta.description;
-        if (!description) {
-          return {
-            success: false,
-            error: 'Article description is required for hero image generation. Check meta.md has a description field.',
-            errorCode: 'MISSING_DESCRIPTION',
-            operations: [],
-          };
-        }
-
-        // Load prompt template
-        const templatePath = join(__dirname, '..', '..', 'config', 'actions', 'generate_image_hero', 'prompt.md');
-        let promptTemplate = readFileSync(templatePath, 'utf-8');
-
-        // Check for custom prompt from project (passed via flags or context)
-        if (flags.custom_prompt_template) {
-          promptTemplate = flags.custom_prompt_template;
-        }
-
-        // Merge server config variables with custom variables from CLI
-        // Also resolve {{project.*}} macros in colors from action config
-        const serverCfg = cfg;
-        const resolvedColors = resolveProjectMacros(
-          (serverCfg as any)?.colors || {},
-          context.projectConfig as unknown as Record<string, unknown>
-        );
-        const variables = { ...serverCfg?.variables, ...resolvedColors, ...flags.custom_variables };
-        promptTemplate = replaceVariables(promptTemplate, variables);
-
-        // Replace {{custom}} macro for actions with supports_custom_prompt
-        if (cfg?.supports_custom_prompt) {
-          const customPrompt = flags.custom_prompt ?? '';
-          promptTemplate = promptTemplate.replace(/\{\{custom\}\}/gi, customPrompt);
-        }
-
-        // Extract headings from content for image prompt context
-        const headings = (normalizedContent || '')
-          .split('\n')
-          .filter(line => /^##\s/.test(line))
-          .map(line => line.replace(/^#+\s*/, '').trim())
-          .slice(0, 5)
-          .join(', ');
-
-        // Replace article macros
-        let imagePrompt = promptTemplate
-          .replace(/\{\{DESCRIPTION\}\}/gi, description)
-          .replace(/\{\{TITLE\}\}/gi, article.title)
-          .replace(/\{\{KEYWORDS\}\}/gi, article.keywords || '')
-          .replace(/\{\{CONTENT_EXCERPT\}\}/gi, headings);
-
-        // Resolve {{project.*}} macros (e.g., {{project.branding.colors.primary}})
-        imagePrompt = resolveProjectMacrosInText(
-          imagePrompt,
-          context.projectConfig as unknown as Record<string, unknown>
-        );
-
-        // Validate no unreplaced macros remain
-        ensureNoUnreplacedMacros(imagePrompt, 'generate_image_hero');
-
-        log.info({ path: context.articlePath, mode }, 'generate_image_hero:generating');
-
-        try {
-          const branding = (context.projectConfig as any)?.branding;
-          const recraftStyle = branding?.illustration_style || 'digital_illustration/pastel_gradient';
-          const generatedImage = await generateRecraftImage({
-            prompt: imagePrompt,
-            width: 1200,
-            height: 630,
-            style: recraftStyle,
-            colors: brandingColors,
-            log,
-          });
-
-          // Convert PNG from Recraft API to WebP
-          const webpData = await convertBase64ToWebp(generatedImage.data);
-
-          // Build file path for hero image with article path for website mirror structure
-          // e.g., "assets/blog/my-post/hero.webp" for article at "blog/my-post"
-          const heroFilename = 'hero.webp';
-          const articlePath = context.articlePath || '';
-          const heroPath = `assets/${articlePath}/${heroFilename}`;
-
-          // Update article with image_hero path (unified object)
-          const updatedArticleObj = updateArticle(normalizedMeta, {
-            image_hero: `/${heroPath}`,
-          });
-
-          log.info({ path: context.articlePath, mode, costUsd: generatedImage.costUsd }, 'generate_image_hero:complete');
-
-          return {
-            success: true,
-            message: `Generated hero image`,
-            tokensUsed: 0,
-            costUsd: generatedImage.costUsd,
-            operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
-            files: [{
-              path: heroPath,
-              content: webpData,  // base64 WebP
-            }],
-          };
-        } catch (err) {
-          log.error({ err, path: context.articlePath }, 'generate_image_hero:recraft_error');
-          return {
-            success: false,
-            error: err instanceof Error ? err.message : String(err),
-            errorCode: 'IMAGE_GENERATION_FAILED',
-            operations: [],
-          };
-        }
-      }
-
-      // Handle generate_image_social (local Satori rendering)
-      if (mode === 'generate_image_social') {
-        requireBrandingColors(
-          (context.projectConfig as any)?.branding?.colors,
-          'generate_image_social'
-        );
-        const { SocialImageGenerator } = await import('../utils/social-image-generator');
-
-        // Get article metadata
-        const title = normalizedMeta.title;
-        if (!title) {
-          return {
-            success: false,
-            error: 'Article title is required for social image generation',
-            errorCode: 'MISSING_TITLE',
-            operations: [],
-          };
-        }
-
-        // Read hero image if available (from previous generate_image_hero action)
-        let heroImageBase64: string | undefined;
-        const heroPath = normalizedMeta.image_hero;
-        if (heroPath && flags.project_assets_dir) {
-          try {
-            const fullHeroPath = join(flags.project_assets_dir, heroPath.replace(/^\//, ''));
-            const heroBuffer = readFileSync(fullHeroPath);
-            const ext = heroPath.split('.').pop()?.toLowerCase() || 'png';
-            const mimeType = ext === 'webp' ? 'image/webp' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
-            heroImageBase64 = `data:${mimeType};base64,${heroBuffer.toString('base64')}`;
-          } catch {
-            log.warn({ heroPath }, 'generate_image_social:hero_image_not_found');
-          }
-        }
-
-        // Load custom config from project (passed via flags)
-        const customConfig = flags.custom_variables || {};
-
-        log.info({ path: context.articlePath, mode }, 'generate_image_social:generating');
-
-        try {
-          const generator = new SocialImageGenerator();
-          generator.loadConfig({
-            badge: customConfig.badge,
-            brand_name: customConfig.brand_name || context.projectConfig?.title,
-            gradient: customConfig.gradient,
-          });
-
-          const result = await generator.generate({
-            title,
-            description: normalizedMeta.description,
-            heroImageBase64,
-          });
-
-          // Build file path: assets/<article-path>/og.webp
-          const articlePath = context.articlePath || '';
-          const ogPath = `assets/${articlePath}/og.webp`;
-
-          // Update article with image_og path (unified object)
-          const updatedArticleObj = updateArticle(normalizedMeta, {
-            image_og: `/${ogPath}`,
-          });
-
-          log.info({ path: context.articlePath, mode }, 'generate_image_social:complete');
-
-          return {
-            success: true,
-            message: 'Generated social preview image',
-            tokensUsed: 0,
-            costUsd: 0,  // Local rendering - no cost
-            operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
-            files: [{
-              path: ogPath,
-              content: result.buffer.toString('base64'),
-            }],
-          };
-        } catch (err) {
-          log.error({ err, path: context.articlePath }, 'generate_image_social:error');
-          return {
-            success: false,
-            error: err instanceof Error ? err.message : String(err),
-            errorCode: 'SOCIAL_IMAGE_GENERATION_FAILED',
-            operations: [],
-          };
-        }
-      }
-
-      // Handle render_diagrams (mermaid → WebP rendering via Puppeteer)
-      if (mode === 'render_diagrams') {
-        const content = normalizedContent || '';
-
-        // Check if there are any mermaid diagrams
-        const mermaidRegex = /```mermaid\n[\s\S]*?```/g;
-        const matches = content.match(mermaidRegex);
-
-        if (!matches || matches.length === 0) {
-          return {
-            success: false,
-            error: 'No mermaid diagrams found. Remove render_diagrams from pipeline or add diagrams to article.',
-            errorCode: 'NO_DIAGRAMS',
-            operations: [],
-          };
-        }
-
-        const articlePath = context.articlePath || '';
-
-        log.info({ path: articlePath, mode, diagrams: matches.length }, 'render_diagrams:start');
-
-        try {
-          const { getDiagramRenderer } = await import('../utils/diagram-renderer');
-          const renderer = await getDiagramRenderer();
-          const result = await renderer.processArticle(content, articlePath);
-
-          // Report failures if any
-          if (result.failures.length > 0) {
-            log.warn({ failures: result.failures }, 'render_diagrams:partial_failures');
-
-            if (result.assets.length === 0) {
-              return {
-                success: false,
-                error: `All ${result.failures.length} diagram(s) failed to render`,
-                errorCode: 'RENDER_FAILED',
-                operations: [],
-              };
-            }
-          }
-
-          // Build updated article with rendered content
-          const updatedArticleObj = updateArticle(normalizedMeta, {
-            content: result.updatedContent,
-          });
-
-          // Convert assets to base64 files
-          const files = result.assets.map(asset => ({
-            path: `assets/${articlePath}/${asset.filename}`,
-            content: asset.buffer.toString('base64'),
-          }));
-
-          log.info({
-            path: articlePath,
-            mode,
-            rendered: result.assets.length,
-            failed: result.failures.length,
-          }, 'render_diagrams:complete');
-
-          return {
-            success: true,
-            message: `Rendered ${result.assets.length} diagram(s)${result.failures.length > 0 ? `, ${result.failures.length} failed` : ''}`,
-            tokensUsed: 0,
-            costUsd: 0,
-            operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
-            files,
-          };
-        } catch (err) {
-          log.error({ err, path: articlePath }, 'render_diagrams:error');
-          return {
-            success: false,
-            error: err instanceof Error ? err.message : String(err),
-            errorCode: 'RENDER_ERROR',
-            operations: [],
-          };
-        }
-      }
-
-      // Fallback for unknown no_ai actions
-      return {
-        success: false,
-        error: `Unknown no_ai action: ${mode}`,
-        errorCode: 'UNKNOWN_LOCAL_ACTION',
-        operations: [],
-      };
+    // Dispatch to per-action handler if one exists
+    const { hasActionHandler, getActionHandler } = await import('./actions');
+    if (hasActionHandler(mode)) {
+      log.info({ path: context.articlePath, mode }, 'enhance:action_handler');
+      const handler = await getActionHandler(mode);
+      return handler!({ article, articleObj: articleObj!, normalizedMeta, context, flags, cfg, log });
     }
 
-    // Handle humanize_text locally (CSV replacements + AI orthography fix)
-    // This avoids the 24K char limit issue from embedding the full CSV in the prompt
-    if (mode === 'humanize_text') {
-      const { findSafeZones } = await import('../utils/random-typos');
-      const csvPath = join(__dirname, '..', '..', 'config', 'actions', 'humanize_text', 'replacements.csv');
-
-      // Load and parse CSV
-      let csv = '';
-      try { csv = readFileSync(csvPath, 'utf8'); } catch { }
-      const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const lines = csv.split(/\r?\n/).filter(l => l.trim() && !/^\s*#/.test(l));
-      const pairs: { from: string; to: string }[] = [];
-      for (const line of lines) {
-        const idx = line.indexOf(',');
-        if (idx <= 0) continue;
-        const from = line.slice(0, idx).trim().replace(/^"|"$/g, '');
-        const to = line.slice(idx + 1).trim().replace(/^"|"$/g, '');
-        if (from) pairs.push({ from, to });
-      }
-
-      // Step 1: Apply CSV replacements with safe zones (longest first)
-      pairs.sort((a, b) => b.from.length - a.from.length);
-      let text = article.content || '';
-      const safeZones = findSafeZones(text);
-
-      for (const { from, to } of pairs) {
-        const re = new RegExp(`\\b${escapeRegExp(from)}\\b`, 'gi');
-        text = text.replace(re, (match, offset) => {
-          for (const zone of safeZones) {
-            if (offset >= zone.start && offset < zone.end) return match;
-          }
-          // Support random variant selection with pipe syntax: "option1|option2|option3"
-          if (to.includes('|')) {
-            const variants = to.split('|');
-            return variants[Math.floor(Math.random() * variants.length)];
-          }
-          return to;
-        });
-      }
-
-      let changes = ['humanize_text (static CSV) applied'];
-      let tokensUsed = 0;
-      let costUsd = 0;
-
-      // Step 2: AI orthography fix
-      try {
-        const fixPromptPath = join(__dirname, '..', '..', 'config', 'actions', 'humanize_text', 'fix_orthography.md');
-        const { renderTemplateAbsolutePath } = await import('../utils/template');
-        const prompt = renderTemplateAbsolutePath(fixPromptPath, { content: text });
-
-        const cfg = ensureActionConfigForMode('humanize_text' as any);
-        const provider = cfg?.ai_provider || 'openrouter';
-        const modelId = cfg?.ai_model_id || config.ai.defaultModel;
-
-        log.info({ path: context.articlePath, mode, action: 'fix_orthography' }, 'enhance:humanize_text:ai_start');
-        const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url });
-
-        if (aiRes.content && typeof aiRes.content === 'string') {
-          text = aiRes.content;
-          changes.push('orthography fixed (AI)');
-        }
-        tokensUsed = aiRes.tokens || 0;
-        costUsd = aiRes.usageStats.cost_usd || 0;
-      } catch (e: any) {
-        log.warn({ err: e }, 'enhance:humanize_text:orthography_fix_failed');
-      }
-
-      // Build updated article (unified object)
-      const updatedArticleObj = updateArticle(normalizedMeta, {
-        content: text,
-      });
-
-      const wordCount = text.split(/\s+/).length;
-      log.info({ path: context.articlePath, mode, tokens: tokensUsed, cost_usd: costUsd, words: wordCount }, 'enhance:humanize_text:done');
-
-      return {
-        success: true,
-        message: `Humanized article (${changes.join(', ')})`,
-        tokensUsed,
-        costUsd,
-        operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
-      };
+    // Guard: config says local but no handler file found
+    if (cfg?.local) {
+      return { success: false, error: `Action '${mode}' is marked local but has no handler file`, errorCode: 'MISSING_HANDLER', operations: [] };
     }
-
-    // ============== LOCAL TOC GENERATION (NO AI) ==============
-    if (mode === 'add_toc') {
-      // Skip if toc already exists on the article
-      if (normalizedMeta.toc && normalizedMeta.toc.trim()) {
-        log.info({ path: context.articlePath, mode }, 'add_toc:skipped (toc already exists)');
-        return {
-          success: true,
-          message: 'Skipped (toc already exists)',
-          skipped: true,
-          operations: [],
-        };
-      }
-
-      const { generateTOCLocal } = await import('../utils/toc-generator');
-      const tocResult = generateTOCLocal(article.content);
-
-      if (tocResult.skipped) {
-        log.info({ path: context.articlePath, mode }, 'add_toc:skipped (existing TOC found)');
-        return {
-          success: true,
-          message: 'Skipped add_toc (existing TOC found)',
-          skipped: true,
-          operations: [],
-        };
-      }
-
-      if (tocResult.headings.length === 0) {
-        log.info({ path: context.articlePath, mode }, 'add_toc:no headings found');
-        return {
-          success: true,
-          message: 'No headings found for TOC',
-          tokensUsed: 0,
-          costUsd: 0,
-          operations: [],
-        };
-      }
-
-      // Apply anchor replacements to content if any new anchors needed
-      let updatedContent = article.content;
-      let applied = 0;
-      let skippedReplacements: string[] = [];
-      if (tocResult.anchorReplacements.length > 0) {
-        const replaceResult = applyTextReplacements(
-          article.content,
-          tocResult.anchorReplacements
-        );
-        updatedContent = replaceResult.result;
-        applied = replaceResult.applied;
-        skippedReplacements = replaceResult.skipped;
-      }
-
-      // Build updated article — always save toc HTML
-      const updatedArticleObj = updateArticle(normalizedMeta, {
-        content: updatedContent,
-        toc: tocResult.tocHtml,
-      });
-
-      log.info({
-        path: context.articlePath,
-        mode,
-        headings: tocResult.headings.length,
-        anchorsAdded: applied,
-        anchorsSkipped: skippedReplacements.length,
-      }, 'add_toc:local applied');
-
-      return {
-        success: true,
-        message: `Added TOC with ${tocResult.headings.length} headings (local, no AI)`,
-        tokensUsed: 0,
-        costUsd: 0,
-        operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
-      };
-    }
-    // ============== END LOCAL TOC GENERATION ==============
 
     // For add_faq_jsonld: skip if no FAQ content exists
     if (mode === 'add_faq_jsonld' && (!normalizedMeta.faq || !normalizedMeta.faq.trim())) {
@@ -773,7 +290,9 @@ export async function handleEnhance(
 
     prompt = buildUpdatePrompt(article, mode, contextForPrompt, outMode);
 
-    log.info({ path: context.articlePath, mode, output_mode: outMode }, 'enhance:start');
+    const statsBefore = countContentStats(article.content);
+    const wordsBefore = statsBefore.words;
+    log.info({ path: context.articlePath, mode, output_mode: outMode, words_before: wordsBefore }, 'enhance:start');
 
     const provider = cfg?.ai_provider || 'openrouter';
     const modelId = cfg?.ai_model_id || (provider === 'openai'
@@ -785,6 +304,7 @@ export async function handleEnhance(
       modelId,
       baseUrl: cfg?.ai_base_url,
       webSearch: cfg?.web_search,
+      pricing: cfg?.pricing,
     });
 
     // Handle output modes properly
@@ -833,24 +353,26 @@ export async function handleEnhance(
           faq: text,
         });
 
-        const wordCount = article.content.split(/\s+/).length;
+        const contentStats = buildContentStats(statsBefore, countContentStats(article.content));
 
         log.info({
           path: context.articlePath,
           mode,
           tokens,
           cost_usd: usageStats.cost_usd,
-          words: wordCount,
+          words: contentStats.words_after,
         }, 'enhance:done (faq stored in meta)');
 
         return {
           success: true,
-          message: `Added FAQ section (stored separately, ${wordCount} words in article)`,
+          message: `Added FAQ section (stored separately, ${contentStats.words_after} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
+          contentStats,
           prompt,
-          rawResponse: flags.debug ? rawContent : undefined,
+          rawResponse: rawContent,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          requireChanges: cfg?.require_changes,
         };
       }
 
@@ -860,24 +382,26 @@ export async function handleEnhance(
           content_jsonld: text,
         });
 
-        const wordCount = article.content.split(/\s+/).length;
+        const contentStats = buildContentStats(statsBefore, countContentStats(article.content));
 
         log.info({
           path: context.articlePath,
           mode,
           tokens,
           cost_usd: usageStats.cost_usd,
-          words: wordCount,
+          words: contentStats.words_after,
         }, 'enhance:done (content_jsonld stored in meta)');
 
         return {
           success: true,
-          message: `Added content JSON-LD schema (stored separately, ${wordCount} words in article)`,
+          message: `Added content JSON-LD schema (stored separately, ${contentStats.words_after} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
+          contentStats,
           prompt,
-          rawResponse: flags.debug ? rawContent : undefined,
+          rawResponse: rawContent,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          requireChanges: cfg?.require_changes,
         };
       }
 
@@ -887,24 +411,26 @@ export async function handleEnhance(
           faq_jsonld: text,
         });
 
-        const wordCount = article.content.split(/\s+/).length;
+        const contentStats = buildContentStats(statsBefore, countContentStats(article.content));
 
         log.info({
           path: context.articlePath,
           mode,
           tokens,
           cost_usd: usageStats.cost_usd,
-          words: wordCount,
+          words: contentStats.words_after,
         }, 'enhance:done (faq_jsonld stored in meta)');
 
         return {
           success: true,
-          message: `Added FAQ JSON-LD schema (stored separately, ${wordCount} words in article)`,
+          message: `Added FAQ JSON-LD schema (stored separately, ${contentStats.words_after} words in article)`,
           tokensUsed: tokens,
           costUsd: usageStats.cost_usd,
+          contentStats,
           prompt,
-          rawResponse: flags.debug ? rawContent : undefined,
+          rawResponse: rawContent,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          requireChanges: cfg?.require_changes,
         };
       }
 
@@ -923,18 +449,21 @@ export async function handleEnhance(
           replace: fixCitationPattern(r.replace)
         }));
 
-        // Deduplicate URLs - AI sometimes returns same URL with different anchor text
-        // This enforces "use each link only once" at code level
-        const { deduplicated, removed } = deduplicateReplacementsByUrl(replacements);
-        if (removed.length > 0) {
-          log.warn({ mode, removed }, 'add_external_links:duplicate_urls_removed');
-        }
-        replacements = deduplicated;
       }
 
       if (replacements.length > 0) {
         const { result, applied, skipped } = applyTextReplacements(article.content, replacements);
-        updatedArticle = { ...article, content: result };
+
+        // Safety guard: reject if content shrunk by more than 30%
+        const shrinkage = 1 - (result.length / article.content.length);
+        if (shrinkage > 0.3) {
+          log.error({ mode, shrinkagePct: Math.round(shrinkage * 100) },
+            'text_replace:content_shrunk_>30%, preserving original');
+          updatedArticle = article;
+        } else {
+          updatedArticle = { ...article, content: result };
+        }
+
         if (skipped.length > 0) {
           log.warn({ mode, skipped }, 'text_replace:some_replacements_not_found');
         }
@@ -984,24 +513,30 @@ export async function handleEnhance(
 
     const updatedArticleObj = updateArticle(normalizedMeta, metaUpdates);
 
-    const wordCount = updatedArticle.content.split(/\s+/).length;
+    const statsAfter = countContentStats(updatedArticle.content);
+    const contentStats = buildContentStats(statsBefore, statsAfter);
 
     log.info({
       path: context.articlePath,
       mode,
       tokens,
       cost_usd: usageStats.cost_usd,
-      words: wordCount,
+      words_before: contentStats.words_before,
+      words_after: contentStats.words_after,
+      word_delta: contentStats.word_delta,
+      word_delta_pct: contentStats.word_delta_pct,
     }, 'enhance:done');
 
     return {
       success: true,
-      message: `Enhanced article with ${mode} (${wordCount} words)`,
+      message: `Enhanced article with ${mode} (${statsAfter.words} words)`,
       tokensUsed: tokens,
       costUsd: usageStats.cost_usd,
+      contentStats,
       prompt,  // Include for history tracking
-      rawResponse: flags.debug ? rawContent : undefined,  // Include raw AI response when debug flag set
+      rawResponse: rawContent,
       operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+      requireChanges: cfg?.require_changes,
     };
   } catch (err: any) {
     log.error({ err, path: context.articlePath, mode, message: err?.message }, 'enhance:error');

@@ -7,7 +7,7 @@ export interface IBaseObject {
 }
 
 export interface IPage extends IBaseObject {
-  slug: string;
+  path: string;
   title: string;
   description: string;
   keywords: string;

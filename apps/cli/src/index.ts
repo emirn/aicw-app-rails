@@ -43,16 +43,17 @@ import {
   selectIllustrationStyle,
   promptInput,
   parseArticleSelection,
+  promptLegalPagesChoice,
 } from './lib/interactive-prompts';
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
 import path from 'path';
-import { initializeProject } from './lib/project-config';
+import { initializeProject, loadProjectConfig, saveProjectConfig } from './lib/project-config';
+import { createBuiltinLegalPages, getLegalFooterColumns, LegalPagesChoice } from './lib/legal-pages';
 import { createArticleFolder, articleFolderExists, buildPublished, updateArticleMeta, addAppliedAction, getArticleMeta } from './lib/folder-manager';
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { generateImageSocialLocal, verifyAssetsLocal, verifyLinksLocal, isLocalMode } from './lib/local-actions';
 import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
@@ -69,9 +70,6 @@ import { syncActionPrompts } from './lib/prompt-sync';
 import {
   migrateToUnifiedFormat,
   checkMigrationNeeded,
-  migrateFaqFromContentProject,
-  migrateJsonldFromContentProject,
-  migrateContentExtractAllProject,
   migrateBackfillPublishedAt,
 } from './lib/migrate';
 import { verifyProject, fixArticles } from './lib/pipeline-verify';
@@ -89,6 +87,19 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatContentStats(stats: any): string {
+  if (!stats) return '';
+  const parts: string[] = [];
+  parts.push(`words: ${stats.words_before}→${stats.words_after} (${stats.word_delta >= 0 ? '+' : ''}${stats.word_delta_pct}%)`);
+  if (stats.links_before !== stats.links_after) {
+    parts.push(`links: ${stats.links_before}→${stats.links_after}`);
+  }
+  if (stats.headings_before !== stats.headings_after) {
+    parts.push(`headings: ${stats.headings_before}→${stats.headings_after}`);
+  }
+  return parts.join(' | ');
+}
+
 /**
  * Local actions handled entirely by CLI (no sgen API needed)
  */
@@ -104,9 +115,6 @@ const LOCAL_ACTIONS = [
   // Utility group (101-199)
   { name: 'force-enhance', description: 'Re-run actions on enhanced articles', usage: 'blogpostgen force-enhance <project>', group: 'utility' },
   { name: 'migrate', description: 'Migrate project to unified index.json format', usage: 'blogpostgen migrate <project>', group: 'utility' },
-  { name: 'migrate-faq', description: 'Extract FAQ from content to faq.md', usage: 'blogpostgen migrate-faq <project>', group: 'utility' },
-  { name: 'migrate-jsonld', description: 'Extract JSON-LD from content to jsonld.md', usage: 'blogpostgen migrate-jsonld <project>', group: 'utility' },
-  { name: 'migrate-content', description: 'Extract both FAQ and JSON-LD from content', usage: 'blogpostgen migrate-content <project>', group: 'utility' },
   { name: 'migrate-published-at', description: 'Backfill published_at from updated_at', usage: 'blogpostgen migrate-published-at <project>', group: 'utility' },
   { name: 'pipeline-verify', description: 'Verify pipeline state & applied actions', usage: 'blogpostgen pipeline-verify <project> [--fix]', group: 'utility' },
   { name: 'assets-cleanup', description: 'Find and remove unreferenced article assets', usage: 'blogpostgen assets-cleanup <project>', group: 'utility' },
@@ -469,6 +477,30 @@ async function main(): Promise<void> {
           ...(aiBranding ? { branding: aiBranding } : { illustrationStyle: illustrationStyle || undefined }),
         });
 
+        // Legal pages setup
+        const legalChoice = await promptLegalPagesChoice();
+        if (legalChoice.mode === 'builtin') {
+          const siteUrl = projectUrl ? (projectUrl.startsWith('http') ? projectUrl : `https://${projectUrl}`) : 'https://example.com';
+          const legalResult = await createBuiltinLegalPages(projectDir, projectName, siteUrl);
+          if (legalResult.created.length > 0) {
+            logger.log(`Created legal pages: ${legalResult.created.join(', ')}`);
+          }
+        }
+        if (legalChoice.mode !== 'none') {
+          // Update footer columns in project config
+          const config = await loadProjectConfig(projectDir);
+          if (config) {
+            if (!config.publish_to_local_folder) {
+              config.publish_to_local_folder = { enabled: false, path: '', content_subfolder: 'articles', assets_subfolder: 'assets', template_settings: {} };
+            }
+            const ts = (config.publish_to_local_folder.template_settings || {}) as Record<string, any>;
+            if (!ts.footer) ts.footer = {};
+            ts.footer.columns = getLegalFooterColumns(legalChoice);
+            config.publish_to_local_folder.template_settings = ts;
+            await saveProjectConfig(projectDir, config);
+          }
+        }
+
         logger.log('Applying default requirements template...');
         await initializePromptTemplates(projectDir);
 
@@ -544,6 +576,34 @@ async function main(): Promise<void> {
         logger.log('\nSkipped (already exist):');
         for (const p of result.skipped) {
           logger.log(`  ${p}`);
+        }
+      }
+
+      // Check if legal pages are missing and offer to add them
+      const privacyExists = existsSync(path.join(reinitProjectPaths.root, 'pages', 'privacy', 'index.md'));
+      const termsExists = existsSync(path.join(reinitProjectPaths.root, 'pages', 'terms', 'index.md'));
+      if (!privacyExists || !termsExists) {
+        logger.log('\nLegal pages not found.');
+        const legalChoice = await promptLegalPagesChoice();
+        const reinitConfig = await loadProjectConfig(reinitProjectPaths.root);
+        if (legalChoice.mode === 'builtin') {
+          const siteName = reinitConfig?.title || selectedProject;
+          const siteUrl = reinitConfig?.url || 'https://example.com';
+          const legalResult = await createBuiltinLegalPages(reinitProjectPaths.root, siteName, siteUrl);
+          if (legalResult.created.length > 0) {
+            logger.log(`Created legal pages: ${legalResult.created.join(', ')}`);
+          }
+        }
+        if (legalChoice.mode !== 'none' && reinitConfig) {
+          if (!reinitConfig.publish_to_local_folder) {
+            reinitConfig.publish_to_local_folder = { enabled: false, path: '', content_subfolder: 'articles', assets_subfolder: 'assets', template_settings: {} };
+          }
+          const ts = (reinitConfig.publish_to_local_folder.template_settings || {}) as Record<string, any>;
+          if (!ts.footer) ts.footer = {};
+          ts.footer.columns = getLegalFooterColumns(legalChoice);
+          reinitConfig.publish_to_local_folder.template_settings = ts;
+          await saveProjectConfig(reinitProjectPaths.root, reinitConfig);
+          logger.log('Updated footer configuration.');
         }
       }
 
@@ -874,7 +934,8 @@ async function main(): Promise<void> {
         if (result.success) {
           totalTokens += result.tokensUsed || 0;
           totalCost += result.costUsd || 0;
-          logger.log(`  DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
+          const statsStr = formatContentStats(result.contentStats);
+          logger.log(`  DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
           batchResults.push({ path: articlePath, title: articlePath, success: true });
         } else {
           logger.log(`  FAILED: ${result.error}`);
@@ -940,98 +1001,6 @@ async function main(): Promise<void> {
         }
       }
       logger.log('');
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle migrate-faq (extract FAQ from content to faq.md)
-    if (finalAction === 'migrate-faq') {
-      const selectedProject = await selectProject();
-      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
-        if (selectedProject === CREATE_NEW_PROJECT) {
-          logger.log('Please create a project first with project-init.');
-          await pressEnterToContinue();
-        }
-        continue;
-      }
-
-      logger.log(`\nExtracting FAQ from content for: ${selectedProject}`);
-
-      const result = await migrateFaqFromContentProject(selectedProject);
-
-      logger.log('');
-      logger.log(chalk.green('Migration complete!'));
-      logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-      logger.log(`  Skipped (no FAQ): ${result.skipped}`);
-      if (result.errors.length > 0) {
-        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-        for (const err of result.errors) {
-          logger.log(`    - ${err.path}: ${err.error}`);
-        }
-      }
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle migrate-jsonld (extract JSON-LD from content to jsonld.md)
-    if (finalAction === 'migrate-jsonld') {
-      const selectedProject = await selectProject();
-      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
-        if (selectedProject === CREATE_NEW_PROJECT) {
-          logger.log('Please create a project first with project-init.');
-          await pressEnterToContinue();
-        }
-        continue;
-      }
-
-      logger.log(`\nExtracting JSON-LD from content for: ${selectedProject}`);
-
-      const result = await migrateJsonldFromContentProject(selectedProject);
-
-      logger.log('');
-      logger.log(chalk.green('Migration complete!'));
-      logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-      logger.log(`  Skipped (no JSON-LD): ${result.skipped}`);
-      if (result.errors.length > 0) {
-        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-        for (const err of result.errors) {
-          logger.log(`    - ${err.path}: ${err.error}`);
-        }
-      }
-
-      await pressEnterToContinue();
-      continue;
-    }
-
-    // Handle migrate-content (extract both FAQ and JSON-LD from content)
-    if (finalAction === 'migrate-content') {
-      const selectedProject = await selectProject();
-      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
-        if (selectedProject === CREATE_NEW_PROJECT) {
-          logger.log('Please create a project first with project-init.');
-          await pressEnterToContinue();
-        }
-        continue;
-      }
-
-      logger.log(`\nExtracting FAQ and JSON-LD from content for: ${selectedProject}`);
-
-      const result = await migrateContentExtractAllProject(selectedProject);
-
-      logger.log('');
-      logger.log(chalk.green('Migration complete!'));
-      logger.log(`  Total articles: ${result.total}`);
-      logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-      logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-      logger.log(`  Skipped (no FAQ/JSON-LD): ${result.skipped}`);
-      if (result.errors.length > 0) {
-        logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-        for (const err of result.errors) {
-          logger.log(`    - ${err.path}: ${err.error}`);
-        }
-      }
 
       await pressEnterToContinue();
       continue;
@@ -1493,7 +1462,10 @@ async function main(): Promise<void> {
     }
 
     // Check if selected action is a pipeline (from API)
-    const pipelineConfigResult = await executor.getPipelineConfig(finalAction);
+    const NON_PIPELINE_ACTIONS = ['status', 'list-actions'];
+    const pipelineConfigResult = NON_PIPELINE_ACTIONS.includes(finalAction)
+      ? { success: false as const }
+      : await executor.getPipelineConfig(finalAction);
     if (pipelineConfigResult.success && pipelineConfigResult.config) {
       const pipelineConfig = pipelineConfigResult.config;
 
@@ -1687,41 +1659,6 @@ async function main(): Promise<void> {
 
               logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
-              // Handle local-only modes (e.g., generate_image_social, verify_assets)
-              if (isLocalMode(currentAction)) {
-                if (currentAction === 'generate_image_social') {
-                  const localResult = await generateImageSocialLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (free)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                } else if (currentAction === 'verify_assets') {
-                  const localResult = await verifyAssetsLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                } else if (currentAction === 'verify_links_and_sources') {
-                  const localResult = await verifyLinksLocal(fullPath, logger);
-                  if (localResult.success) {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                    if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                  } else {
-                    logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                    articleSuccess = false;
-                    break;
-                  }
-                }
-                continue;
-              }
 
               // Execute action via API
               const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction, ...finalFlags }, { debug: debugEnabled });
@@ -1735,7 +1672,8 @@ async function main(): Promise<void> {
                   // Action executed successfully
                   totalTokens += result.tokensUsed || 0;
                   totalCost += result.costUsd || 0;
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
+                  const statsStr = formatContentStats(result.contentStats);
+                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
@@ -1849,6 +1787,10 @@ async function main(): Promise<void> {
     if (result.success) {
       if (result.message) {
         logger.log(result.message);
+      }
+      const statsStr = formatContentStats(result.contentStats);
+      if (statsStr) {
+        logger.log(statsStr);
       }
       if (result.tokensUsed || result.costUsd) {
         logger.log(`Tokens: ${result.tokensUsed || 0}, Cost: $${(result.costUsd || 0).toFixed(4)}`);
@@ -2153,7 +2095,7 @@ async function main(): Promise<void> {
 
             logger.log(`[${i + 1}/${selectedPaths.length}] Generating: ${articlePath}`);
 
-            const result = await executor.executeAction('generate', fullPath, finalFlags, { debug });
+            const result = await executor.executeAction('generate', fullPath, { ...finalFlags, mode: 'write_draft' }, { debug });
 
             if (result.success) {
               totalTokens += result.tokensUsed || 0;
@@ -2332,47 +2274,13 @@ async function main(): Promise<void> {
 
                 logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
 
-                if (isLocalMode(currentAction)) {
-                  if (currentAction === 'generate_image_social') {
-                    const localResult = await generateImageSocialLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (free)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  } else if (currentAction === 'verify_assets') {
-                    const localResult = await verifyAssetsLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  } else if (currentAction === 'verify_links_and_sources') {
-                    const localResult = await verifyLinksLocal(fullPath, logger);
-                    if (localResult.success) {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} done (${localResult.count || 0} verified)`);
-                      if (localResult.count) await addAppliedAction(localFolderPath, currentAction);
-                    } else {
-                      logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${localResult.error}`);
-                      articleSuccess = false;
-                      break;
-                    }
-                  }
-                  continue;
-                }
-
                 const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction }, { debug });
 
                 if (result.success) {
                   totalTokens += result.tokensUsed || 0;
                   totalCost += result.costUsd || 0;
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)}) → ${absoluteFilePath}`);
+                  const statsStr = formatContentStats(result.contentStats);
+                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
@@ -2424,52 +2332,6 @@ async function main(): Promise<void> {
             logger.log(`Non-interactive pipeline: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
-      }
-    }
-  }
-
-  // Handle local-only modes (e.g., generate_image_social, verify_assets) before API call
-  // Check both finalFlags.action and finalFlags.mode (CLI uses --mode for enhance)
-  const localMode = finalFlags.action || finalFlags.mode;
-  if (finalAction === 'enhance' && localMode && isLocalMode(localMode)) {
-    // Resolve path to get folder path for applied_actions update
-    const resolvedLocal = finalPath ? resolvePath(finalPath) : null;
-    const localFolderPath = resolvedLocal?.projectName && resolvedLocal?.articlePath
-      ? path.join(getProjectPaths(resolvedLocal.projectName).content, resolvedLocal.articlePath)
-      : null;
-
-    if (localMode === 'generate_image_social' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await generateImageSocialLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: social image generated (free)`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
-      }
-    } else if (localMode === 'verify_assets' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await verifyAssetsLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: ${localResult.count || 0} asset(s) verified`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
-      }
-    } else if (localMode === 'verify_links_and_sources' && finalPath) {
-      logger.log(`Executing local mode: ${localMode}`);
-      const localResult = await verifyLinksLocal(finalPath, logger);
-      if (localResult.success) {
-        logger.log(`Done: ${localResult.count || 0} link(s) verified`);
-        if (localResult.count && localFolderPath) await addAppliedAction(localFolderPath, localMode);
-        process.exit(0);
-      } else {
-        outputError(localResult.error || 'Local action failed', 'LOCAL_ACTION_ERROR');
-        process.exit(1);
       }
     }
   }
@@ -2666,92 +2528,6 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Handle migrate-faq action (local - no API needed)
-  if (finalAction === 'migrate-faq') {
-    if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen migrate-faq <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-
-    logger.log(`Extracting FAQ from content for: ${selectedProject}`);
-
-    const result = await migrateFaqFromContentProject(selectedProject);
-
-    logger.log('');
-    logger.log(chalk.green('Migration complete!'));
-    logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-    logger.log(`  Skipped (no FAQ): ${result.skipped}`);
-    if (result.errors.length > 0) {
-      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-      for (const err of result.errors) {
-        logger.log(`    - ${err.path}: ${err.error}`);
-      }
-      process.exit(1);
-    }
-
-    process.exit(0);
-  }
-
-  // Handle migrate-jsonld action (local - no API needed)
-  if (finalAction === 'migrate-jsonld') {
-    if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen migrate-jsonld <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-
-    logger.log(`Extracting JSON-LD from content for: ${selectedProject}`);
-
-    const result = await migrateJsonldFromContentProject(selectedProject);
-
-    logger.log('');
-    logger.log(chalk.green('Migration complete!'));
-    logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-    logger.log(`  Skipped (no JSON-LD): ${result.skipped}`);
-    if (result.errors.length > 0) {
-      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-      for (const err of result.errors) {
-        logger.log(`    - ${err.path}: ${err.error}`);
-      }
-      process.exit(1);
-    }
-
-    process.exit(0);
-  }
-
-  // Handle migrate-content action (local - no API needed)
-  if (finalAction === 'migrate-content') {
-    if (!finalPath) {
-      outputError('Error: Project name required. Usage: blogpostgen migrate-content <project>');
-      process.exit(1);
-    }
-
-    const selectedProject = finalPath;
-
-    logger.log(`Extracting FAQ and JSON-LD from content for: ${selectedProject}`);
-
-    const result = await migrateContentExtractAllProject(selectedProject);
-
-    logger.log('');
-    logger.log(chalk.green('Migration complete!'));
-    logger.log(`  Total articles: ${result.total}`);
-    logger.log(`  FAQ extracted: ${result.faqMigrated}`);
-    logger.log(`  JSON-LD extracted: ${result.jsonldMigrated}`);
-    logger.log(`  Skipped (no FAQ/JSON-LD): ${result.skipped}`);
-    if (result.errors.length > 0) {
-      logger.log(chalk.red(`  Errors: ${result.errors.length}`));
-      for (const err of result.errors) {
-        logger.log(`    - ${err.path}: ${err.error}`);
-      }
-      process.exit(1);
-    }
-
-    process.exit(0);
-  }
-
   // Handle migrate-published-at action (local - no API needed)
   if (finalAction === 'migrate-published-at') {
     if (!finalPath) {
@@ -2920,6 +2696,11 @@ async function main(): Promise<void> {
   // Output result
   if (result.message) {
     logger.log(result.message);
+  }
+
+  const statsStr = formatContentStats(result.contentStats);
+  if (statsStr) {
+    logger.log(statsStr);
   }
 
   if (result.tokensUsed || result.costUsd) {

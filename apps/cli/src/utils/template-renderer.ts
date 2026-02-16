@@ -60,7 +60,7 @@ export class TemplateRenderer {
     // Prepare macros (MD uses {{CONTENT_MD}})
     const macros: Record<string, string> = {
       '{{TITLE}}': metadata.title || 'Untitled',
-      '{{SLUG}}': metadata.slug || '',
+      '{{PATH}}': metadata.path || '',
       '{{SEO_META_DESCRIPTION}}': metadata.description || '',
       '{{SEO_META_KEYWORDS}}': metadata.keywords || '',
       '{{WORD_COUNT}}': String(metadata.wordCount || 0),
@@ -148,7 +148,7 @@ export class TemplateRenderer {
  */
 export interface ArticleMetadata {
   title?: string;
-  slug?: string;
+  path?: string;
   description?: string;
   keywords?: string;
   wordCount?: number;

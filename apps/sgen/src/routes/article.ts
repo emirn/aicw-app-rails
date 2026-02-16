@@ -12,8 +12,8 @@ import { config } from '../config/server-config';
 import { buildArticlePrompt, buildUpdatePrompt } from '../utils/prompts';
 import { ACTION_CONFIG, ensureActionConfigForMode, isValidActionMode, VALID_ACTION_MODES } from '../config/action-config';
 import { ensureTemplateExistsNonEmpty, ensureNonEmptyText } from '../utils/guards';
-import { mergeUpdate, MergeResult, parseLinePatches as updParseLinePatches, applyPatches as updApplyPatches, extractContentText, ensureSlug as makeSlug, parseTextReplacements, applyTextReplacements } from '../utils/articleUpdate';
-import { collectKnownSlugs, ensureUniqueSlug } from '../utils/slug';
+import { mergeUpdate, MergeResult, parseLinePatches as updParseLinePatches, applyPatches as updApplyPatches, extractContentText, generatePathFromTitle, parseTextReplacements, applyTextReplacements } from '../utils/articleUpdate';
+import { collectKnownPaths, ensureUniquePath } from '../utils/article-path';
 import { buildDebugInfo } from '../utils/debug';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -87,6 +87,7 @@ export default async function articleRoutes(app: FastifyInstance) {
         provider,
         modelId,
         baseUrl: genCfg?.ai_base_url,
+        pricing: genCfg?.pricing,
       });
 
       let article: IApiArticle;
@@ -95,7 +96,7 @@ export default async function articleRoutes(app: FastifyInstance) {
         // AI returned proper JSON with IArticle structure
         article = {
           id: content.id || `article-${randomUUID()}`,
-          slug: content.slug || '',
+          path: content.path || '',
           title: content.title || website_info.title,
           description: content.description || description,
           keywords: content.keywords || website_info.focus_keywords,
@@ -114,7 +115,7 @@ export default async function articleRoutes(app: FastifyInstance) {
 
         article = {
           id: `article-${randomUUID()}`,
-          slug: '',
+          path: '',
           title: extractedTitle,
           description,
           keywords: website_info.focus_keywords,
@@ -125,13 +126,13 @@ export default async function articleRoutes(app: FastifyInstance) {
       // Strip duplicate H1 title from content if it matches the article title
       article.content = stripDuplicateTitleH1(article.content, article.title);
 
-      // Ensure slug exists and is unique vs site published/main pages
-      const known = collectKnownSlugs(website_info);
-      if (!article.slug || !article.slug.trim()) {
-        if (article.title) article.slug = makeSlug(article.title);
+      // Ensure path exists and is unique vs site published/main pages
+      const known = collectKnownPaths(website_info);
+      if (!article.path || !article.path.trim()) {
+        if (article.title) article.path = generatePathFromTitle(article.title);
       }
-      if (article.slug) {
-        article.slug = ensureUniqueSlug(article.slug, known);
+      if (article.path) {
+        article.path = ensureUniquePath(article.path, known);
       }
 
       const response: INewArticleResponse = {
@@ -327,7 +328,7 @@ export default async function articleRoutes(app: FastifyInstance) {
           const prompt = renderTemplateAbsolutePath(fixPromptPath, vars);
 
           app.log.info({ mode: 'humanize_text', action: 'fix_orthography' }, 'ai_fix:start');
-          const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url });
+          const aiRes = await callAI(prompt, { provider, modelId, baseUrl: cfg?.ai_base_url, pricing: cfg?.pricing });
 
           if (aiRes.content && typeof aiRes.content === 'string') {
             text = aiRes.content; // Update text with AI fixed version
@@ -422,6 +423,7 @@ export default async function articleRoutes(app: FastifyInstance) {
         modelId,
         baseUrl: defaultCfg?.ai_base_url,
         webSearch: defaultCfg?.web_search,
+        pricing: defaultCfg?.pricing,
       });
 
       let updated: IApiArticle;
@@ -477,7 +479,17 @@ export default async function articleRoutes(app: FastifyInstance) {
         const replacements = parseTextReplacements(content);
         if (replacements.length > 0) {
           const { result, applied, skipped } = applyTextReplacements(article.content, replacements);
-          updated = { ...article, content: result };
+
+          // Safety guard: reject if content shrunk by more than 30%
+          const shrinkage = 1 - (result.length / article.content.length);
+          if (shrinkage > 0.3) {
+            app.log.error({ mode, shrinkagePct: Math.round(shrinkage * 100) },
+              'text_replace:content_shrunk_>30%, preserving original');
+            updated = article;
+          } else {
+            updated = { ...article, content: result };
+          }
+
           if (skipped.length > 0) {
             app.log.warn({ mode, skipped }, 'text_replace:some_replacements_not_found');
           }
@@ -505,12 +517,12 @@ export default async function articleRoutes(app: FastifyInstance) {
       const projectUrl = context?.website_info?.url;
       updated.content = cleanMarkdownUrls(updated.content, projectUrl);
 
-      // Enforce unique slug if present using provided context website_info and optional plan
+      // Enforce unique path if present using provided context website_info and optional plan
       try {
-        const known = collectKnownSlugs(context?.website_info, context?.plan || context?.plan_slugs);
-        if (updated.slug) updated.slug = ensureUniqueSlug(updated.slug, known);
+        const known = collectKnownPaths(context?.website_info, context?.plan || context?.plan_paths);
+        if (updated.path) updated.path = ensureUniquePath(updated.path, known);
       } catch (e) {
-        app.log.warn({ err: e }, 'Failed to ensure unique slug');
+        app.log.warn({ err: e }, 'Failed to ensure unique path');
       }
 
       const response: IArticleUpdateResponse = {

@@ -40,8 +40,8 @@ export interface ArticleContent {
  *
  * Supported formats:
  * - "project-name" - Just the project
- * - "project-name/blog/article-slug" - Project + article path
- * - "/full/path/to/project/content/blog/article-slug" - Full path
+ * - "project-name/blog/article-path" - Project + article path
+ * - "/full/path/to/project/content/blog/article-path" - Full path
  * - "~/Library/.../projects/project-name/content/..." - Home-relative path
  *
  * @param inputPath - Path from CLI argument

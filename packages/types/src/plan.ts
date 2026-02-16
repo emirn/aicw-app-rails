@@ -5,7 +5,7 @@
 import { IBaseObject } from './base';
 
 export interface IContentPlanItem extends IBaseObject {
-  slug: string;                  // proposed SEO slug
+  path: string;                  // proposed SEO path
   title: string;                 // proposed SEO title
   description: string;           // instruction/brief for the article
   target_keywords: string[];     // primary + secondary keywords
@@ -13,13 +13,13 @@ export interface IContentPlanItem extends IBaseObject {
   search_intent: 'informational' | 'commercial' | 'transactional' | 'navigational';
   funnel_stage: 'top' | 'middle' | 'bottom';
   priority: 1 | 2 | 3;           // 1 = high, 3 = low
-  internal_links?: string[];     // slugs or paths to link to
+  internal_links?: string[];     // paths to link to
   notes?: string;                // any extra guidance
   // clustering
   cluster_id?: string;
   cluster_name?: string;
   // recommended anchor texts for internal links
-  link_recommendations?: { slug: string; anchor_text: string }[];
+  link_recommendations?: { path: string; anchor_text: string }[];
 }
 
 export interface IContentPlan {
@@ -39,7 +39,7 @@ export interface IContentPlan {
 // Simplified plan item for CLI
 export interface ContentPlanItem {
   id: string;
-  slug: string;
+  path: string;
   title: string;
   description: string;
   target_keywords: string[];

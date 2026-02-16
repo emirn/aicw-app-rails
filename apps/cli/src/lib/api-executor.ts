@@ -25,6 +25,7 @@ import {
   saveArticleWithPipeline,
   createArticleFolder,
   updateArticleMeta,
+  addCostEntry,
 } from './folder-manager';
 import { saveProjectConfig } from './project-config';
 import { getProjectPaths, initializeProjectDirectories } from '../config/user-paths';
@@ -66,6 +67,41 @@ function validateBrandingColors(config: IProjectConfig, projectDir: string): str
 }
 
 /**
+ * Strip fields from IArticle that sgen doesn't need.
+ * Uses destructuring so keys are absent (not undefined) — this ensures
+ * saveArticleWithPipeline's { ...diskMeta, ...sgenResponse } preserves disk values.
+ */
+function stripArticleForApi(article: IArticle): IArticle {
+  const { costs, last_action, status, search_intent, funnel_stage, priority, cluster, ...rest } = article;
+  return rest as IArticle;
+}
+
+/**
+ * Content shrinkage guard — reject operations that destroy too much content.
+ * Runs BEFORE file writes so damaged content never hits disk.
+ */
+const SHRINKAGE_THRESHOLD = -30; // reject if words decreased by more than 30%
+
+function checkContentShrinkage(stats: any, mode?: string): string | null {
+  if (!stats || stats.words_before === 0) return null;
+
+  // Check word count shrinkage
+  if (stats.word_delta_pct <= SHRINKAGE_THRESHOLD) {
+    return `Content shrunk by ${Math.abs(stats.word_delta_pct)}% ` +
+      `(${stats.words_before}→${stats.words_after} words) during ${mode || 'unknown'}. ` +
+      `Exceeds ${Math.abs(SHRINKAGE_THRESHOLD)}% threshold — skipping write to preserve content.`;
+  }
+
+  // Check checklist wipeout (checklists existed before but gone after)
+  if (stats.checklists_before > 0 && stats.checklists_after === 0) {
+    return `All ${stats.checklists_before} checklist items were removed during ${mode || 'unknown'}. ` +
+      `Skipping write to preserve checklist content.`;
+  }
+
+  return null;
+}
+
+/**
  * Context sent to API
  * Uses unified article object pattern: article contains all metadata and content
  */
@@ -86,6 +122,8 @@ interface ActionContext {
     path: string;
     article: IArticle;
   }>;
+  /** Pre-calculated total cost across all articles (for status display, since costs are stripped from articles) */
+  totalCost?: number;
 }
 
 /**
@@ -136,6 +174,8 @@ interface ActionResponse {
     errors: Array<{ path: string; error: string }>;
   };
   data?: Record<string, any>;
+  contentStats?: any;
+  requireChanges?: boolean;
 }
 
 /**
@@ -377,9 +417,15 @@ export class APIExecutor {
     tokensUsed?: number;
     costUsd?: number;
     skipped?: boolean;  // True if action was skipped (e.g., already applied)
+    contentStats?: any;
   }> {
     // Build context from path
     const context = await this.buildContext(action, pathArg, flags);
+
+    // Status without project: list all projects locally
+    if (action === 'status' && !context.projectName) {
+      return this.handleAllProjectsStatus();
+    }
 
     this.logger.log(`Executing: ${action}`);
 
@@ -412,11 +458,42 @@ export class APIExecutor {
         };
       }
 
+      // Content shrinkage guard: reject if content decreased too much
+      if (response.contentStats) {
+        const rejection = checkContentShrinkage(response.contentStats, flags.mode);
+        if (rejection) {
+          this.logger.log(`  GUARD: ${rejection}`);
+          return {
+            success: false,
+            error: rejection,
+            contentStats: response.contentStats,
+          };
+        }
+      }
+
+      // No-op detection: fail if action requires changes but made none
+      if (response.contentStats && !response.skipped) {
+        const s = response.contentStats;
+        const isNoOp = s.word_delta === 0 && s.links_before === s.links_after
+          && s.headings_before === s.headings_after && s.checklists_before === s.checklists_after;
+        if (isNoOp && (response as any).requireChanges) {
+          this.logger.log(`  GUARD: ${flags.mode} require_changes=true but made no content changes`);
+          return {
+            success: false,
+            error: `${flags.mode} made no content changes`,
+            contentStats: response.contentStats,
+          };
+        }
+        if (isNoOp) {
+          this.logger.log(`  WARNING: ${flags.mode} made no content changes (no-op)`);
+        }
+      }
+
       // Execute file operations
       const operationErrors: string[] = [];
       for (const op of response.operations || []) {
         try {
-          await this.executeOperation(op, context.projectName, response.prompt);
+          await this.executeOperation(op, context.projectName, response.prompt, response.rawResponse);
         } catch (err) {
           operationErrors.push(`${op.type}: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -456,6 +533,26 @@ export class APIExecutor {
         }
       }
 
+      // Track cost per article (with optional content stats)
+      if (context.articlePath && context.projectName) {
+        try {
+          const costPaths = getProjectPaths(context.projectName);
+          const folderPath = path.join(costPaths.content, context.articlePath);
+          if (!flags.mode) {
+            throw new Error(`Cost tracking requires flags.mode but got action='${action}' without mode`);
+          }
+          const costStats = response.contentStats ? {
+            words_before: response.contentStats.words_before,
+            words_after: response.contentStats.words_after,
+            word_delta: response.contentStats.word_delta,
+            word_delta_pct: response.contentStats.word_delta_pct,
+            links_before: response.contentStats.links_before,
+            links_after: response.contentStats.links_after,
+          } : undefined;
+          await addCostEntry(folderPath, flags.mode, response.costUsd || 0, costStats);
+        } catch { /* non-fatal */ }
+      }
+
       return {
         success: true,
         message: response.message,
@@ -463,6 +560,64 @@ export class APIExecutor {
         tokensUsed: response.tokensUsed,
         costUsd: response.costUsd,
         skipped: response.skipped,
+        contentStats: response.contentStats,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Handle status for all projects (no specific project selected)
+   */
+  private async handleAllProjectsStatus(): Promise<{
+    success: boolean;
+    message?: string;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      // Dynamic import to avoid circular dependency
+      const { listAvailableProjects } = await import('./interactive-prompts');
+      const projects = await listAvailableProjects();
+
+      if (projects.length === 0) {
+        return {
+          success: true,
+          message: 'No projects found.',
+        };
+      }
+
+      const lines: string[] = [`Found ${projects.length} project(s):\n`];
+
+      for (const project of projects) {
+        const resolved = resolvePath(project.name);
+        const config = await getProjectConfig(resolved);
+        const url = config?.url || '(no URL)';
+
+        // Sum costs from all articles
+        const articles = await getArticles(resolved);
+        let totalCost = 0;
+        for (const a of articles) {
+          const costs = a.meta.costs || [];
+          totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
+        }
+
+        lines.push(`  ${project.name}`);
+        lines.push(`    URL: ${url}`);
+        lines.push(`    Articles: ${project.articleCount}`);
+        if (totalCost > 0) {
+          lines.push(`    Total cost: $${totalCost.toFixed(2)}`);
+        }
+        lines.push('');
+      }
+
+      return {
+        success: true,
+        message: lines.join('\n'),
       };
     } catch (error) {
       return {
@@ -562,8 +717,11 @@ export class APIExecutor {
       return context;
     }
 
-    // No path provided - project path is required for all actions
+    // No path provided
     if (!pathArg) {
+      if (action === 'status') {
+        return context; // Empty context — handled in executeAction
+      }
       throw new Error('Project path is required for all actions.');
     }
 
@@ -607,18 +765,26 @@ export class APIExecutor {
       if ((flags.all || action === 'status') && !resolved.isArticle) {
         const articles = await getArticles(resolved);
         context.articles = [];
+        let totalCost = 0;
 
         for (const articleItem of articles) {
-          // Build unified article object with content
+          const costs = articleItem.meta.costs || [];
+          totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
+
+          // Build unified article object with content (stripped of billing data)
           const unifiedArticle: IArticle = {
-            ...articleItem.meta,
+            ...stripArticleForApi(articleItem.meta),
             content: articleItem.content || '',
-          };
+          } as IArticle;
 
           context.articles.push({
             path: articleItem.path,
             article: unifiedArticle,
           });
+        }
+
+        if (action === 'status') {
+          context.totalCost = totalCost;
         }
       }
 
@@ -626,11 +792,11 @@ export class APIExecutor {
       if (resolved.isArticle) {
         const articleData = await readArticleContent(resolved);
         if (articleData) {
-          // Build unified article object with content
+          // Build unified article object with content (stripped of billing data)
           context.article = {
-            ...articleData.meta,
+            ...stripArticleForApi(articleData.meta),
             content: articleData.articleContent || '',
-          };
+          } as IArticle;
         }
       }
 
@@ -668,6 +834,36 @@ export class APIExecutor {
         }
       }
 
+      // For verify_assets: scan article folder's assets/ dir and pass list to sgen
+      if (action === 'enhance' && flags.mode === 'verify_assets' && resolved.isArticle) {
+        try {
+          const projectPaths = getProjectPaths(resolved.projectName);
+          const folderPath = path.join(projectPaths.content, resolved.articlePath!);
+          const { promises: fsPromises } = await import('fs');
+          const assetsDir = path.join(folderPath, 'assets');
+          const scanDir = async (dir: string, prefix: string = ''): Promise<string[]> => {
+            const entries = await fsPromises.readdir(dir, { withFileTypes: true }).catch(() => []);
+            const paths: string[] = [];
+            for (const entry of entries) {
+              const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+              if (entry.isDirectory()) {
+                paths.push(...await scanDir(path.join(dir, entry.name), rel));
+              } else {
+                paths.push(`assets/${rel}`);
+              }
+            }
+            return paths;
+          };
+          flags.existing_assets = await scanDir(assetsDir);
+        } catch { /* non-fatal - empty list means all assets will be "missing" */ }
+      }
+
+      // For generate_image_social: pass project assets dir so sgen can read hero image
+      if (action === 'enhance' && flags.mode === 'generate_image_social' && resolved.isArticle) {
+        const projectPaths = getProjectPaths(resolved.projectName);
+        flags.project_assets_dir = path.join(projectPaths.content, resolved.articlePath!);
+      }
+
       // For enhance action with generate_image_hero mode, load custom prompt template and variables
       if (action === 'enhance' && flags.mode === 'generate_image_hero') {
         const projectPaths = getProjectPaths(resolved.projectName);
@@ -690,6 +886,16 @@ export class APIExecutor {
         if (actionConfig?.variables) {
           flags.custom_variables = actionConfig.variables;
           this.logger.log('Loaded custom generate_image_hero variables');
+        }
+      }
+
+      // For enhance action with add_external_links mode, load project-level allowed-domains.txt
+      if (action === 'enhance' && flags.mode === 'add_external_links') {
+        const projectPaths = getProjectPaths(resolved.projectName);
+        const domainsTxt = await loadActionPrompt(projectPaths.root, 'add_external_links', 'domains.txt');
+        if (domainsTxt) {
+          flags.domains_txt = domainsTxt;
+          this.logger.log('Loaded project domains.txt for add_external_links');
         }
       }
 
@@ -776,6 +982,14 @@ export class APIExecutor {
           try {
             await this.executeOperation(op, context.projectName, response.prompt);
             allOperations.push(op);
+            // Track cost for created articles
+            if (op.type === 'create_article' && op.articlePath && context.projectName) {
+              try {
+                const costPaths = getProjectPaths(context.projectName);
+                const folderPath = path.join(costPaths.content, op.articlePath);
+                await addCostEntry(folderPath, 'plan-import', 0);
+              } catch { /* non-fatal */ }
+            }
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
             this.logger.log(`Operation error: ${op.type} - ${errMsg}`);
@@ -819,7 +1033,7 @@ export class APIExecutor {
   /**
    * Execute a single file operation
    */
-  private async executeOperation(op: FileOperation, contextProjectName?: string, prompt?: string): Promise<void> {
+  private async executeOperation(op: FileOperation, contextProjectName?: string, prompt?: string, rawResponse?: string): Promise<void> {
     const projectName = op.projectName || contextProjectName;
 
     if (!projectName && op.type !== 'create_project') {
@@ -875,7 +1089,8 @@ export class APIExecutor {
             op.article.last_pipeline,
             archivePhase,
             meta as IArticle, // Pass meta (without content) for title, description, keywords, etc.
-            prompt   // Pass prompt for history archive
+            prompt,   // Pass prompt for history archive
+            rawResponse  // Pass raw AI response for history archive
           );
         } else if (op.article.last_action) {
           // Legacy: handle old last_action field
@@ -888,7 +1103,8 @@ export class APIExecutor {
             op.article.last_action,
             archivePhase,
             meta as IArticle,
-            prompt  // Pass prompt for history archive
+            prompt,  // Pass prompt for history archive
+            rawResponse  // Pass raw AI response for history archive
           );
         } else {
           // No last_pipeline set (e.g., generate handler no longer bakes it in)
@@ -901,7 +1117,8 @@ export class APIExecutor {
             null,
             archivePhase,
             meta as IArticle,
-            prompt
+            prompt,
+            rawResponse
           );
         }
 

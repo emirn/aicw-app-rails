@@ -32,8 +32,10 @@ const loadPerActionConfigs = (): ActionConfigMap => {
           output_mode: cfg.output_mode,
           description: cfg.description,
           web_search: cfg.web_search,
-          no_ai: cfg.no_ai,
+          local: cfg.local,
           forcible: cfg.forcible,
+          // Pricing (co-located with model/provider)
+          pricing: cfg.pricing,
           // Custom prompt/config support
           supports_custom_prompt: cfg.supports_custom_prompt,
           supports_custom_config: cfg.supports_custom_config,
@@ -83,7 +85,7 @@ export interface ConfigValidationResult {
 /**
  * Validate action configs at startup.
  *
- * Virtual actions (no_ai: true or no prompt_path) are skipped.
+ * Local actions (local: true or no prompt_path) are skipped.
  * Real actions must have their prompt.md files present.
  *
  * Returns errors for missing prompts instead of just logging warnings.
@@ -100,10 +102,10 @@ export function validateActionConfig(log?: { info?: Function; warn?: Function })
 
     const config = cfg as IActionConfig;
 
-    // Skip virtual actions (no_ai: true)
+    // Skip local actions (local: true)
     // These are implemented in code, not via AI prompts
-    if (config.no_ai) {
-      log?.info?.({ mode }, 'Skipping virtual/no-ai action (no prompt needed)');
+    if (config.local) {
+      log?.info?.({ mode }, 'Skipping local action (no prompt needed)');
       continue;
     }
 

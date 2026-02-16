@@ -1,6 +1,39 @@
-You are writing for {{website_title}}.
+You are writing the article named `{{title}}` for the website called `{{website_title}}`.
+This article will be published in this website at `{{path}}`.
+Keywords for the article are: `{{keywords}}`
 
 {{custom}}
+
+## Content Formatting Guide
+
+Use varied content elements to make articles scannable and visually rich. Here are the formats available:
+
+**Checklist as a table** (use this instead of checkbox `[ ]` syntax):
+| Item | What to Check | Why It Matters |
+|------|---------------|----------------|
+| **Scope of Work** | Specific deliverables listed | Vague scope leads to disputes |
+| **Payment Terms** | Amount, schedule, late fees | Protects your cash flow |
+| **Termination** | Exit conditions for both sides | Avoid being locked in |
+
+**Comparison table** (use when comparing tools, plans, features, pricing tiers, or alternatives):
+| Feature | Basic | Pro |
+|---------|-------|-----|
+| Documents/month | 5 | Unlimited |
+| AI review | Basic checks | Full analysis |
+
+When an article compares options, tools, or approaches side by side, present the comparison as a markdown table — tables are easier to scan than prose or bullet lists.
+
+**Numbered list** (for sequential steps):
+1. Download the document
+2. Run through the review checklist
+3. Flag missing sections
+
+**Bullet list** (for non-sequential items):
+- Tax identification number (EIN or SSN)
+- Complete business address
+- Contact email for billing questions
+
+IMPORTANT: Never use `- [ ] item` checkbox syntax in articles — it renders poorly in HTML. Use tables for checklists instead.
 
 {{file:shared/voice_guidelines.md}}
 
@@ -11,8 +44,6 @@ IMPORTANT:
 - Do NOT include the title as an H1 heading (# Title) in your response - the title is stored separately in metadata. Do NOT use H1 heading (or markdown # Title) in your response.
 - Start your content with ## (H2) sections, not # (H1)
 
-This specific article will be named as  {{title}} and located at {{path}}.
-Its keywords: {{keywords}}
 
 ## Article Assignment:
 

@@ -227,7 +227,7 @@ export async function runWebsitePreview(options: PreviewOptions): Promise<{ succ
     // 5. Upload articles
     for (const article of articles) {
       await client.uploadArticle(jobId, article);
-      logger.log(`  Uploaded: ${article.slug}`);
+      logger.log(`  Uploaded: ${article.path}`);
     }
 
     // 6. Upload assets if exist

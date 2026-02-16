@@ -1,5 +1,6 @@
 ---
 import type { SiteConfig } from '../lib/config';
+import { getLogoTextStyle } from '../lib/config';
 import { discoverAllSections, getEffectiveNavLinks } from '../lib/sections';
 import SearchTrigger from './SearchTrigger.astro';
 
@@ -11,21 +12,32 @@ const { config } = Astro.props;
 const showSearch = config.search?.enabled && config.search?.show_in_header !== false;
 const allSections = await discoverAllSections(config);
 const navLinks = getEffectiveNavLinks(config, allSections);
+const logoStyle = getLogoTextStyle(config);
 ---
 
 <header class="sticky top-0 z-50 bg-[var(--color-bg-primary)]/95 dark:bg-[var(--color-dark-bg-primary)]/95 backdrop-blur-sm border-b border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
   <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <!-- Logo -->
-      <a href="/" class="flex items-center gap-2 font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] hover:opacity-80 transition-opacity">
+      <a href="/" class:list={[
+        "flex items-center gap-2 font-bold text-xl text-[var(--color-text-primary)] dark:text-[var(--color-dark-text-primary)] transition-opacity",
+        logoStyle === 'underline-hover' ? 'logo-underline-hover' : 'hover:opacity-80',
+      ]}>
         {config.branding.logo.type === 'image' && config.branding.logo.image_url ? (
           <img src={config.branding.logo.image_url} alt={config.branding.site.name} class="h-8 w-auto" />
         ) : (
           <span
             class:list={[
-              config.branding.logo.show_border && 'px-3 py-1 border-2 rounded-lg',
+              logoStyle === 'bordered' && 'px-3 py-1 border-2 rounded-lg logo-bordered',
+              logoStyle === 'pill' && 'px-4 py-1 rounded-full',
+              logoStyle === 'gradient' && 'logo-gradient',
+              logoStyle === 'spaced-caps' && 'uppercase tracking-[0.12em]',
             ]}
-            style={config.branding.logo.show_border ? `border-color: ${config.branding.colors.primary}` : ''}
+            style={
+              logoStyle === 'bordered' ? `border-color: ${config.branding.colors.primary}` :
+              logoStyle === 'pill' ? `background-color: ${config.branding.colors.primary}; color: ${config.branding.colors.primary_text || '#fff'}` :
+              ''
+            }
           >
             {config.branding.logo.text || config.branding.brand_name || config.branding.site.name}
           </span>

@@ -145,6 +145,7 @@ export default async function projectRoutes(app: FastifyInstance) {
         provider: cfg.ai_provider || 'openrouter',
         modelId: cfg.ai_model_id || 'anthropic/claude-sonnet-4',
         baseUrl: cfg.ai_base_url,
+        pricing: cfg.pricing,
       });
 
       // Validate response structure

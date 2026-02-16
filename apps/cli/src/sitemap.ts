@@ -74,11 +74,11 @@ function titleFromUrl(url: string, baseUrl: string): string {
     // Remove leading/trailing slashes and split
     const segments = path.replace(/^\/|\/$/g, '').split('/');
 
-    // Take the last segment (usually the slug)
-    const slug = segments[segments.length - 1] || 'Home';
+    // Take the last segment (usually the path tail)
+    const pathTail = segments[segments.length - 1] || 'Home';
 
-    // Convert slug to title case
-    return slug
+    // Convert path segment to title case
+    return pathTail
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, (c) => c.toUpperCase())
       .trim() || 'Home';
@@ -92,18 +92,18 @@ function titleFromUrl(url: string, baseUrl: string): string {
  */
 export function sitemapPagesToIPages(pages: SitemapPage[]): IPage[] {
   return pages.map((page, index) => {
-    // Extract slug from URL path
-    let slug = '';
+    // Extract path from URL
+    let pagePath = '';
     try {
       const urlObj = new URL(page.url);
-      slug = urlObj.pathname.replace(/^\/|\/$/g, '').split('/').pop() || '';
+      pagePath = urlObj.pathname.replace(/^\/|\/$/g, '').split('/').pop() || '';
     } catch {
-      slug = `page-${index + 1}`;
+      pagePath = `page-${index + 1}`;
     }
 
     return {
       id: `sitemap-page-${index + 1}`,
-      slug,
+      path: pagePath,
       title: page.title,
       description: page.title, // Use title as description fallback
       keywords: '',

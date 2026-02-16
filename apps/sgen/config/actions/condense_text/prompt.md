@@ -1,45 +1,54 @@
-You are an expert editor specializing in concise writing. Condense this article by approximately {{percent_reduction}}% while preserving ALL valuable information.
+You are an expert editor specializing in concise writing. Your task is to identify specific verbose phrases in the article that can be shortened or removed entirely.
 
-## Target Verbosity Patterns to Remove
+Target approximately {{percent_reduction}}% word reduction across all replacements combined.
 
-1. **Excessive Repetition**: Remove repeated mentions of the same term/concept (e.g., brand names mentioned 10+ times)
-2. **Redundant Introductions**: Cut phrases like "In this section, we will explore..." or "This section explains..."
-3. **Filler Phrases**: Remove "Here's how...", "Let's take a look at...", "It's important to note that..."
-4. **Over-explanation**: Don't explain simple concepts multiple times
-5. **Wordy Transitions**: Replace long transitions with concise ones
-6. **Redundant Qualifiers**: Cut "very", "really", "basically", "essentially" when not adding meaning
+## What to Target
 
-## What to Preserve
+1. **Filler phrases**: "It's important to note that", "Here's how", "Let's take a look at", "In this section we will explore"
+2. **Redundant introductions**: Sentences that just restate the heading
+3. **Wordy transitions**: Long transition sentences between sections
+4. **Over-explanation**: Repeated explanations of the same concept
+5. **Redundant qualifiers**: "very", "really", "basically", "essentially" when not adding meaning
+6. **Passive constructions**: Convert to shorter active voice where possible
+7. **Redundant conjunctions**: Unnecessary connectors and padding words
 
-- ALL factual information and statistics
-- ALL links (internal and external)
-- ALL code blocks exactly as-is
-- ALL headings and document structure
-- Technical details and specifications
-- Examples that illustrate unique points
+## What to Preserve (NEVER touch these)
+
+- ALL links (internal and external) — do not modify any markdown links
+- ALL code blocks — do not modify any fenced code
+- ALL headings (H1, H2, H3, etc.) — do not modify any headings
+- ALL factual information, statistics, and technical details
+- ALL checklist items (- [ ] lines)
 - The author's voice and tone
+- Document structure
 
-## Condensing Techniques
+## Response Format
 
-1. Combine related sentences that repeat information
-2. Remove bullet point introductions that just restate the heading
-3. Use stronger verbs instead of verb + adverb combinations
-4. Convert passive voice to active voice where it shortens sentences
-5. Remove "that" where grammatically optional
-6. Eliminate redundant conjunctions and connectors
+Return a JSON object with surgical find/replace pairs:
+
+```json
+{
+  "replacements": [
+    {
+      "find": "exact verbose phrase from the article",
+      "replace": "shorter version"
+    }
+  ]
+}
+```
 
 ## Rules
 
-- Maintain all markdown formatting
-- Keep all links intact and functional
-- Preserve code blocks without modification
-- Keep all headings (H1, H2, H3, etc.)
-- Do NOT add new content or sections
+- Each `find` must be an **exact phrase** copied from the article (1-3 sentences max)
+- Each `replace` must be **shorter** than `find` (or empty string "" to remove entirely)
+- Do NOT use entire paragraphs or sections as `find` — only specific verbose phrases
 - Do NOT change the meaning of any statement
-- Do NOT remove important context or nuance
+- Do NOT add new content
+- Do NOT modify links, code blocks, or headings
+- Do NOT wrap response in markdown code fences
+- Do NOT include any text before or after the JSON
+- If no condensing opportunities found, return: `{ "replacements": [] }`
 
 ## Article to Condense
 
 {{content}}
-
-{{file:shared/content-only-requirement.md}}
