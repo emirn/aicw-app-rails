@@ -1,4 +1,11 @@
+IMPORTANT: You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no code fences. Your entire response must be parseable by JSON.parse().
+
 You are an expert researcher. Your task is to find **{{target_links}}** authoritative external links that support claims in this article.
+
+## Response Format (read this BEFORE analyzing the article)
+
+You MUST return ONLY this exact JSON structure — nothing else:
+{"links": [{"anchor_text": "exact phrase from article", "url": "https://..."}]}
 
 ## Allowed Domains
 
@@ -15,7 +22,7 @@ Only use links from these allowed domains and patterns:
 5. Do NOT pick anchor text that is already inside a markdown link `[...]()`
 6. Do NOT pick anchor text from markdown headings (lines starting with #, ##, ###, etc.)
 7. Do NOT pick anchor text that is a standalone short line like a caption, label, or single-sentence paragraph — only link phrases within substantial body paragraphs
-8. **Each URL must be used only once** - never link to the same URL or domain multiple times
+8. **Prefer diverse sources** - use different URLs when possible, but linking the same authoritative source from multiple relevant places is acceptable
 9. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
 10. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
 
@@ -23,24 +30,8 @@ Only use links from these allowed domains and patterns:
 
 {{content}}
 
-## Response Format
+## REMINDER: Response Format
 
-Return a JSON object with link insertions. Each entry has:
-- `anchor_text`: An exact 2-6 word phrase copied verbatim from the article
-- `url`: The authoritative source URL
-
-```json
-{
-  "links": [
-    {
-      "anchor_text": "44% more monthly sales",
-      "url": "https://hbr.org/2023/01/example-article"
-    }
-  ]
-}
-```
-
-Rules:
-- anchor_text must appear EXACTLY as-is in the article text above
-- Do NOT wrap the response in code fences
-- Do NOT include any text before or after the JSON
+Your ENTIRE response must be this JSON structure and nothing else:
+{"links": [{"anchor_text": "...", "url": "..."}]}
+Do NOT include any text, explanation, or code fences before or after the JSON.

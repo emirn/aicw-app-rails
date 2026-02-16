@@ -175,6 +175,7 @@ interface ActionResponse {
   };
   data?: Record<string, any>;
   contentStats?: any;
+  requireChanges?: boolean;
 }
 
 /**
@@ -470,11 +471,29 @@ export class APIExecutor {
         }
       }
 
+      // No-op detection: fail if action requires changes but made none
+      if (response.contentStats && !response.skipped) {
+        const s = response.contentStats;
+        const isNoOp = s.word_delta === 0 && s.links_before === s.links_after
+          && s.headings_before === s.headings_after && s.checklists_before === s.checklists_after;
+        if (isNoOp && (response as any).requireChanges) {
+          this.logger.log(`  GUARD: ${flags.mode} require_changes=true but made no content changes`);
+          return {
+            success: false,
+            error: `${flags.mode} made no content changes`,
+            contentStats: response.contentStats,
+          };
+        }
+        if (isNoOp) {
+          this.logger.log(`  WARNING: ${flags.mode} made no content changes (no-op)`);
+        }
+      }
+
       // Execute file operations
       const operationErrors: string[] = [];
       for (const op of response.operations || []) {
         try {
-          await this.executeOperation(op, context.projectName, response.prompt);
+          await this.executeOperation(op, context.projectName, response.prompt, response.rawResponse);
         } catch (err) {
           operationErrors.push(`${op.type}: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -514,7 +533,7 @@ export class APIExecutor {
         }
       }
 
-      // Track cost per article
+      // Track cost per article (with optional content stats)
       if (context.articlePath && context.projectName) {
         try {
           const costPaths = getProjectPaths(context.projectName);
@@ -522,7 +541,15 @@ export class APIExecutor {
           if (!flags.mode) {
             throw new Error(`Cost tracking requires flags.mode but got action='${action}' without mode`);
           }
-          await addCostEntry(folderPath, flags.mode, response.costUsd || 0);
+          const costStats = response.contentStats ? {
+            words_before: response.contentStats.words_before,
+            words_after: response.contentStats.words_after,
+            word_delta: response.contentStats.word_delta,
+            word_delta_pct: response.contentStats.word_delta_pct,
+            links_before: response.contentStats.links_before,
+            links_after: response.contentStats.links_after,
+          } : undefined;
+          await addCostEntry(folderPath, flags.mode, response.costUsd || 0, costStats);
         } catch { /* non-fatal */ }
       }
 
@@ -570,9 +597,21 @@ export class APIExecutor {
         const resolved = resolvePath(project.name);
         const config = await getProjectConfig(resolved);
         const url = config?.url || '(no URL)';
+
+        // Sum costs from all articles
+        const articles = await getArticles(resolved);
+        let totalCost = 0;
+        for (const a of articles) {
+          const costs = a.meta.costs || [];
+          totalCost += costs.reduce((sum, c) => sum + c.cost, 0);
+        }
+
         lines.push(`  ${project.name}`);
         lines.push(`    URL: ${url}`);
         lines.push(`    Articles: ${project.articleCount}`);
+        if (totalCost > 0) {
+          lines.push(`    Total cost: $${totalCost.toFixed(2)}`);
+        }
         lines.push('');
       }
 
@@ -994,7 +1033,7 @@ export class APIExecutor {
   /**
    * Execute a single file operation
    */
-  private async executeOperation(op: FileOperation, contextProjectName?: string, prompt?: string): Promise<void> {
+  private async executeOperation(op: FileOperation, contextProjectName?: string, prompt?: string, rawResponse?: string): Promise<void> {
     const projectName = op.projectName || contextProjectName;
 
     if (!projectName && op.type !== 'create_project') {
@@ -1050,7 +1089,8 @@ export class APIExecutor {
             op.article.last_pipeline,
             archivePhase,
             meta as IArticle, // Pass meta (without content) for title, description, keywords, etc.
-            prompt   // Pass prompt for history archive
+            prompt,   // Pass prompt for history archive
+            rawResponse  // Pass raw AI response for history archive
           );
         } else if (op.article.last_action) {
           // Legacy: handle old last_action field
@@ -1063,7 +1103,8 @@ export class APIExecutor {
             op.article.last_action,
             archivePhase,
             meta as IArticle,
-            prompt  // Pass prompt for history archive
+            prompt,  // Pass prompt for history archive
+            rawResponse  // Pass raw AI response for history archive
           );
         } else {
           // No last_pipeline set (e.g., generate handler no longer bakes it in)
@@ -1076,7 +1117,8 @@ export class APIExecutor {
             null,
             archivePhase,
             meta as IArticle,
-            prompt
+            prompt,
+            rawResponse
           );
         }
 

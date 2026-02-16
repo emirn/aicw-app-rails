@@ -240,7 +240,8 @@ export async function saveArticleWithPipeline(
   newPipeline: string | null,
   archivePhase: string,
   metaUpdates?: Partial<IArticle>,
-  prompt?: string
+  prompt?: string,
+  rawResponse?: string
 ): Promise<void> {
   await assertUnifiedFormat(folderPath);
 
@@ -254,7 +255,7 @@ export async function saveArticleWithPipeline(
   if (currentContent !== null) {
     const indexPath = path.join(folderPath, INDEX_FILE);
     const metaContent = await fs.readFile(indexPath, 'utf-8');
-    await archiveVersion(folderPath, currentContent, metaContent, archivePhase, prompt);
+    await archiveVersion(folderPath, currentContent, metaContent, archivePhase, prompt, rawResponse);
   }
 
   // Build updated metadata
@@ -356,19 +357,22 @@ export async function saveArticleWithAction(
  *   - index.json: Full article snapshot (metadata + content)
  *   - content.md: Content for easy viewing
  *   - prompt.md: AI prompt used (if provided)
+ *   - response.md: Raw AI response (if provided)
  *
  * @param folderPath - Absolute path to article folder
  * @param content - Content to archive
  * @param metaContent - Metadata JSON content to archive
  * @param action - Action that was applied (e.g., "generate", "enhance")
  * @param prompt - Optional prompt sent to AI (for history/debugging)
+ * @param rawResponse - Optional raw AI response (for debugging failures)
  */
 export async function archiveVersion(
   folderPath: string,
   content: string,
   metaContent: string,
   action: string,
-  prompt?: string
+  prompt?: string,
+  rawResponse?: string
 ): Promise<void> {
   const historyDir = path.join(folderPath, HISTORY_DIR);
 
@@ -388,6 +392,11 @@ export async function archiveVersion(
   // Save prompt if provided (for debugging/auditing AI calls)
   if (prompt) {
     await fs.writeFile(path.join(versionDir, 'prompt.md'), prompt, 'utf-8');
+  }
+
+  // Save raw AI response (for debugging failures and auditing)
+  if (rawResponse) {
+    await fs.writeFile(path.join(versionDir, 'response.md'), rawResponse, 'utf-8');
   }
 }
 
@@ -659,21 +668,34 @@ export async function addAppliedAction(
  * @param folderPath - Absolute path to article folder
  * @param action - Name of the action (e.g., "write_draft", "fact_check")
  * @param cost - Cost in USD (0 for no-AI actions)
+ * @param stats - Optional content stats snapshot (before/after counts)
  */
 export async function addCostEntry(
   folderPath: string,
   action: string,
-  cost: number
+  cost: number,
+  stats?: {
+    words_before: number;
+    words_after: number;
+    word_delta: number;
+    word_delta_pct: number;
+    links_before: number;
+    links_after: number;
+  }
 ): Promise<void> {
   const meta = await readArticleMeta(folderPath);
   if (!meta) return;
 
   const costs = meta.costs || [];
-  costs.push({
+  const entry: any = {
     created_at: new Date().toISOString(),
     action,
     cost,
-  });
+  };
+  if (stats) {
+    entry.stats = stats;
+  }
+  costs.push(entry);
 
   await updateArticleMeta(folderPath, { costs });
 }

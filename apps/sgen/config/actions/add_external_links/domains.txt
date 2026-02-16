@@ -2,6 +2,7 @@
 # Lines starting with # are comments, blank lines ignored
 
 # Wildcard patterns (match any subdomain)
+*.amazon.com
 *.edu
 *.gov
 *.gov.uk
@@ -99,7 +100,7 @@ khanacademy.org
 
 # Cloud & developer platforms
 cloud.google.com
-aws.amazon.com
+amazon.com
 azure.microsoft.com
 docs.github.com
 developer.mozilla.org

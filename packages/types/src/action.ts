@@ -70,6 +70,8 @@ export interface IActionConfig {
   variables?: Record<string, string>;
   // Color variables with {{project.*}} macros for branding (resolved at runtime)
   colors?: Record<string, string>;
+  // When true, action must produce content changes or it's treated as a failure (stops pipeline)
+  require_changes?: boolean;
 
   // === Internal fields (populated by server, not stored in config.json) ===
   // Absolute path to prompt.md (internal use only)

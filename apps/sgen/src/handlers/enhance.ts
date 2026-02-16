@@ -11,7 +11,7 @@ import { getArticleFromContext, buildArticleOperation, updateArticle } from './u
 import { callAI } from '../services/ai.service';
 import { ensureActionConfigForMode } from '../config/action-config';
 import { buildUpdatePrompt } from '../utils/prompts';
-import { mergeUpdate, MergeResult, parseLinePatches, applyPatches, extractContentText, parseTextReplacements, applyTextReplacements, fixCitationPattern, deduplicateReplacementsByUrl } from '../utils/articleUpdate';
+import { mergeUpdate, MergeResult, parseLinePatches, applyPatches, extractContentText, parseTextReplacements, applyTextReplacements, fixCitationPattern } from '../utils/articleUpdate';
 import { cleanMarkdownUrls } from '../utils/url-cleaner';
 import { config } from '../config/server-config';
 import { loadPipelinesConfig } from '../config/pipelines-config';
@@ -370,8 +370,9 @@ export async function handleEnhance(
           costUsd: usageStats.cost_usd,
           contentStats,
           prompt,
-          rawResponse: flags.debug ? rawContent : undefined,
+          rawResponse: rawContent,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          requireChanges: cfg?.require_changes,
         };
       }
 
@@ -398,8 +399,9 @@ export async function handleEnhance(
           costUsd: usageStats.cost_usd,
           contentStats,
           prompt,
-          rawResponse: flags.debug ? rawContent : undefined,
+          rawResponse: rawContent,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          requireChanges: cfg?.require_changes,
         };
       }
 
@@ -426,8 +428,9 @@ export async function handleEnhance(
           costUsd: usageStats.cost_usd,
           contentStats,
           prompt,
-          rawResponse: flags.debug ? rawContent : undefined,
+          rawResponse: rawContent,
           operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+          requireChanges: cfg?.require_changes,
         };
       }
 
@@ -446,13 +449,6 @@ export async function handleEnhance(
           replace: fixCitationPattern(r.replace)
         }));
 
-        // Deduplicate URLs - AI sometimes returns same URL with different anchor text
-        // This enforces "use each link only once" at code level
-        const { deduplicated, removed } = deduplicateReplacementsByUrl(replacements);
-        if (removed.length > 0) {
-          log.warn({ mode, removed }, 'add_external_links:duplicate_urls_removed');
-        }
-        replacements = deduplicated;
       }
 
       if (replacements.length > 0) {
@@ -538,8 +534,9 @@ export async function handleEnhance(
       costUsd: usageStats.cost_usd,
       contentStats,
       prompt,  // Include for history tracking
-      rawResponse: flags.debug ? rawContent : undefined,  // Include raw AI response when debug flag set
+      rawResponse: rawContent,
       operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+      requireChanges: cfg?.require_changes,
     };
   } catch (err: any) {
     log.error({ err, path: context.articlePath, mode, message: err?.message }, 'enhance:error');
