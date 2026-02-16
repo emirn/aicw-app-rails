@@ -9,6 +9,7 @@ import { ActionHandlerFn } from './types';
 import { buildArticleOperation, updateArticle } from '../utils';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { countContentStats, buildContentStats } from '../../utils/content-stats';
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, log }) => {
   const { applyRandomTypos, loadTyposFromCSV, DEFAULT_TYPO_CONFIG } = await import('../../utils/random-typos');
@@ -30,9 +31,13 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     { rate }
   );
 
+  const statsBefore = countContentStats(article.content || '');
   const updatedArticleObj = updateArticle(normalizedMeta, {
     content: result,
   });
+  const statsAfter = countContentStats(result);
+  const contentStats = buildContentStats(statsBefore, statsAfter);
+  contentStats.changes = typosApplied.length;
 
   log.info({ path: context.articlePath, mode: 'humanize_text_random', typos_applied: typosApplied.length }, 'enhance:local_action:done');
 
@@ -42,5 +47,6 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     tokensUsed: 0,
     costUsd: 0,
     operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, 'humanize_text_random')],
+    contentStats,
   };
 };

@@ -233,6 +233,7 @@ export interface ICostEntry {
     word_delta_pct: number;
     links_before: number;
     links_after: number;
+    changes?: number;
   };
 }
 

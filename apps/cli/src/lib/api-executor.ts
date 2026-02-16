@@ -26,6 +26,7 @@ import {
   createArticleFolder,
   updateArticleMeta,
   addCostEntry,
+  archiveVersion,
 } from './folder-manager';
 import { saveProjectConfig } from './project-config';
 import { getProjectPaths, initializeProjectDirectories } from '../config/user-paths';
@@ -458,11 +459,38 @@ export class APIExecutor {
         };
       }
 
+      // Save debug history when AI responded but no file operations will execute
+      // (skipped responses, guard rejections, no-ops). This ensures prompt+response
+      // are always persisted for debugging failed runs.
+      const saveDebugHistory = async (reason: string) => {
+        if (!response.prompt && !response.rawResponse) return;
+        if (!context.projectName || !context.articlePath) return;
+        try {
+          const paths = getProjectPaths(context.projectName);
+          const folderPath = path.join(paths.content, context.articlePath);
+          const currentContent = await (await import('fs/promises')).readFile(
+            path.join(folderPath, 'content.md'), 'utf-8'
+          ).catch(() => '');
+          const metaContent = await (await import('fs/promises')).readFile(
+            path.join(folderPath, 'index.json'), 'utf-8'
+          ).catch(() => '{}');
+          await archiveVersion(
+            folderPath, currentContent, metaContent,
+            `${flags.mode}-debug-${reason}`,
+            response.prompt, response.rawResponse
+          );
+          this.logger.log(`  DEBUG: saved prompt+response to _history (${reason})`);
+        } catch {
+          // Best-effort — don't fail the response over debug logging
+        }
+      };
+
       // Content shrinkage guard: reject if content decreased too much
       if (response.contentStats) {
         const rejection = checkContentShrinkage(response.contentStats, flags.mode);
         if (rejection) {
           this.logger.log(`  GUARD: ${rejection}`);
+          await saveDebugHistory('shrinkage');
           return {
             success: false,
             error: rejection,
@@ -472,21 +500,34 @@ export class APIExecutor {
       }
 
       // No-op detection: fail if action requires changes but made none
-      if (response.contentStats && !response.skipped) {
+      // Check requireChanges FIRST — applies even to skipped responses (e.g., AI refusal with 0 links)
+      if (response.contentStats && (response as any).requireChanges) {
         const s = response.contentStats;
         const isNoOp = s.word_delta === 0 && s.links_before === s.links_after
           && s.headings_before === s.headings_after && s.checklists_before === s.checklists_after;
-        if (isNoOp && (response as any).requireChanges) {
+        if (isNoOp) {
           this.logger.log(`  GUARD: ${flags.mode} require_changes=true but made no content changes`);
+          await saveDebugHistory('no-op');
           return {
             success: false,
             error: `${flags.mode} made no content changes`,
             contentStats: response.contentStats,
           };
         }
+      }
+      // General no-op warning for non-skipped responses without requireChanges
+      if (response.contentStats && !response.skipped) {
+        const s = response.contentStats;
+        const isNoOp = s.word_delta === 0 && s.links_before === s.links_after
+          && s.headings_before === s.headings_after && s.checklists_before === s.checklists_after;
         if (isNoOp) {
           this.logger.log(`  WARNING: ${flags.mode} made no content changes (no-op)`);
         }
+      }
+
+      // Save debug history for skipped responses (AI responded but no operations)
+      if (response.skipped && (!response.operations || response.operations.length === 0)) {
+        await saveDebugHistory('skipped');
       }
 
       // Execute file operations
@@ -548,6 +589,7 @@ export class APIExecutor {
             word_delta_pct: response.contentStats.word_delta_pct,
             links_before: response.contentStats.links_before,
             links_after: response.contentStats.links_after,
+            changes: response.contentStats.changes,
           } : undefined;
           await addCostEntry(folderPath, flags.mode, response.costUsd || 0, costStats);
         } catch { /* non-fatal */ }

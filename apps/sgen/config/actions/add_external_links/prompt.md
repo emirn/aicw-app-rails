@@ -1,3 +1,10 @@
+# Topic: {{title}}
+# Keywords: {{keywords}}
+
+You need to find authoritative external links for the following article content:
+
+{{excerpt}}
+
 IMPORTANT: You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no code fences. Your entire response must be parseable by JSON.parse().
 
 You are an expert researcher. Your task is to find **{{target_links}}** authoritative external links that support claims in this article.
@@ -7,11 +14,13 @@ You are an expert researcher. Your task is to find **{{target_links}}** authorit
 You MUST return ONLY this exact JSON structure — nothing else:
 {"links": [{"anchor_text": "exact phrase from article", "url": "https://..."}]}
 
-## Allowed Domains
+## Recommended Domains
 
-Only use links from these allowed domains and patterns:
+Here are recommended authoritative domains — prefer these when possible, but any well-known, reputable source is acceptable:
 
 {{domains}}
+
+You are NOT limited to this list. Any established brand, organization, or authoritative publication (recognized in its industry for 10+ years) is a valid source. Use your judgment — quality and relevance matter more than matching a specific list.
 
 ## Requirements
 
@@ -25,6 +34,16 @@ Only use links from these allowed domains and patterns:
 8. **Prefer diverse sources** - use different URLs when possible, but linking the same authoritative source from multiple relevant places is acceptable
 9. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
 10. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
+11. **URLs MUST point to specific pages, articles, or resources — NEVER link to a domain homepage** (e.g. `https://nature.com/` or `https://ieee.org/` are WRONG; `https://nature.com/articles/s41586-024-07588-8` is CORRECT). Every URL must have a meaningful path beyond just `/`.
+12. If you cannot find a specific page URL for a source, **skip that link entirely** rather than using a homepage URL
+
+## URL Examples
+
+GOOD: `{"anchor_text": "AI detection tools", "url": "https://www.technologyreview.com/2024/01/15/ai-writing-detection-tools-review/"}`
+GOOD: `{"anchor_text": "transformer architecture", "url": "https://arxiv.org/abs/1706.03762"}`
+BAD:  `{"anchor_text": "AI detection tools", "url": "https://www.technologyreview.com/"}`
+BAD:  `{"anchor_text": "AI detection tools", "url": "https://www.technologyreview.com"}`
+BAD:  `{"anchor_text": "research papers", "url": "https://scholar.google.com/"}`
 
 ## Article to Enhance:
 

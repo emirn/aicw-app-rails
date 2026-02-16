@@ -8,6 +8,7 @@
 import { ActionHandlerFn } from './types';
 import { buildArticleOperation, updateArticle } from '../utils';
 import { applyTextReplacements } from '../../utils/articleUpdate';
+import { countContentStats, buildContentStats } from '../../utils/content-stats';
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, log }) => {
   // Skip if toc already exists on the article
@@ -59,10 +60,14 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     skippedReplacements = replaceResult.skipped;
   }
 
+  const statsBefore = countContentStats(article.content);
   const updatedArticleObj = updateArticle(normalizedMeta, {
     content: updatedContent,
     toc: tocResult.tocHtml,
   });
+  const statsAfter = countContentStats(updatedContent);
+  const contentStats = buildContentStats(statsBefore, statsAfter);
+  contentStats.changes = applied;
 
   log.info({
     path: context.articlePath,
@@ -78,5 +83,6 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     tokensUsed: 0,
     costUsd: 0,
     operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, 'add_toc')],
+    contentStats,
   };
 };
