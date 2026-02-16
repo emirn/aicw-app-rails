@@ -110,6 +110,16 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
           </>
         )}
 
+        {data.reviewed_by && data.reviewed_by.length > 0 && (() => {
+          const latest = data.reviewed_by[0];
+          return (
+            <>
+              <span class="w-1 h-1 rounded-full bg-current"></span>
+              <span>Reviewed by <a href={latest.reviewer_url} class="underline" rel="author">{latest.reviewer_name}</a></span>
+            </>
+          );
+        })()}
+
         {config.blog.show_author && (data.author || getDefaultAuthor(config)) && (
           <span>by {data.author || getDefaultAuthor(config)}</span>
         )}
@@ -167,6 +177,20 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
           buttons={config.article.social_share_buttons || ['twitter', 'facebook', 'linkedin', 'copy']}
         />
       </div>
+    )}
+
+    <!-- Article History -->
+    {data.reviewed_by && data.reviewed_by.length > 0 && (
+      <section class="mt-12 pt-6 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
+        <h3 class="text-sm font-semibold text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)] uppercase tracking-wide mb-3">Article History</h3>
+        <ul class="space-y-1 text-xs text-[var(--color-text-muted)] dark:text-[var(--color-dark-text-muted)]">
+          <li>{formatDate(data.published_at)} &mdash; Published</li>
+          {data.reviewed_by?.map(r => (
+            <li>{formatDate(r.reviewed_at)} &mdash; Reviewed by <a href={r.reviewer_url} class="underline">{r.reviewer_name}</a></li>
+          ))}
+          {data.updated_at && <li>{formatDate(data.updated_at)} &mdash; Last updated</li>}
+        </ul>
+      </section>
     )}
 
     <!-- Related Articles -->

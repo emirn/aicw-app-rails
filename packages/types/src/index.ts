@@ -68,6 +68,8 @@ export {
   IProjectBranding,
   ILocalPublishConfig,
   IProjectConfig,
+  IReviewer,
+  IReviewEntry,
   IInternalLink,
   ICostEntry,
   IArticle,

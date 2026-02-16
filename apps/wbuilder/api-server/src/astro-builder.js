@@ -292,6 +292,7 @@ export async function buildAstroSite(options) {
       author: meta.author,
       categories: meta.categories || [],
       tags: meta.tags || [],
+      reviewed_by: meta.reviewed_by,
     };
 
     // Filter out undefined values

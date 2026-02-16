@@ -1,0 +1,8 @@
+{
+  "ai_provider": null,
+  "ai_model_id": null,
+  "output_mode": "text_replace_all",
+  "description": "Human review of article content in editor",
+  "local": true,
+  "forcible": true
+}

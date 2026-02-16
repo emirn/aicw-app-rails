@@ -159,6 +159,48 @@ export async function initializePromptTemplates(
   const template = await fs.readFile(templatePath, 'utf-8');
 
   await fs.writeFile(targetPath, template);
+
+  // Write README.md for write_draft config if it doesn't exist
+  const writeDraftReadmePath = path.join(promptsDir, 'README.md');
+  if (!(await fileExists(writeDraftReadmePath))) {
+    const readmeSrc = path.join(__dirname, '..', 'config', 'actions', 'write_draft', 'README.md');
+    try {
+      const readme = await fs.readFile(readmeSrc, 'utf-8');
+      await fs.writeFile(writeDraftReadmePath, readme);
+    } catch { /* bundled README not found — skip */ }
+  }
+
+  // Write README.md for pipelines config if it doesn't exist
+  const pipelinesDir = path.join(projectDir, 'config', 'pipelines');
+  await fs.mkdir(pipelinesDir, { recursive: true });
+  const pipelinesReadmePath = path.join(pipelinesDir, 'README.md');
+  if (!(await fileExists(pipelinesReadmePath))) {
+    const readmeSrc = path.join(__dirname, '..', 'config', 'pipelines', 'README.md');
+    try {
+      const readme = await fs.readFile(readmeSrc, 'utf-8');
+      await fs.writeFile(pipelinesReadmePath, readme);
+    } catch { /* bundled README not found — skip */ }
+  }
+}
+
+/**
+ * Load section-specific custom.md if it exists, otherwise return null.
+ * Section = first path segment of articlePath (e.g., "checklist" from "checklist/resume-review")
+ */
+export async function loadSectionCustomContent(
+  projectDir: string,
+  actionName: string,
+  articlePath: string
+): Promise<string | null> {
+  const section = articlePath.split('/')[0];
+  if (!section) return null;
+  const sectionPath = path.join(projectDir, 'config', 'actions', actionName, section, 'custom.md');
+  try {
+    const content = (await fs.readFile(sectionPath, 'utf-8')).trim();
+    return content || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
