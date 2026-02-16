@@ -82,7 +82,6 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     provider,
     modelId,
     baseUrl: cfg?.ai_base_url,
-    webSearch: cfg?.web_search,
     pricing: cfg?.pricing,
   });
 
@@ -90,41 +89,24 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   let links = parseLinkInsertions(content);
 
   if (links.length === 0) {
-    log.warn({ mode, rawContentLength: rawContent?.length }, 'add_external_links:no_links_parsed');
+    log.warn({ mode, rawContentLength: rawContent?.length, rawContentSnippet: rawContent?.substring(0, 300) },
+      'add_external_links:no_links_parsed');
     const contentStats = buildContentStats(statsBefore, statsBefore);
-    const updatedArticleObj = updateArticle(normalizedMeta, {
-      content: article.content,
-    });
     return {
       success: true,
-      message: 'No external links found to insert',
+      skipped: true,
+      message: 'No external links found to insert (parse returned 0 links)',
       tokensUsed: tokens,
       costUsd: usageStats.cost_usd,
       contentStats,
       prompt,
-      rawResponse: flags.debug ? rawContent : undefined,
-      operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+      rawResponse: rawContent,
+      operations: [],
+      requireChanges: cfg?.require_changes,
     };
   }
 
-  // 6. Deduplicate URLs (simple Set-based check)
-  const seenUrls = new Set<string>();
-  const deduped: typeof links = [];
-  const removedDups: string[] = [];
-  for (const link of links) {
-    if (seenUrls.has(link.url)) {
-      removedDups.push(`Duplicate URL "${link.url}" for anchor "${link.anchor_text.substring(0, 40)}"`);
-    } else {
-      seenUrls.add(link.url);
-      deduped.push(link);
-    }
-  }
-  if (removedDups.length > 0) {
-    log.warn({ mode, removed: removedDups }, 'add_external_links:duplicate_urls_removed');
-  }
-  links = deduped;
-
-  // 7. Domain allowlist validation — reject links to non-allowlisted domains
+  // 6. Domain allowlist validation — reject links to non-allowlisted domains
   const allowlist = parseAllowedDomains(domainsContent);
   const allowedLinks: typeof links = [];
   const rejectedDomains: string[] = [];
@@ -146,24 +128,23 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   links = allowedLinks;
 
   if (links.length === 0) {
-    log.warn({ mode }, 'add_external_links:all_links_rejected_by_allowlist');
+    log.warn({ mode, rejectedDomains }, 'add_external_links:all_links_rejected_by_allowlist');
     const contentStats = buildContentStats(statsBefore, statsBefore);
-    const updatedArticleObj = updateArticle(normalizedMeta, {
-      content: article.content,
-    });
     return {
       success: true,
-      message: 'No external links passed domain allowlist',
+      skipped: true,
+      message: `No external links passed domain allowlist (${rejectedDomains.length} rejected)`,
       tokensUsed: tokens,
       costUsd: usageStats.cost_usd,
       contentStats,
       prompt,
-      rawResponse: flags.debug ? rawContent : undefined,
-      operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+      rawResponse: rawContent,
+      operations: [],
+      requireChanges: cfg?.require_changes,
     };
   }
 
-  // 8. Apply link insertions
+  // 7. Apply link insertions
   const { result, applied, skipped } = applyLinkInsertions(article.content, links);
 
   if (skipped.length > 0) {
@@ -171,7 +152,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   }
   log.info({ mode, total: links.length, applied, skipped: skipped.length }, 'link_insert:applied');
 
-  // 9. Clean URLs (remove tracking params)
+  // 8. Clean URLs (remove tracking params)
   const projectUrl = context.projectConfig?.url;
   const normalizeUrl = (url: string | undefined): string => {
     if (!url) return '';
@@ -180,7 +161,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   };
   const cleanedContent = cleanMarkdownUrls(result, normalizeUrl(projectUrl));
 
-  // 10. Build updated article
+  // 9. Build updated article
   const updatedArticleObj = updateArticle(normalizedMeta, {
     content: cleanedContent,
   });
@@ -205,7 +186,8 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     costUsd: usageStats.cost_usd,
     contentStats,
     prompt,
-    rawResponse: flags.debug ? rawContent : undefined,
+    rawResponse: rawContent,
     operations: [buildArticleOperation(context.articlePath!, updatedArticleObj, mode)],
+    requireChanges: cfg?.require_changes,
   };
 };

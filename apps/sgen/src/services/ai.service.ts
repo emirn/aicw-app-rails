@@ -279,6 +279,7 @@ export const callAI = async (
     baseUrl?: string;
     webSearch?: boolean;
     pricing?: { input_per_million: number; output_per_million: number };
+    responseFormat?: { type: string };
   }
 ): Promise<AICallResult> => {
   const startTime = Date.now();
@@ -335,6 +336,7 @@ export const callAI = async (
             messages: [{ role: 'user', content: prompt }],
             max_tokens: config.ai.maxTokens,
             ...(opts?.webSearch && { web_search_options: {} }),
+            ...(opts?.responseFormat && { response_format: opts.responseFormat }),
           }),
           // @ts-ignore
           signal: controller.signal,

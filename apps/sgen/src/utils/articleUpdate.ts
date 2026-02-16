@@ -417,10 +417,25 @@ export interface LinkInsertion {
  * Expected format: { "links": [{ "anchor_text": "...", "url": "https://..." }] }
  */
 export function parseLinkInsertions(content: any): LinkInsertion[] {
+  // Fallback: when content is a string (JSON parse failed), extract markdown links
+  if (typeof content === 'string') {
+    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    let match;
+    const links: LinkInsertion[] = [];
+    while ((match = linkRegex.exec(content)) !== null) {
+      const anchor = match[1].trim();
+      const url = match[2].trim();
+      if (anchor.length > 0 && url.startsWith('http')) {
+        links.push({ anchor_text: anchor, url });
+      }
+    }
+    return links;
+  }
+
   if (typeof content !== 'object' || !content) return [];
-  const links = content.links;
-  if (!Array.isArray(links)) return [];
-  return links.filter(
+  const linksArr = content.links;
+  if (!Array.isArray(linksArr)) return [];
+  return linksArr.filter(
     (l: any) =>
       typeof l.anchor_text === 'string' &&
       l.anchor_text.trim().length > 0 &&

@@ -126,6 +126,9 @@ export interface ActionExecuteResponse {
 
   /** Content stats (before/after word counts, headings, links, checklists) */
   contentStats?: ContentStats;
+
+  /** When true, CLI should fail if action made no content changes */
+  requireChanges?: boolean;
 }
 
 /**
