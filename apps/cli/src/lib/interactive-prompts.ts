@@ -811,37 +811,47 @@ export function parseArticleSelection(
 }
 
 /**
- * Simple numbered article selector
- * Shows max 10 oldest articles with numbers
- * Supports: comma-separated numbers, range syntax "N:M", "all", "q"
- *
- * @param articles - Array of articles with path, title, created_at, priority
- * @returns Array of selected article paths
+ * Options for the generic article selector
  */
-export async function selectArticlesForGeneration(
-  articles: ArticleForSelection[]
-): Promise<string[]> {
+interface SelectArticlesOptions {
+  header: string;
+  showPriority?: boolean;
+  sortByCreatedAt?: boolean;
+}
+
+/**
+ * Generic article selector — reusable for generate, enhance, review, etc.
+ * Shows numbered list, supports selection loop with numbers, ranges, filters, all, q.
+ *
+ * @param articles - Pre-filtered list of articles eligible for selection
+ * @param options - Display options (header text, priority indicator, sorting)
+ * @returns Array of selected article paths, or null if cancelled
+ */
+export async function selectArticles(
+  articles: ArticleForSelection[],
+  options: SelectArticlesOptions
+): Promise<string[] | null> {
   if (articles.length === 0) {
     console.error('\nNo articles available.\n');
-    return [];
+    return null;
   }
 
-  // Sort by created_at (oldest first) - FULL list for selection
-  const sorted = [...articles]
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const sorted = options.sortByCreatedAt
+    ? [...articles].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    : articles;
 
-  // Display subset (max 10)
+  // Display subset (max N)
   const displayArticles = sorted.slice(0, MAX_OLDEST_ARTICLES_TO_SHOW);
   const displayCount = Math.min(sorted.length, MAX_OLDEST_ARTICLES_TO_SHOW);
 
-  console.error(`\n=== Articles Ready to Generate (${displayCount} of ${sorted.length}) ===\n`);
+  console.error(`\n=== ${options.header} (${displayCount} of ${sorted.length}) ===\n`);
 
   for (let i = 0; i < displayArticles.length; i++) {
     const article = displayArticles[i];
-    const priority = getPriorityIndicator(article.priority);
-    const date = formatDate(article.created_at);
-    const title = truncateTitle(article.title, MAX_TITLE_LENGTH);
-    console.error(`  ${String(i + 1).padStart(2)}. ${priority} ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
+    const priority = options.showPriority ? getPriorityIndicator(article.priority) + ' ' : '';
+    const date = article.created_at ? formatDate(article.created_at) : 'Unknown';
+    const title = truncateTitle(article.title || article.path, MAX_TITLE_LENGTH);
+    console.error(`  ${String(i + 1).padStart(2)}. ${priority}${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
   if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
@@ -857,7 +867,7 @@ export async function selectArticlesForGeneration(
     const result = parseArticleSelection(answer, sorted.length, sorted);
 
     if (result.type === 'quit') {
-      return [];
+      return null;
     }
 
     let selectedPaths: string[];
@@ -872,12 +882,10 @@ export async function selectArticlesForGeneration(
       continue;
     }
 
-    // Show warning if any
     if (result.warning) {
       console.error(`  ${result.warning}`);
     }
 
-    // Show selected articles and confirm
     console.error(`\nSelected ${selectedPaths.length} article(s):`);
     for (const p of selectedPaths.slice(0, 10)) {
       const info = sorted.find(a => a.path === p);
@@ -889,15 +897,31 @@ export async function selectArticlesForGeneration(
 
     const ok = await prompt('Proceed? (Y/n)');
     if (!ok || ok.trim().toLowerCase() === 'y' || ok.trim() === '') {
-      return selectedPaths;
+      return selectedPaths.length > 0 ? selectedPaths : null;
     }
   }
 }
 
 /**
+ * Simple numbered article selector for generation
+ * Shows max 25 oldest articles with numbers and priority indicators
+ *
+ * @param articles - Array of articles with path, title, created_at, priority
+ * @returns Array of selected article paths
+ */
+export async function selectArticlesForGeneration(
+  articles: ArticleForSelection[]
+): Promise<string[]> {
+  const result = await selectArticles(articles, {
+    header: 'Articles Ready to Generate',
+    showPriority: true,
+    sortByCreatedAt: true,
+  });
+  return result || [];
+}
+
+/**
  * Select articles ready for enhancement
- * Shows oldest articles first (by created_at)
- * Supports: comma-separated numbers, range syntax "N:M", "all", "q"
  *
  * @param articles - Pre-filtered list of articles eligible for the pipeline
  * @returns Array of selected article paths, or null if cancelled
@@ -905,71 +929,9 @@ export async function selectArticlesForGeneration(
 export async function selectArticlesForEnhancement(
   articles: ArticleForSelection[]
 ): Promise<string[] | null> {
-  if (articles.length === 0) {
-    return null;
-  }
-
-  // Display subset (max 10)
-  const displayArticles = articles.slice(0, MAX_OLDEST_ARTICLES_TO_SHOW);
-  const displayCount = Math.min(articles.length, MAX_OLDEST_ARTICLES_TO_SHOW);
-
-  console.error(`\n=== Articles Ready to Enhance (${displayCount} of ${articles.length}) ===\n`);
-
-  for (let i = 0; i < displayArticles.length; i++) {
-    const article = displayArticles[i];
-    const date = article.created_at ? formatDate(article.created_at) : 'Unknown';
-    const title = truncateTitle(article.title || article.path, MAX_TITLE_LENGTH);
-    console.error(`  ${String(i + 1).padStart(2)}. ${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
-  }
-
-  if (articles.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
-    const remaining = articles.length - MAX_OLDEST_ARTICLES_TO_SHOW;
-    const nextStart = MAX_OLDEST_ARTICLES_TO_SHOW + 1;
-    console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10' for articles ${nextStart}-${nextStart + 9})`);
-  }
-  console.error('');
-
-  while (true) {
-    const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
-
-    const result = parseArticleSelection(answer, articles.length, articles);
-
-    if (result.type === 'quit') {
-      return null;
-    }
-
-    let selectedPaths: string[];
-    if (result.type === 'all') {
-      selectedPaths = articles.map((a) => a.path);
-    } else {
-      selectedPaths = (result.indices || []).map((idx) => articles[idx].path);
-    }
-
-    if (selectedPaths.length === 0) {
-      console.error(result.warning ? `Warning: ${result.warning}` : 'No articles matched.');
-      continue;
-    }
-
-    // Show warning if any
-    if (result.warning) {
-      console.error(`  ${result.warning}`);
-    }
-
-    // Show selected articles and confirm
-    console.error(`\nSelected ${selectedPaths.length} article(s):`);
-    for (const p of selectedPaths.slice(0, 10)) {
-      const info = articles.find(a => a.path === p);
-      console.error(`  - ${info ? truncateTitle(info.title || info.path, 60) : p}  ${p}/`);
-    }
-    if (selectedPaths.length > 10) {
-      console.error(`  ... and ${selectedPaths.length - 10} more`);
-    }
-
-    const ok = await prompt('Proceed? (Y/n)');
-    if (!ok || ok.trim().toLowerCase() === 'y' || ok.trim() === '') {
-      return selectedPaths.length > 0 ? selectedPaths : null;
-    }
-  }
+  return selectArticles(articles, {
+    header: 'Articles Ready to Enhance',
+  });
 }
 
 /**

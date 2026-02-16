@@ -33,6 +33,7 @@ import { getProjectPaths, initializeProjectDirectories } from '../config/user-pa
 import { IProjectConfig, IArticle, IPromptParts, IContentPlan } from '@blogpostgen/types';
 import {
   loadPromptParts,
+  loadSectionCustomContent,
   PromptValidationError,
   MultiplePromptsError,
   promptPartsExist,
@@ -857,11 +858,20 @@ export class APIExecutor {
             this.logger.log('Loaded custom write_draft prompt template');
           }
 
-          // Load custom.md content if exists (optional)
-          const customContent = await loadActionCustomContent(projectPaths.root, 'write_draft');
-          if (customContent) {
-            context.promptParts.custom_content = customContent;
-            this.logger.log('Loaded custom write_draft custom.md');
+          // Load custom.md content — section-specific override takes priority
+          const sectionContent = resolved.articlePath
+            ? await loadSectionCustomContent(projectPaths.root, 'write_draft', resolved.articlePath)
+            : null;
+          if (sectionContent) {
+            context.promptParts.custom_content = sectionContent;
+            context.promptParts.project_requirements = sectionContent;
+            this.logger.log(`Loaded section-specific write_draft custom.md for ${resolved.articlePath}`);
+          } else {
+            const customContent = await loadActionCustomContent(projectPaths.root, 'write_draft');
+            if (customContent) {
+              context.promptParts.custom_content = customContent;
+              this.logger.log('Loaded custom write_draft custom.md');
+            }
           }
         } catch (err) {
           // Log prompt validation errors — sgen API validates prompt parts

@@ -21,6 +21,12 @@ const articles = defineCollection({
     twitter_title: z.string().optional(),
     twitter_description: z.string().optional(),
     breadcrumbs: z.string().optional(),
+    reviewed_by: z.array(z.object({
+      reviewer_id: z.string(),
+      reviewer_name: z.string(),
+      reviewer_url: z.string(),
+      reviewed_at: z.coerce.date(),
+    })).optional(),
   }),
 });
 

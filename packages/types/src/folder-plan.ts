@@ -188,6 +188,25 @@ export interface ILocalPublishConfig {
 }
 
 /**
+ * Reviewer identity stored in project config
+ */
+export interface IReviewer {
+  id: string;
+  name: string;
+  url: string;
+}
+
+/**
+ * Review event stored per-article (denormalized for rendering)
+ */
+export interface IReviewEntry {
+  reviewer_id: string;
+  reviewer_name: string;
+  reviewer_url: string;
+  reviewed_at: string;
+}
+
+/**
  * Project-level configuration stored in _project.yaml
  */
 export interface IProjectConfig {
@@ -203,6 +222,8 @@ export interface IProjectConfig {
   branding?: IProjectBranding;
   /** Configuration for publishing to a local folder */
   publish_to_local_folder?: ILocalPublishConfig;
+  /** Registered reviewers for human review workflow */
+  reviewers?: IReviewer[];
 }
 
 /**
@@ -307,6 +328,9 @@ export interface IArticle {
 
   /** Article content (markdown) - unified object pattern */
   content?: string;
+
+  /** Review events, newest first */
+  reviewed_by?: IReviewEntry[];
 
   // ---- DEPRECATED FIELDS (kept for backward compatibility) ----
   /** @deprecated Use project default */

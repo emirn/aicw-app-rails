@@ -28,6 +28,7 @@ import { APIExecutor, PipelineInfo, PipelineConfig, ArticleFilter } from './lib/
 import {
   promptForMissingArgs,
   showInteractiveHelp,
+  selectArticles,
   selectArticlesForGeneration,
   selectArticlesForEnhancement,
   selectArticlesForForceEnhance,
@@ -54,7 +55,7 @@ import { createArticleFolder, articleFolderExists, buildPublished, updateArticle
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
 import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
-import { loadExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
+import { loadExcludedActions, loadSectionExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
   importPlanFromFile,
@@ -118,6 +119,7 @@ const LOCAL_ACTIONS = [
   { name: 'migrate-published-at', description: 'Backfill published_at from updated_at', usage: 'blogpostgen migrate-published-at <project>', group: 'utility' },
   { name: 'pipeline-verify', description: 'Verify pipeline state & applied actions', usage: 'blogpostgen pipeline-verify <project> [--fix]', group: 'utility' },
   { name: 'assets-cleanup', description: 'Find and remove unreferenced article assets', usage: 'blogpostgen assets-cleanup <project>', group: 'utility' },
+  { name: 'review', description: 'Review enhanced articles in $EDITOR', usage: 'blogpostgen review <project>', group: 'utility' },
 
   // Publishing group (201-299)
   { name: 'publish', description: 'Publish articles to local website folder', usage: 'blogpostgen publish <project>', group: 'publish' },
@@ -1091,6 +1093,82 @@ async function main(): Promise<void> {
       continue;
     }
 
+    // Handle review (human review of articles in $EDITOR)
+    if (finalAction === 'review') {
+      const selectedProject = await selectProject();
+      if (!selectedProject || selectedProject === CREATE_NEW_PROJECT) {
+        if (selectedProject === CREATE_NEW_PROJECT) {
+          logger.log('Please create a project first with project-init.');
+          await pressEnterToContinue();
+        }
+        continue;
+      }
+
+      try {
+        const { selectReviewer, getReviewableArticles, reviewArticle } = await import('./lib/article-review.js');
+        const projectPaths = getProjectPaths(selectedProject);
+        const reviewer = await selectReviewer(projectPaths.root);
+        if (!reviewer) {
+          continue;
+        }
+
+        const resolved = resolvePath(selectedProject);
+        const reviewable = await getReviewableArticles(resolved);
+
+        if (reviewable.length === 0) {
+          logger.log('\nNo articles ready for review (need enhanced articles without review_by_user).\n');
+          await pressEnterToContinue();
+          continue;
+        }
+
+        const selectionList: ArticleForSelection[] = reviewable.map(a => ({
+          path: a.path,
+          title: a.meta.title,
+          created_at: a.meta.created_at,
+        }));
+
+        const selectedPaths = await selectArticles(selectionList, {
+          header: 'Articles Ready to Review',
+        });
+
+        if (!selectedPaths || selectedPaths.length === 0) {
+          continue;
+        }
+
+        let reviewedCount = 0;
+        let changedCount = 0;
+
+        for (let i = 0; i < selectedPaths.length; i++) {
+          const articlePath = selectedPaths[i];
+          const article = reviewable.find(a => a.path === articlePath);
+          if (!article) continue;
+
+          logger.log(`\n[${i + 1}/${selectedPaths.length}] ${article.meta.title}`);
+          logger.log(`  ${article.absolutePath}`);
+
+          const { changed } = await reviewArticle(article.absolutePath, reviewer);
+          reviewedCount++;
+          if (changed) changedCount++;
+
+          logger.log(changed
+            ? '  Content updated and marked as reviewed.'
+            : '  No changes. Marked as reviewed.');
+
+          if (i < selectedPaths.length - 1) {
+            const next = await promptInput('Press Enter for next, q to quit', '');
+            if (next.trim().toLowerCase() === 'q') break;
+          }
+        }
+
+        logger.log(`\nReview complete: ${reviewedCount} reviewed, ${changedCount} changed (by ${reviewer.name})`);
+      } catch (error: any) {
+        logger.log(chalk.red(`Error: ${error.message}`));
+      }
+
+      await pressEnterToContinue();
+      continue;
+    }
+
     // Handle assets-cleanup (find and remove unreferenced article assets)
     if (finalAction === 'assets-cleanup') {
       const selectedProject = await selectProject();
@@ -1642,22 +1720,30 @@ async function main(): Promise<void> {
             const fullPath = `${selectedProject}/${articlePath}`;
             const absoluteFilePath = path.join(getProjectPaths(selectedProject).content, articlePath, 'content.md');
 
+            // Apply section-specific exclusions for this article
+            const sectionExcluded = loadSectionExcludedActions(
+              getProjectPaths(selectedProject!).root, finalAction, articlePath
+            );
+            const articleActions = sectionExcluded.length > 0
+              ? filterPipelineActions(actions, sectionExcluded, logger)
+              : actions;
+
             logger.log(`\n[${i + 1}/${selectedPaths.length}] Processing: ${articlePath}`);
             logger.log(`  File: ${absoluteFilePath}`);
 
             let articleSuccess = true;
-            for (let m = 0; m < actions.length; m++) {
-              const currentAction = actions[m];
+            for (let m = 0; m < articleActions.length; m++) {
+              const currentAction = articleActions[m];
 
               // Check if action was already applied — skip for all action types (local and API)
               const localFolderPath = path.join(getProjectPaths(selectedProject!).content, articlePath);
               const actionMeta = await getArticleMeta(localFolderPath);
               if (actionMeta?.applied_actions?.includes(currentAction)) {
-                logger.log(`  [${m + 1}/${actions.length}] ${currentAction} skipped (already applied)`);
+                logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} skipped (already applied)`);
                 continue;
               }
 
-              logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
+              logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction}...`);
 
 
               // Execute action via API
@@ -1666,20 +1752,20 @@ async function main(): Promise<void> {
               if (result.success) {
                 if (result.skipped) {
                   // Action was skipped (e.g., already applied) - log warning and continue
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} SKIPPED (already applied)`);
+                  logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} SKIPPED (already applied)`);
                   await addAppliedAction(localFolderPath, currentAction);
                 } else {
                   // Action executed successfully
                   totalTokens += result.tokensUsed || 0;
                   totalCost += result.costUsd || 0;
                   const statsStr = formatContentStats(result.contentStats);
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
+                  logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
                 }
               } else {
-                logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${result.error}`);
+                logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} FAILED: ${result.error}`);
                 logger.log(`  File: ${absoluteFilePath}`);
                 articleSuccess = false;
                 break; // Stop pipeline on error
@@ -1694,8 +1780,8 @@ async function main(): Promise<void> {
               const articleMeta = await getArticleMeta(folderPath);
               const appliedActions = articleMeta?.applied_actions || [];
 
-              // Check if all pipeline actions are in applied_actions
-              const missingActions = actions.filter(action => !appliedActions.includes(action));
+              // Check if all pipeline actions are in applied_actions (use articleActions for section-filtered list)
+              const missingActions = articleActions.filter(action => !appliedActions.includes(action));
 
               if (missingActions.length > 0) {
                 logger.log(`  ⚠ Pipeline incomplete: missing actions [${missingActions.join(', ')}]`);
@@ -2257,22 +2343,30 @@ async function main(): Promise<void> {
               const fullPath = `${resolved.projectName}/${articlePath}`;
               const absoluteFilePath = path.join(getProjectPaths(resolved.projectName).content, articlePath, 'content.md');
 
+              // Apply section-specific exclusions for this article
+              const sectionExcluded = loadSectionExcludedActions(
+                getProjectPaths(resolved.projectName).root, finalAction, articlePath
+              );
+              const articleActions = sectionExcluded.length > 0
+                ? filterPipelineActions(actions, sectionExcluded, logger)
+                : actions;
+
               logger.log(`\n[${i + 1}/${selectedPaths.length}] Processing: ${articlePath}`);
               logger.log(`  File: ${absoluteFilePath}`);
 
               let articleSuccess = true;
-              for (let m = 0; m < actions.length; m++) {
-                const currentAction = actions[m];
+              for (let m = 0; m < articleActions.length; m++) {
+                const currentAction = articleActions[m];
 
                 // Check if action was already applied — skip for all action types (local and API)
                 const localFolderPath = path.join(getProjectPaths(resolved.projectName).content, articlePath);
                 const actionMeta = await getArticleMeta(localFolderPath);
                 if (actionMeta?.applied_actions?.includes(currentAction)) {
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} skipped (already applied)`);
+                  logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} skipped (already applied)`);
                   continue;
                 }
 
-                logger.log(`  [${m + 1}/${actions.length}] ${currentAction}...`);
+                logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction}...`);
 
                 const result = await executor.executeAction(finalAction === 'generate' ? 'generate' : 'enhance', fullPath, { mode: currentAction, pipelineName: finalAction }, { debug });
 
@@ -2280,12 +2374,12 @@ async function main(): Promise<void> {
                   totalTokens += result.tokensUsed || 0;
                   totalCost += result.costUsd || 0;
                   const statsStr = formatContentStats(result.contentStats);
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
+                  logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
                 } else {
-                  logger.log(`  [${m + 1}/${actions.length}] ${currentAction} FAILED: ${result.error}`);
+                  logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} FAILED: ${result.error}`);
                   logger.log(`  File: ${absoluteFilePath}`);
                   articleSuccess = false;
                   break;
@@ -2297,7 +2391,7 @@ async function main(): Promise<void> {
                 const folderPath = path.join(getProjectPaths(resolved.projectName).content, articlePath);
                 const articleMeta = await getArticleMeta(folderPath);
                 const appliedActions = articleMeta?.applied_actions || [];
-                const missingActions = actions.filter(action => !appliedActions.includes(action));
+                const missingActions = articleActions.filter(action => !appliedActions.includes(action));
 
                 if (missingActions.length > 0) {
                   logger.log(`  ⚠ Pipeline incomplete: missing actions [${missingActions.join(', ')}]`);
@@ -2677,6 +2771,62 @@ async function main(): Promise<void> {
           logger.log(chalk.green(`Fixed ${fixed} article(s).`));
         }
       }
+    } catch (error: any) {
+      logger.log(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
+  // Handle review action (local - no API needed)
+  if (finalAction === 'review') {
+    if (!finalPath) {
+      outputError('Error: Project name required. Usage: blogpostgen review <project>');
+      process.exit(1);
+    }
+
+    const selectedProject = finalPath;
+
+    try {
+      const { selectReviewer, getReviewableArticles, reviewArticle } = await import('./lib/article-review.js');
+      const projectPaths = getProjectPaths(selectedProject);
+      const reviewer = await selectReviewer(projectPaths.root);
+      if (!reviewer) {
+        process.exit(0);
+      }
+
+      const resolved = resolvePath(selectedProject);
+      const reviewable = await getReviewableArticles(resolved);
+
+      if (reviewable.length === 0) {
+        logger.log('\nNo articles ready for review.\n');
+        process.exit(0);
+      }
+
+      let reviewedCount = 0;
+      let changedCount = 0;
+
+      for (let i = 0; i < reviewable.length; i++) {
+        const article = reviewable[i];
+        logger.log(`\n[${i + 1}/${reviewable.length}] ${article.meta.title}`);
+        logger.log(`  ${article.absolutePath}`);
+
+        const { changed } = await reviewArticle(article.absolutePath, reviewer);
+        reviewedCount++;
+        if (changed) changedCount++;
+
+        logger.log(changed
+          ? '  Content updated and marked as reviewed.'
+          : '  No changes. Marked as reviewed.');
+
+        if (i < reviewable.length - 1) {
+          const next = await promptInput('Press Enter for next, q to quit', '');
+          if (next.trim().toLowerCase() === 'q') break;
+        }
+      }
+
+      logger.log(`\nReview complete: ${reviewedCount} reviewed, ${changedCount} changed (by ${reviewer.name})`);
     } catch (error: any) {
       logger.log(chalk.red(`Error: ${error.message}`));
       process.exit(1);
