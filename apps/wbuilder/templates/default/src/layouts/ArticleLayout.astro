@@ -81,7 +81,7 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
     </Fragment>
   )}
 
-  <article class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-pagefind-body>
+  <article class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-pagefind-body data-section={article.slug.includes('/') ? article.slug.split('/')[0] : 'general'}>
     <!-- Article Header -->
     <header class="mb-8">
       {heroImage && (
