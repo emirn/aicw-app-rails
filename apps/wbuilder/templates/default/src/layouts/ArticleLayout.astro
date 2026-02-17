@@ -8,6 +8,18 @@ import ArticleCard from '../components/ArticleCard.astro';
 import CategoryBadge from '../components/CategoryBadge.astro';
 import { generateBlogPosting, generateArticleBreadcrumbs } from '../lib/jsonld';
 import ImageLightbox from '../components/ImageLightbox.astro';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// Read project-specific scripts (populated during build from config/styles/)
+let projectScripts = '';
+try {
+  const raw = readFileSync(resolve(process.cwd(), 'src/scripts/project-scripts.js'), 'utf-8');
+  // Skip if file is just the placeholder comment
+  if (raw.replace(/\/\*[\s\S]*?\*\//g, '').trim().length > 0) {
+    projectScripts = raw;
+  }
+} catch { /* no project scripts */ }
 
 interface Props {
   article: CollectionEntry<'articles'>;
@@ -208,6 +220,7 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
     )}
   </article>
   <ImageLightbox />
+  {projectScripts && <script is:inline set:html={projectScripts} />}
 </BaseLayout>
 
 <style>
