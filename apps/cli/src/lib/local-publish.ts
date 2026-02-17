@@ -66,8 +66,19 @@ export async function publishToLocalFolder(
       throw new Error(`Template path does not exist: ${config.template_path}`);
     }
 
-    // Copy template → target (recursive, overwrite existing files)
-    await fs.cp(config.template_path, config.path, { recursive: true, force: true });
+    // Clean target directory before copying template (preserve .git for submodule support)
+    await cleanDirectory(config.path);
+    logger.log('Cleaned target directory (preserved .git)');
+
+    // Copy template → target (recursive, overwrite existing files; skip node_modules/dist/.astro)
+    await fs.cp(config.template_path, config.path, {
+      recursive: true,
+      force: true,
+      filter: (source) => {
+        const basename = path.basename(source);
+        return basename !== 'node_modules' && basename !== 'dist' && basename !== '.astro';
+      },
+    });
     logger.log(`Copied template from ${config.template_path}`);
 
     // Read config.defaults.json from the target (just-copied template)
@@ -294,6 +305,17 @@ function deepMerge(target: Record<string, any>, source: Record<string, any>): Re
     }
   }
   return result;
+}
+
+/**
+ * Remove all entries in a directory except the specified ones.
+ */
+async function cleanDirectory(dir: string, preserve: string[] = ['.git']): Promise<void> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (preserve.includes(entry.name)) continue;
+    await fs.rm(path.join(dir, entry.name), { recursive: true, force: true });
+  }
 }
 
 /**

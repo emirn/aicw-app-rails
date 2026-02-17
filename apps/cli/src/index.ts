@@ -784,6 +784,7 @@ async function main(): Promise<void> {
           }
         }
         logger.log('');
+        logger.log(`To preview:\ncd ${selected.config.path} && npm install && npm run build && npm run preview`);
       } catch (error) {
         logger.log('');
         logger.log(`✗ Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -2476,6 +2477,8 @@ async function main(): Promise<void> {
         }
         process.exit(1);
       }
+      logger.log('');
+      logger.log(`To preview:\ncd ${projectConfig.publish_to_local_folder.path} && npm install && npm run build && npm run preview`);
       process.exit(0);
     } catch (error) {
       outputError(`Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

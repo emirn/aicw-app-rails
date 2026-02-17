@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
+import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import mdx from '@astrojs/mdx';
 // Note: Pagefind is run as a post-build step via CLI (see package.json build script)
@@ -40,6 +41,7 @@ export default defineConfig({
   site: siteUrl,
   trailingSlash: 'always',
   vite: {
+    plugins: [tailwindcss()],
     resolve: {
       alias: {
         '@': resolve(__dirname, './src')
