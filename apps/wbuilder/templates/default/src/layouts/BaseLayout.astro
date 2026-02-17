@@ -4,9 +4,9 @@ import SEO from '../components/SEO.astro';
 import PreviewBanner from '../components/PreviewBanner.astro';
 import Navigation from '../components/Navigation.astro';
 import Footer from '../components/Footer.astro';
-import ThemeToggle from '../components/ThemeToggle.astro';
 import Search from '../components/Search.astro';
 import '../styles/global.css';
+import '../styles/project.css';
 
 export interface Props {
   title?: string;
@@ -116,8 +116,6 @@ const cssVars = {
     </main>
 
     <Footer config={config} />
-
-    {config.branding.dark_mode.enabled && <ThemeToggle config={config} />}
 
     <!-- Search Modal -->
     {config.search?.enabled && <Search config={config} />}

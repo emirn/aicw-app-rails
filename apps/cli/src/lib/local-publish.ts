@@ -233,6 +233,29 @@ export async function publishToLocalFolder(
     }
   }
 
+  // Merge custom project styles into project.css
+  const stylesDir = path.join(projectDir, 'config/styles');
+  let projectCss = '/* Project-specific styles */\n';
+  const globalStylesPath = path.join(stylesDir, 'styles.css');
+  if (existsSync(globalStylesPath)) {
+    projectCss += await fs.readFile(globalStylesPath, 'utf-8') + '\n';
+  }
+  try {
+    const entries = await fs.readdir(stylesDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const sectionCss = path.join(stylesDir, entry.name, 'styles.css');
+        if (existsSync(sectionCss)) {
+          projectCss += `/* Section: ${entry.name} */\n`;
+          projectCss += await fs.readFile(sectionCss, 'utf-8') + '\n';
+        }
+      }
+    }
+  } catch { /* no styles dir */ }
+  const projectCssPath = path.join(config.path, 'src/styles/project.css');
+  await fs.writeFile(projectCssPath, projectCss);
+  logger.log('Merged custom project styles into project.css');
+
   return result;
 }
 

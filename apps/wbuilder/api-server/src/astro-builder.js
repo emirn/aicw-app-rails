@@ -358,6 +358,31 @@ ${content}
     }
   }
 
+  // 6.5. Merge custom project styles into project.css
+  if (options.stylesDir) {
+    let projectCss = '/* Project-specific styles */\n';
+    const globalStylesPath = path.join(options.stylesDir, 'styles.css');
+    try {
+      await fs.access(globalStylesPath);
+      projectCss += await fs.readFile(globalStylesPath, 'utf-8') + '\n';
+    } catch { /* no global styles */ }
+    try {
+      const entries = await fs.readdir(options.stylesDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const sectionCss = path.join(options.stylesDir, entry.name, 'styles.css');
+          try {
+            await fs.access(sectionCss);
+            projectCss += `/* Section: ${entry.name} */\n`;
+            projectCss += await fs.readFile(sectionCss, 'utf-8') + '\n';
+          } catch { /* no section styles */ }
+        }
+      }
+    } catch { /* no styles dir */ }
+    await fs.writeFile(path.join(workDir, 'src/styles/project.css'), projectCss);
+    logFn('Merged custom project styles into project.css');
+  }
+
   // 7. Validate image references before expensive build steps
   logFn('Validating image references...');
   await validateArticleImages(workDir, logFn);

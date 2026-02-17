@@ -2,6 +2,7 @@
 import type { SiteConfig } from '../lib/config';
 import { replacePlaceholders, getLogoTextStyle } from '../lib/config';
 import type { LogoTextStyle } from '../lib/config';
+import ThemeToggle from './ThemeToggle.astro';
 
 interface Props {
   config: SiteConfig;
@@ -222,6 +223,8 @@ const footerLogoStyle: LogoTextStyle = (rawLogoStyle === 'bordered' || rawLogoSt
     <!-- Copyright and Powered By -->
     <div class="pt-8 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)] flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)]">
       <p>&copy; {copyrightText}</p>
+
+      <ThemeToggle config={config} />
 
       {config.footer.show_powered_by && config.footer.powered_by_text && (
         <p>
