@@ -381,6 +381,30 @@ ${content}
     } catch { /* no styles dir */ }
     await fs.writeFile(path.join(workDir, 'src/styles/project.css'), projectCss);
     logFn('Merged custom project styles into project.css');
+
+    // Merge custom project scripts into project-scripts.js
+    let projectJs = '/* Project-specific scripts */\n';
+    const globalScriptsPath = path.join(options.stylesDir, 'scripts.js');
+    try {
+      await fs.access(globalScriptsPath);
+      projectJs += await fs.readFile(globalScriptsPath, 'utf-8') + '\n';
+    } catch { /* no global scripts */ }
+    try {
+      const jsEntries = await fs.readdir(options.stylesDir, { withFileTypes: true });
+      for (const entry of jsEntries) {
+        if (entry.isDirectory()) {
+          const sectionJs = path.join(options.stylesDir, entry.name, 'scripts.js');
+          try {
+            await fs.access(sectionJs);
+            projectJs += `/* Section: ${entry.name} */\n`;
+            projectJs += await fs.readFile(sectionJs, 'utf-8') + '\n';
+          } catch { /* no section scripts */ }
+        }
+      }
+    } catch { /* no styles dir */ }
+    await fs.mkdir(path.join(workDir, 'src/scripts'), { recursive: true });
+    await fs.writeFile(path.join(workDir, 'src/scripts/project-scripts.js'), projectJs);
+    logFn('Merged custom project scripts into project-scripts.js');
   }
 
   // 7. Validate image references before expensive build steps

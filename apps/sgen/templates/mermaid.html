@@ -4,20 +4,113 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mermaid Diagram</title>
-    <!-- Google Fonts: Inter -->
+    <!-- Google Fonts: Inter (preloaded for accurate text measurement) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
         mermaid.initialize({
-            startOnLoad: true,
+            startOnLoad: false,
             theme: 'neutral',
             securityLevel: 'strict',
             fontFamily: '"Inter", sans-serif',
             logLevel: 'error',
             fontSize: 16
         });
+
+        // Wait for Inter font to load so Mermaid measures text correctly
+        await document.fonts.ready;
+
+        // Now render with accurate font metrics
+        await mermaid.run();
+
+        // Post-render fix: expand SVG viewBox to encompass all content
+        function expandViewBox() {
+            const svgs = document.querySelectorAll('.mermaid svg');
+            svgs.forEach(svg => {
+                const bbox = svg.getBBox();
+                const padding = 20;
+                const newViewBox = `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`;
+                svg.setAttribute('viewBox', newViewBox);
+                svg.style.width = `${bbox.width + padding * 2}px`;
+                svg.style.height = `${bbox.height + padding * 2}px`;
+            });
+        }
+
+        // Post-render fix: expand background rects that are too small for their text
+        function fixEdgeLabelRects() {
+            const labels = document.querySelectorAll('.edgeLabel');
+            labels.forEach(label => {
+                const text = label.querySelector('span, p, foreignObject');
+                const rect = label.querySelector('rect');
+                if (!text || !rect) return;
+
+                const textBBox = text.getBoundingClientRect();
+                const rectBBox = rect.getBoundingClientRect();
+
+                if (textBBox.width > rectBBox.width || textBBox.height > rectBBox.height) {
+                    const hPadding = 8;
+                    const vPadding = 4;
+                    const newWidth = textBBox.width + hPadding * 2;
+                    const newHeight = textBBox.height + vPadding * 2;
+                    const dx = (newWidth - rectBBox.width) / 2;
+                    const dy = (newHeight - rectBBox.height) / 2;
+
+                    rect.setAttribute('width', String(newWidth));
+                    rect.setAttribute('height', String(newHeight));
+                    rect.setAttribute('x', String(parseFloat(rect.getAttribute('x') || '0') - dx));
+                    rect.setAttribute('y', String(parseFloat(rect.getAttribute('y') || '0') - dy));
+                }
+            });
+        }
+
+        // Also fix transition labels in state diagrams
+        function fixTransitionLabels() {
+            const labels = document.querySelectorAll('.transition, .edgeLabel');
+            labels.forEach(label => {
+                const foreignObj = label.querySelector('foreignObject');
+                const rect = label.querySelector('rect');
+                if (!foreignObj) return;
+
+                const span = foreignObj.querySelector('span, p, div');
+                if (!span) return;
+
+                const textWidth = span.scrollWidth || span.offsetWidth;
+                const textHeight = span.scrollHeight || span.offsetHeight;
+                const foWidth = parseFloat(foreignObj.getAttribute('width') || '0');
+                const foHeight = parseFloat(foreignObj.getAttribute('height') || '0');
+
+                if (textWidth > foWidth) {
+                    const dx = (textWidth - foWidth) / 2;
+                    foreignObj.setAttribute('width', String(textWidth + 16));
+                    foreignObj.setAttribute('x', String(parseFloat(foreignObj.getAttribute('x') || '0') - dx - 8));
+                }
+                if (textHeight > foHeight) {
+                    const dy = (textHeight - foHeight) / 2;
+                    foreignObj.setAttribute('height', String(textHeight + 8));
+                    foreignObj.setAttribute('y', String(parseFloat(foreignObj.getAttribute('y') || '0') - dy - 4));
+                }
+
+                if (rect) {
+                    const newWidth = Math.max(textWidth + 16, parseFloat(rect.getAttribute('width') || '0'));
+                    const newHeight = Math.max(textHeight + 8, parseFloat(rect.getAttribute('height') || '0'));
+                    const oldWidth = parseFloat(rect.getAttribute('width') || '0');
+                    const oldHeight = parseFloat(rect.getAttribute('height') || '0');
+                    rect.setAttribute('width', String(newWidth));
+                    rect.setAttribute('height', String(newHeight));
+                    rect.setAttribute('x', String(parseFloat(rect.getAttribute('x') || '0') - (newWidth - oldWidth) / 2));
+                    rect.setAttribute('y', String(parseFloat(rect.getAttribute('y') || '0') - (newHeight - oldHeight) / 2));
+                }
+            });
+        }
+
+        fixEdgeLabelRects();
+        fixTransitionLabels();
+        expandViewBox();
+
+        // Signal that all post-render fixes are complete
+        document.getElementById('mermaid-container').setAttribute('data-render-complete', 'true');
     </script>
     <style>
         body {
@@ -38,6 +131,9 @@
         .mermaid {
             background: transparent;
             min-width: 500px;
+        }
+        .mermaid svg {
+            overflow: visible !important;
         }
     </style>
 </head>

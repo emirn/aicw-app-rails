@@ -4,6 +4,9 @@ import { convertToWebp } from './webp-converter';
 // Maximum width for generated diagrams in pixels
 const MAX_DIAGRAM_WIDTH = 800;
 
+// Wider viewport for state diagrams which need more layout room
+const STATE_DIAGRAM_WIDTH = 1200;
+
 /**
  * DiagramAsset extends BaseRendererAsset with diagram-specific properties
  */
@@ -47,10 +50,12 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
     const contentHash = this.hash(code);
     const diagramType = this.detectDiagramType(code);
 
+    // State diagrams need wider viewport for label layout
+    const width = diagramType === 'state' ? STATE_DIAGRAM_WIDTH : MAX_DIAGRAM_WIDTH;
+
     const buffer = await this.renderToBuffer(code, {
-      width: MAX_DIAGRAM_WIDTH,
+      width,
       height: 800,
-      selector: '#mermaid-container'
     });
 
     const filename = `${baseFilename}.webp`;
@@ -99,6 +104,13 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
       }
     }
 
+    // Wait for post-render fixes (font loading, viewBox expansion, label rect fixes)
+    try {
+      await page.waitForSelector('#mermaid-container[data-render-complete="true"]', { timeout: 5000 });
+    } catch {
+      // Proceed anyway - the SVG exists, fixes may just not have run
+    }
+
     // Check for mermaid error element (displayed when parse fails)
     const errorElement = await page.$('.mermaid .error, .mermaid pre.errorMessage, #d .error');
     if (errorElement) {
@@ -115,6 +127,21 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
         ? `Mermaid SVG not found. Console errors: ${consoleErrors.join('; ')}`
         : 'Mermaid SVG not found';
       throw new Error(errorMsg);
+    }
+
+    // Check if SVG is wider than viewport and resize if needed
+    const svgDimensions = await element.evaluate(el => {
+      const bbox = el.getBBox();
+      return { width: bbox.width + 40, height: bbox.height + 40 };
+    });
+    if (svgDimensions.width > options.width) {
+      await page.setViewport({
+        width: Math.ceil(svgDimensions.width) + 40,
+        height: Math.max(options.height, Math.ceil(svgDimensions.height) + 40),
+        deviceScaleFactor: 2
+      });
+      // Brief wait for re-layout after viewport change
+      await new Promise(r => setTimeout(r, 100));
     }
 
     const pngBuffer = await element.screenshot({ type: 'png', omitBackground: true });

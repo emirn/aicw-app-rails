@@ -52,6 +52,13 @@ Next paragraph...           <-- This is NOT part of the table
 - Use generic, timeless labels that won't become outdated
 - Focus on concepts, relationships, and processes rather than specific values
 
+## State Diagram Specific Rules:
+- Keep transition labels to 1-2 short words maximum
+- Good: `Draft --> Review : Submit`, Bad: `Draft --> Review : Submit for Legal Review`
+- Use abbreviated labels: Submit, Approve, Reject, Expire, Cancel, Retry
+- Limit to 5-6 states maximum - split into multiple diagrams if needed
+- Prefer short state names: Draft, Review, Active, Closed (not "Under Legal Review")
+
 ## Color Theme
 
 Use these brand colors in all diagrams via Mermaid's `%%{init:...}%%` directive:
@@ -202,15 +209,26 @@ pie showData
     "Support" : 10
 ```
 
-### ✅ Good - State Diagram (for lifecycles/status transitions):
+### ✅ Good - State Diagram (short labels, max 5-6 states):
 ```mermaid
 stateDiagram-v2
     [*] --> Draft
-    Draft --> Review
-    Review --> Published
-    Review --> Draft : Revisions
-    Published --> Archived
+    Draft --> Review : Submit
+    Review --> Published : Approve
+    Review --> Draft : Revise
+    Published --> Archived : Expire
     Archived --> [*]
+```
+
+### ❌ Bad - State Diagram (labels too long, too many states):
+```mermaid
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Under_Review : Submit for Legal Review
+    Under_Review --> Revision_Required : Request Additional Changes
+    Revision_Required --> Draft : Return to Author for Revision
+    Under_Review --> Final_Approval : Forward to Senior Partner
+    Final_Approval --> Published : Approve and Schedule Publication
 ```
 
 ---

@@ -256,6 +256,29 @@ export async function publishToLocalFolder(
   await fs.writeFile(projectCssPath, projectCss);
   logger.log('Merged custom project styles into project.css');
 
+  // Merge custom project scripts into project-scripts.js
+  let projectJs = '/* Project-specific scripts */\n';
+  const globalScriptsPath = path.join(stylesDir, 'scripts.js');
+  if (existsSync(globalScriptsPath)) {
+    projectJs += await fs.readFile(globalScriptsPath, 'utf-8') + '\n';
+  }
+  try {
+    const jsEntries = await fs.readdir(stylesDir, { withFileTypes: true });
+    for (const entry of jsEntries) {
+      if (entry.isDirectory()) {
+        const sectionJs = path.join(stylesDir, entry.name, 'scripts.js');
+        if (existsSync(sectionJs)) {
+          projectJs += `/* Section: ${entry.name} */\n`;
+          projectJs += await fs.readFile(sectionJs, 'utf-8') + '\n';
+        }
+      }
+    }
+  } catch { /* no styles dir */ }
+  const scriptsDir = path.join(config.path, 'src/scripts');
+  await fs.mkdir(scriptsDir, { recursive: true });
+  await fs.writeFile(path.join(scriptsDir, 'project-scripts.js'), projectJs);
+  logger.log('Merged custom project scripts into project-scripts.js');
+
   return result;
 }
 
