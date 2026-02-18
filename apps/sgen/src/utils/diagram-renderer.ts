@@ -1,5 +1,5 @@
 import { BaseRenderer, BaseRendererAsset, RenderOptions } from './base-renderer';
-import { convertToWebp } from './webp-converter';
+import { convertToWebp } from '@blogpostgen/og-image-gen';
 
 // Maximum width for generated diagrams in pixels
 const MAX_DIAGRAM_WIDTH = 800;

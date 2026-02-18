@@ -113,6 +113,21 @@ export async function publishToLocalFolder(
       'utf-8',
     );
     logger.log(`Wrote merged site config to data/site-config.json`);
+
+    // Copy shared og-image-gen source to template
+    const ogImageGenSrc = path.resolve(config.template_path!, '../../packages/og-image-gen/src');
+    const ogImageGenFonts = path.resolve(config.template_path!, '../../packages/og-image-gen/fonts');
+    const targetLibDir = path.join(config.path, 'src/lib/og-image-gen');
+    const targetFontsDir = path.join(config.path, 'src/fonts');
+    try {
+      await fs.mkdir(targetLibDir, { recursive: true });
+      await fs.cp(ogImageGenSrc, targetLibDir, { recursive: true });
+      await fs.mkdir(targetFontsDir, { recursive: true });
+      await fs.cp(ogImageGenFonts, targetFontsDir, { recursive: true });
+      logger.log('Copied shared og-image-gen library');
+    } catch {
+      logger.log('Shared og-image-gen not found, OG images will be skipped');
+    }
   }
 
   // Clean Astro content cache to prevent stale data-store duplicate warnings

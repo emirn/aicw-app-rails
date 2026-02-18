@@ -11,7 +11,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { resolveProjectMacros, resolveProjectMacrosInText } from '../../utils/variables';
 import { ensureNoUnreplacedMacros, requireBrandingColors } from '../../utils/guards';
-import { convertBase64ToWebp } from '../../utils/webp-converter';
+import { convertBase64ToWebp } from '@blogpostgen/og-image-gen';
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, flags, cfg, log }) => {
   const brandingColors = requireBrandingColors(

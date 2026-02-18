@@ -11,7 +11,7 @@
  * 4. Return base64 image + metadata
  */
 
-import { SocialImageGenerator, SocialImageConfig } from '../utils/social-image-generator';
+import { SocialImageGenerator, SocialImageConfig } from '@blogpostgen/og-image-gen';
 
 /**
  * Request body for POST /api/v1/image/social

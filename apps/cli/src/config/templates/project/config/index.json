@@ -44,6 +44,7 @@
         },
         "illustration_style": "digital_illustration/pastel_gradient",
         "illustration_style_comment": "Hero image style for Recraft AI. Browse styles: https://www.recraft.ai/styles?tag=digital_illustration — Format: 'base_style' or 'base_style/substyle'. Examples: 'digital_illustration/pastel_gradient' (default), 'digital_illustration/hand_drawn', 'digital_illustration/pixel_art', 'digital_illustration/pop_art', 'digital_illustration/grain', 'digital_illustration', 'vector_illustration', 'realistic_image'",
+        "gradient": ["#1e3a5f", "#4a2c6a", "#6b2d5c"],
         "typography": {
             "font_family": "Inter, system-ui, sans-serif",
             "heading_font_family": "Inter, system-ui, sans-serif",

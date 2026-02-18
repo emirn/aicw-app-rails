@@ -16,7 +16,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     (context.projectConfig as any)?.branding?.colors,
     'generate_image_social'
   );
-  const { SocialImageGenerator } = await import('../../utils/social-image-generator');
+  const { SocialImageGenerator } = await import('@blogpostgen/og-image-gen');
 
   const title = normalizedMeta.title;
   if (!title) {
@@ -42,6 +42,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     }
   }
 
+  const branding = (context.projectConfig as any)?.branding || {};
   const customConfig = flags.custom_variables || {};
 
   log.info({ path: context.articlePath, mode: 'generate_image_social' }, 'generate_image_social:generating');
@@ -49,9 +50,9 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   try {
     const generator = new SocialImageGenerator();
     generator.loadConfig({
-      badge: customConfig.badge,
-      brand_name: customConfig.brand_name || context.projectConfig?.title,
-      gradient: customConfig.gradient,
+      badge: customConfig.badge || branding.badge,
+      brand_name: customConfig.brand_name || branding.brand_name || context.projectConfig?.title,
+      gradient: customConfig.gradient || branding.gradient,
     });
 
     const result = await generator.generate({

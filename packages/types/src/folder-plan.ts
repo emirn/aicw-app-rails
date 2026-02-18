@@ -165,6 +165,8 @@ export interface IProjectBranding {
   illustration_style?: string;
   /** Typography settings (Google Fonts, font families) */
   typography?: IBrandingTypography;
+  /** Gradient colors for OG image backgrounds [start, middle, end] */
+  gradient?: [string, string, string];
 }
 
 /**

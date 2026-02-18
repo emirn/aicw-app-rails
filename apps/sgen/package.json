@@ -12,9 +12,8 @@
     "start:mock": "HOST=127.0.0.1 MOCK_AI=true MOCK_SCRAPER=true node dist/index.js"
   },
   "dependencies": {
-    "sharp": "^0.33.5",
+    "@blogpostgen/og-image-gen": "*",
     "@blogpostgen/types": "*",
-    "@resvg/resvg-js": "^2.6.2",
     "dotenv": "^16.3.1",
     "fastify": "^4.25.2",
     "minimatch": "^10.1.1",
@@ -22,7 +21,6 @@
     "node-fetch": "^3.3.2",
     "pino": "^10.1.0",
     "puppeteer": "^21.0.0",
-    "satori": "^0.18.3",
     "satori-html": "^0.3.2"
   },
   "devDependencies": {

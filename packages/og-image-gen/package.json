@@ -1,0 +1,15 @@
+{
+  "name": "@blogpostgen/og-image-gen",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "satori": "^0.18.3",
+    "@resvg/resvg-js": "^2.6.2",
+    "sharp": "^0.33.5"
+  },
+  "files": ["dist", "fonts"]
+}
