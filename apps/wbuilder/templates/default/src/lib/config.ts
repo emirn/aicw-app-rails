@@ -179,6 +179,15 @@ export interface SiteConfig {
     url_prefix?: string;
   };
   /**
+   * Tag pages configuration
+   */
+  tags?: {
+    /** Enable tag archive pages. Defaults to true. */
+    enabled?: boolean;
+    /** URL prefix for tag pages. Defaults to 'tag'. */
+    url_prefix?: string;
+  };
+  /**
    * Search configuration using Pagefind
    */
   search?: {

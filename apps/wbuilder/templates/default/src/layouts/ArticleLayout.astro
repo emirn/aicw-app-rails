@@ -7,6 +7,7 @@ import SocialShare from '../components/SocialShare.astro';
 import ArticleCard from '../components/ArticleCard.astro';
 import CategoryBadge from '../components/CategoryBadge.astro';
 import { generateBlogPosting, generateArticleBreadcrumbs } from '../lib/jsonld';
+import { getTagUrl } from '../lib/tags';
 import ImageLightbox from '../components/ImageLightbox.astro';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -67,6 +68,10 @@ const hasInlineJsonLd = article.body?.includes('application/ld+json');
 // Categories
 const categories = data.categories || [];
 const showCategories = config.blog.show_categories && config.categories?.enabled && categories.length > 0;
+
+// Tags
+const tags = data.tags || [];
+const showTags = config.tags?.enabled !== false && tags.length > 0;
 const hasInlineToc = article.body?.includes('<div id="toc">') || false;
 ---
 
@@ -188,6 +193,22 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
           description={data.description}
           buttons={config.article.social_share_buttons || ['twitter', 'facebook', 'linkedin', 'copy']}
         />
+      </div>
+    )}
+
+    <!-- Tags -->
+    {showTags && (
+      <div class="mt-8 pt-6 border-t border-[var(--color-border)] dark:border-[var(--color-dark-border)]">
+        <div class="flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <a
+              href={getTagUrl(tag, config)}
+              class="px-3 py-1 text-xs font-medium rounded-full bg-[var(--color-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] text-[var(--color-text-secondary)] dark:text-[var(--color-dark-text-secondary)] hover:text-[var(--color-primary)] transition-colors"
+            >
+              #{tag}
+            </a>
+          ))}
+        </div>
       </div>
     )}
 

@@ -329,6 +329,9 @@ export interface IArticle {
   /** Article content (markdown) - unified object pattern */
   content?: string;
 
+  /** Tags for categorization (rendered as comma-separated string in frontmatter) */
+  tags?: string[];
+
   /** Review events, newest first */
   reviewed_by?: IReviewEntry[];
 
