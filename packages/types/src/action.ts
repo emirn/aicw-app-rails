@@ -28,6 +28,7 @@ export type ActionMode =
   | 'generate_image_hero'
   | 'generate_image_social'
   | 'generate_project_config'
+  | 'generate_favicon'
   | 'expand_ideas';
 
 export type OutputMode =
@@ -72,6 +73,8 @@ export interface IActionConfig {
   colors?: Record<string, string>;
   // When true, action must produce content changes or it's treated as a failure (stops pipeline)
   require_changes?: boolean;
+  // When false, action does not require an article (project-level action)
+  requires_article?: boolean;
 
   // === Internal fields (populated by server, not stored in config.json) ===
   // Absolute path to prompt.md (internal use only)

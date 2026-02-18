@@ -1,6 +1,6 @@
 ---
 import type { SiteConfig } from '../lib/config';
-import { getDefaultAuthor, generateLetterFavicon } from '../lib/config';
+import { getDefaultAuthor } from '../lib/config';
 
 export interface Props {
   title: string;
@@ -68,15 +68,8 @@ const ogImage = image
 {config.seo.robots_no_index && <meta name="robots" content="noindex, nofollow" />}
 
 <!-- Favicon -->
-{config.branding.site.favicon_url ? (
-  <link rel="icon" href={config.branding.site.favicon_url} />
-) : (
-  <link rel="icon" type="image/svg+xml" href={generateLetterFavicon(
-    config.branding.site.name,
-    config.branding.colors.primary
-  )} />
-)}
 <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+<link rel="icon" type="image/png" href="/favicon.png" />
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content={type} />

@@ -233,6 +233,20 @@ export async function publishToLocalFolder(
     }
   }
 
+  // Copy branding/favicon files to site root for /favicon.ico compatibility
+  const brandingAssetsDir = path.join(publishedAssetsDir, 'branding');
+  if (existsSync(brandingAssetsDir)) {
+    for (const ext of ['ico', 'png', 'svg']) {
+      const faviconSrc = path.join(brandingAssetsDir, `favicon.${ext}`);
+      if (existsSync(faviconSrc)) {
+        const publicDir = path.join(config.path, 'public');
+        await fs.mkdir(publicDir, { recursive: true });
+        await fs.copyFile(faviconSrc, path.join(publicDir, `favicon.${ext}`));
+        logger.log(`  Copied favicon.${ext} to public/`);
+      }
+    }
+  }
+
   // Merge custom project styles into project.css
   const stylesDir = path.join(projectDir, 'config/styles');
   let projectCss = '/* Project-specific styles */\n';

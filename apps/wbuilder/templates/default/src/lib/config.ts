@@ -419,31 +419,6 @@ export function getDefaultAuthor(config: SiteConfig): string {
 }
 
 /**
- * Generate an SVG favicon as a data URI with first letter of site name
- */
-export function generateLetterFavicon(siteName: string, bgColor: string): string {
-  const letter = getFirstLetter(siteName);
-  const textColor = isLightColor(bgColor) ? '#1F2937' : '#FFFFFF';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="6" fill="${bgColor}"/>
-    <text x="50%" y="50%" dy=".35em" text-anchor="middle"
-          font-family="system-ui, -apple-system, sans-serif"
-          font-size="18" font-weight="600" fill="${textColor}">
-      ${letter}
-    </text>
-  </svg>`;
-
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
-function getFirstLetter(siteName: string): string {
-  if (!siteName?.trim()) return '?';
-  const match = siteName.trim().match(/[a-zA-Z0-9]/);
-  return match ? match[0].toUpperCase() : '?';
-}
-
-/**
  * Resolve the effective logo text style with backward compatibility.
  * - If `style` is set, use it directly.
  * - If `show_border: true` (legacy), map to 'bordered'.
@@ -453,12 +428,4 @@ export function getLogoTextStyle(config: SiteConfig): LogoTextStyle {
   if (config.branding.logo.style) return config.branding.logo.style;
   if (config.branding.logo.show_border) return 'bordered';
   return 'plain';
-}
-
-function isLightColor(hex: string): boolean {
-  const color = hex.replace('#', '');
-  const r = parseInt(color.substr(0, 2), 16);
-  const g = parseInt(color.substr(2, 2), 16);
-  const b = parseInt(color.substr(4, 2), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5;
 }

@@ -1,0 +1,8 @@
+{
+  "description": "Generate favicon files (ICO + PNG) from site name and primary color",
+  "local": true,
+  "requires_article": false,
+  "output_mode": "text_replace_all",
+  "supports_custom_prompt": false,
+  "supports_custom_config": false
+}

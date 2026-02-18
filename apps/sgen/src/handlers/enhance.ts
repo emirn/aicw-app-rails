@@ -28,6 +28,22 @@ export async function handleEnhance(
 ): Promise<ActionExecuteResponse> {
   const mode = flags.mode || 'improve_seo';
 
+  // Early dispatch for project-level local actions (no article needed)
+  const earlyActionCfg = ensureActionConfigForMode(mode as any);
+  if (earlyActionCfg?.local && earlyActionCfg.requires_article === false) {
+    const { hasActionHandler, getActionHandler } = await import('./actions');
+    if (hasActionHandler(mode)) {
+      log.info({ mode }, 'enhance:project_level_action');
+      const handler = await getActionHandler(mode);
+      return handler!({
+        article: { id: '', path: '', title: '', description: '', keywords: '', content: '' },
+        articleObj: {} as any,
+        normalizedMeta: {} as any,
+        context, flags, cfg: earlyActionCfg, log,
+      });
+    }
+  }
+
   // Check if batch mode
   if (flags.all && context.articles && context.articles.length > 0) {
     return handleEnhanceBatch(context, flags, log);

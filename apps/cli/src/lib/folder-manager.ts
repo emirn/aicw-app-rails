@@ -870,6 +870,22 @@ export async function buildPublished(
     }
   }
 
+  // Copy config/assets/ (branding, favicon) to published-assets/
+  const configAssetsDir = path.join(projectDir, 'config', 'assets');
+  if (existsSync(configAssetsDir)) {
+    const configAssetFiles = await getAllFiles(configAssetsDir);
+    for (const assetPath of configAssetFiles) {
+      const relativePath = path.relative(configAssetsDir, assetPath);
+      const destPath = path.join(publishedAssetsDir, relativePath);
+      await fs.mkdir(path.dirname(destPath), { recursive: true });
+      await fs.copyFile(assetPath, destPath);
+      assetsCopied++;
+    }
+    if (configAssetFiles.length > 0) {
+      log(`  Merged ${configAssetFiles.length} config asset(s) (branding/favicon)`);
+    }
+  }
+
   log(`Published: ${articles.length} article(s), ${assetsCopied} asset(s)`);
 
   return {
