@@ -115,7 +115,19 @@ export function validateImages(): AstroIntegration {
         const distDir = fileURLToPath(dir);
         const projectRoot = path.resolve(distDir, '..');
 
-        logger.info('Validating image references in articles...');
+        // Load config for site name prefix
+        const configPath = path.join(projectRoot, 'data/site-config.json');
+        let config: Record<string, any> = {};
+        try {
+          config = JSON.parse(await fs.readFile(configPath, 'utf-8'));
+        } catch {
+          // Config not available, continue without prefix
+        }
+
+        const siteName = config.branding?.brand_name || config.branding?.site?.name || '';
+        const prefix = siteName ? `[${siteName}] ` : '';
+
+        logger.info(`${prefix}Validating image references in articles...`);
 
         const articlesDir = path.join(projectRoot, 'src/content/articles');
         const issues: ImageIssue[] = [];
@@ -124,7 +136,7 @@ export function validateImages(): AstroIntegration {
         try {
           entries = await fs.readdir(articlesDir, { withFileTypes: true, recursive: true });
         } catch {
-          logger.info('No articles directory found, skipping image validation');
+          logger.info(`${prefix}No articles directory found, skipping image validation`);
           return;
         }
 
@@ -192,14 +204,14 @@ export function validateImages(): AstroIntegration {
 
         if (warnings.length > 0) {
           for (const w of warnings) {
-            logger.warn(`  [${w.source}] ${w.slug}: missing ${w.imagePath}`);
+            logger.warn(`${prefix}  [${w.source}] ${w.slug}: missing ${w.imagePath}`);
           }
         }
 
         if (errors.length > 0) {
-          logger.error(`Found ${errors.length} missing image(s):`);
+          logger.error(`${prefix}Found ${errors.length} missing image(s):`);
           for (const e of errors) {
-            logger.error(`  [${e.source}] ${e.slug}: missing ${e.imagePath}`);
+            logger.error(`${prefix}  [${e.source}] ${e.slug}: missing ${e.imagePath}`);
           }
           throw new Error(
             `Image validation failed: ${errors.length} missing image(s) in ${articlesChecked} articles. ` +
@@ -208,7 +220,7 @@ export function validateImages(): AstroIntegration {
         }
 
         logger.info(
-          `Image validation passed: ${articlesChecked} articles checked, ${warnings.length} warning(s)`
+          `${prefix}Image validation passed: ${articlesChecked} articles checked, ${warnings.length} warning(s)`
         );
       },
     },
