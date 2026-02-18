@@ -547,8 +547,14 @@ export class APIExecutor {
         const savedFiles: string[] = [];
         for (const file of response.files) {
           try {
-            await this.writeGeneratedFile(paths.content, context.articlePath || '', file);
-            savedFiles.push(path.join(paths.content, context.articlePath || '', file.path));
+            // Project-level files (config/, etc.) write relative to project root
+            if (file.path.startsWith('config/')) {
+              await this.writeGeneratedFile(paths.root, '', file);
+              savedFiles.push(path.join(paths.root, file.path));
+            } else {
+              await this.writeGeneratedFile(paths.content, context.articlePath || '', file);
+              savedFiles.push(path.join(paths.content, context.articlePath || '', file.path));
+            }
           } catch (err) {
             operationErrors.push(`write_file ${file.path}: ${err instanceof Error ? err.message : String(err)}`);
           }

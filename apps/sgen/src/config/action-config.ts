@@ -34,6 +34,7 @@ const loadPerActionConfigs = (): ActionConfigMap => {
           web_search: cfg.web_search,
           local: cfg.local,
           forcible: cfg.forcible,
+          requires_article: cfg.requires_article,
           // Pricing (co-located with model/provider)
           pricing: cfg.pricing,
           // Custom prompt/config support

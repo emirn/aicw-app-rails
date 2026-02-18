@@ -1959,6 +1959,10 @@ async function main(): Promise<void> {
         illustrationStyle: cliStyle || undefined,
       });
 
+      // Generate favicon from branding
+      logger.log('Generating favicon...');
+      await executor.executeAction('enhance', sanitizedName, { mode: 'generate_favicon' });
+
       // Copy default prompts/write_draft/custom.md from bundled template
       logger.log('Applying default requirements template...');
       await initializePromptTemplates(projectDir);
