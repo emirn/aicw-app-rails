@@ -28,8 +28,8 @@ export const config = {
     host: env.HOST || '0.0.0.0',
   },
   log: {
-    toFile: env.LOG_TO_FILE === 'true',
-    file: env.LOG_FILE || 'server.log',
+    toFile: env.LOG_TO_FILE !== 'false',
+    file: env.LOG_FILE || 'log/sgen.log',
     level: env.LOG_LEVEL || 'info',
   },
   ai: {

@@ -54,7 +54,7 @@ import { createBuiltinLegalPages, getLegalFooterColumns, LegalPagesChoice } from
 import { createArticleFolder, articleFolderExists, buildPublished, updateArticleMeta, addAppliedAction, getArticleMeta } from './lib/folder-manager';
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
-import { existsSync, readFileSync, writeFileSync, statSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, statSync, mkdirSync, appendFileSync } from 'fs';
 import { loadExcludedActions, loadSectionExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
@@ -233,6 +233,7 @@ GLOBAL OPTIONS:
   -i, --interactive  Enable interactive mode (prompts for missing args)
   --base <url>       Sgen API base URL (default: http://localhost:3001)
   --range "N:M [date:YYYY-MM-DD] [url:path/]"  Batch select with optional filters (e.g., --range "1:50 url:blog/")
+  --stop-on-error    Stop batch on first article failure (default: continue)
   --debug            Enable debug output
   -h, --help         Show this help
 
@@ -290,6 +291,21 @@ async function main(): Promise<void> {
 
   // Logger for progress messages (stderr)
   const logger = new Logger();
+
+  // Save logs to file on exit (best-effort, sync calls safe in 'exit' handler)
+  process.on('exit', () => {
+    if (logger.getLines().length === 0) return;
+    try {
+      const cliRoot = path.resolve(__dirname, '..');
+      const logDir = path.join(cliRoot, 'log');
+      mkdirSync(logDir, { recursive: true });
+      const env = process.env.NODE_ENV || 'development';
+      const logPath = path.join(logDir, `${env}.log`);
+      const header = `\n${'='.repeat(60)}\nSession: ${new Date().toISOString()}\n${'='.repeat(60)}\n`;
+      appendFileSync(logPath, header + logger.getLines().join('\n') + '\n', 'utf-8');
+    } catch { /* best-effort */ }
+  });
+
   if (debug) {
     logger.log(`Debug mode enabled`);
     logger.log(`Base URL: ${baseUrl}`);
@@ -1801,14 +1817,14 @@ async function main(): Promise<void> {
               error: articleSuccess ? undefined : 'Pipeline failed',
             });
 
-            // Stop entire batch on first article failure
-            if (!articleSuccess) {
+            // Stop batch on first failure only if --stop-on-error flag is set
+            if (!articleSuccess && finalFlags['stop-on-error']) {
               batchStopped = true;
             }
           }
 
           if (batchStopped) {
-            logger.log(`\n❌ Batch stopped due to error. Fix the issue and retry.`);
+            logger.log(`\n❌ Batch stopped due to --stop-on-error flag. Fix the issue and retry.`);
           }
 
           const projectPaths = getProjectPaths(selectedProject);

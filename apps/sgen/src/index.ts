@@ -13,8 +13,8 @@ import projectRoutes from './routes/project';
 import { validateActionConfig } from './config/action-config';
 import { truncateError, truncateString } from './utils/log-truncate';
 import { closeDiagramRenderer } from './utils/diagram-renderer';
-import { existsSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -23,14 +23,14 @@ dotenv.config();
  * Prevents runtime failures when enhancement modes need shared prompts.
  */
 const validateRequiredTemplates = () => {
-  const promptsDir = join(__dirname, '..', 'config', 'prompts');
+  const promptsDir = path.join(__dirname, '..', 'config', 'prompts');
   const required = [
     'shared/patch-mode-instructions.md',
     'shared/article_structure_requirement.md',
     'shared/voice_guidelines.md',
   ];
 
-  const missing = required.filter(t => !existsSync(join(promptsDir, t)));
+  const missing = required.filter(t => !existsSync(path.join(promptsDir, t)));
   if (missing.length > 0) {
     console.error('\n❌ SGEN STARTUP FAILED\n');
     console.error('Missing required template files:');
@@ -42,6 +42,11 @@ const validateRequiredTemplates = () => {
 
 function buildLogger() {
   if (config.log.toFile) {
+    // Ensure log directory exists before pino tries to write
+    const logDir = path.dirname(config.log.file);
+    if (logDir && logDir !== '.') {
+      mkdirSync(logDir, { recursive: true });
+    }
     const streams = [pino.destination(1), pino.destination(config.log.file)];
     return pino({ level: config.log.level }, pino.multistream(streams));
   }
