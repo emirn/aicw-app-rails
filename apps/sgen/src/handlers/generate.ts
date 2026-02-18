@@ -115,96 +115,114 @@ export async function handleGenerate(
       : config.ai.defaultModel);
 
     log.info({ path: context.articlePath, words: targetWords, provider, modelId }, 'generate:start');
-    const { content, tokens, rawContent, usageStats } = await callAI(prompt, {
-      provider,
-      modelId,
-      baseUrl: genCfg?.ai_base_url,
-      pricing: genCfg?.pricing,
-    });
 
-    // Debug: Log content type and structure
-    log.info({
-      contentType: typeof content,
-      isObject: typeof content === 'object',
-      hasContentField: typeof content === 'object' && content !== null && 'content' in content,
-      rawContentPreview: rawContent.substring(0, 200)
-    }, 'generate:ai_response_debug');
-
-    // Use shared multi-strategy extractor
-    const extraction = extractMarkdownContent(content, rawContent, log);
-
-    let generatedContent: string;
-    let generatedTitle: string;
-    let generatedPath: string;
+    const MAX_ATTEMPTS = 2;
+    let generatedContent: string = '';
+    let generatedTitle: string = '';
+    let generatedPath: string = '';
     let generatedDescription: string | undefined;
     let generatedKeywords: string | string[] | undefined;
+    let lastQualityError: { error: string; errorCode: string } | undefined;
+    let finalTokens = 0;
+    let finalCostUsd = 0;
+    let finalRawContent = '';
 
-    if (extraction.success) {
-      generatedContent = extraction.content;
-      generatedTitle = extraction.metadata?.title || article.title || 'Untitled';
-      generatedPath = extraction.metadata?.path || '';
-      generatedDescription = extraction.metadata?.description;
-      generatedKeywords = extraction.metadata?.keywords;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const { content, tokens, rawContent, usageStats } = await callAI(prompt, {
+        provider,
+        modelId,
+        baseUrl: genCfg?.ai_base_url,
+        pricing: genCfg?.pricing,
+      });
+
+      finalTokens = tokens;
+      finalCostUsd = usageStats.cost_usd;
+      finalRawContent = rawContent;
+
+      // Debug: Log content type and structure
       log.info({
-        strategy: extraction.strategy,
-        contentLength: generatedContent.length,
-        hasMetadata: !!extraction.metadata,
-        warning: extraction.warning,
-      }, 'generate:extraction_success');
+        contentType: typeof content,
+        isObject: typeof content === 'object',
+        hasContentField: typeof content === 'object' && content !== null && 'content' in content,
+        rawContentPreview: rawContent.substring(0, 200),
+        attempt,
+      }, 'generate:ai_response_debug');
 
-      // Quality validation: word count check
-      const wordCount = generatedContent.split(/\s+/).filter(w => w.length > 0).length;
-      const minWords = Math.floor(targetWords * 0.5);
-      if (wordCount < minWords) {
-        log.error({
-          wordCount,
-          targetWords,
-          minWords,
+      // Use shared multi-strategy extractor
+      const extraction = extractMarkdownContent(content, rawContent, log);
+
+      lastQualityError = undefined;
+
+      if (extraction.success) {
+        generatedContent = extraction.content;
+        generatedTitle = extraction.metadata?.title || article.title || 'Untitled';
+        generatedPath = extraction.metadata?.path || '';
+        generatedDescription = extraction.metadata?.description;
+        generatedKeywords = extraction.metadata?.keywords;
+        log.info({
           strategy: extraction.strategy,
-        }, 'generate:content_too_short');
-        return {
-          success: false,
-          error: `Generated content too short: ${wordCount} words (minimum: ${minWords}, target: ${targetWords}). AI response may have been truncated.`,
-          errorCode: 'CONTENT_TOO_SHORT',
-          prompt,
-          operations: [],
+          contentLength: generatedContent.length,
+          hasMetadata: !!extraction.metadata,
+          warning: extraction.warning,
+          attempt,
+        }, 'generate:extraction_success');
+
+        // Quality validation: word count check
+        const wordCount = generatedContent.split(/\s+/).filter(w => w.length > 0).length;
+        const minWords = Math.floor(targetWords * 0.5);
+        if (wordCount < minWords) {
+          lastQualityError = {
+            error: `Generated content too short: ${wordCount} words (minimum: ${minWords}, target: ${targetWords}). AI response may have been truncated.`,
+            errorCode: 'CONTENT_TOO_SHORT',
+          };
+          if (attempt < MAX_ATTEMPTS) {
+            log.warn({ wordCount, targetWords, minWords, strategy: extraction.strategy, attempt }, 'generate:retrying_content_quality');
+            continue;
+          }
+          log.error({ wordCount, targetWords, minWords, strategy: extraction.strategy, attempt }, 'generate:content_too_short');
+          return { success: false, error: lastQualityError.error, errorCode: lastQualityError.errorCode, prompt, operations: [] };
+        }
+
+        // Quality validation: truncation detection
+        const trimmedContent = generatedContent.trimEnd();
+        const lastChar = trimmedContent[trimmedContent.length - 1];
+        if (lastChar && !/[.!?:)\]"'\n#*-]/.test(lastChar)) {
+          lastQualityError = {
+            error: `Generated content appears truncated (ends with "${lastChar}" instead of sentence-ending punctuation). AI response may have been cut off.`,
+            errorCode: 'CONTENT_TRUNCATED',
+          };
+          if (attempt < MAX_ATTEMPTS) {
+            log.warn({ lastChar, strategy: extraction.strategy, attempt }, 'generate:retrying_content_quality');
+            continue;
+          }
+          log.error({ lastChar, contentEnd: trimmedContent.substring(Math.max(0, trimmedContent.length - 100)), strategy: extraction.strategy, attempt }, 'generate:content_truncated');
+          return { success: false, error: lastQualityError.error, errorCode: lastQualityError.errorCode, prompt, operations: [] };
+        }
+      } else {
+        // All extraction strategies failed
+        lastQualityError = {
+          error: 'Content extraction failed. AI response may have been truncated. Try regenerating with higher token limit.',
+          errorCode: 'CONTENT_EXTRACTION_FAILED',
         };
+        if (attempt < MAX_ATTEMPTS) {
+          log.warn({
+            strategy: 'all_failed',
+            rawContentPreview: rawContent.substring(0, 200),
+            attempt,
+          }, 'generate:retrying_content_quality');
+          continue;
+        }
+        log.error({
+          strategy: 'all_failed',
+          rawContentPreview: rawContent.substring(0, 500),
+          rawContentEnd: rawContent.substring(Math.max(0, rawContent.length - 200)),
+          attempt,
+        }, 'generate:extraction_failed_content_truncated');
+        return { success: false, error: lastQualityError.error, errorCode: lastQualityError.errorCode, prompt, operations: [] };
       }
 
-      // Quality validation: truncation detection
-      const trimmedContent = generatedContent.trimEnd();
-      const lastChar = trimmedContent[trimmedContent.length - 1];
-      if (lastChar && !/[.!?:)\]"'\n#*-]/.test(lastChar)) {
-        log.error({
-          lastChar,
-          contentEnd: trimmedContent.substring(Math.max(0, trimmedContent.length - 100)),
-          strategy: extraction.strategy,
-        }, 'generate:content_truncated');
-        return {
-          success: false,
-          error: `Generated content appears truncated (ends with "${lastChar}" instead of sentence-ending punctuation). AI response may have been cut off.`,
-          errorCode: 'CONTENT_TRUNCATED',
-          prompt,
-          operations: [],
-        };
-      }
-    } else {
-      // All extraction strategies failed - this is a FAILURE, not a fallback
-      // The article content is likely truncated JSON that cannot be recovered
-      log.error({
-        strategy: 'all_failed',
-        rawContentPreview: rawContent.substring(0, 500),
-        rawContentEnd: rawContent.substring(Math.max(0, rawContent.length - 200)),
-      }, 'generate:extraction_failed_content_truncated');
-
-      // Return failure - do NOT save corrupt content to index.md
-      return {
-        success: false,
-        error: 'Content extraction failed. AI response may have been truncated. Try regenerating with higher token limit.',
-        errorCode: 'CONTENT_EXTRACTION_FAILED',
-        prompt,
-        operations: [],
-      };
+      // Quality checks passed - break out of retry loop
+      break;
     }
 
     // Strip duplicate H1 title from content if it matches the article title
@@ -237,15 +255,15 @@ export async function handleGenerate(
       keywords: keywordsArray || article.keywords || [],
     });
 
-    log.info({ path: context.articlePath, words: generatedContent.split(/\s+/).length, tokens, cost_usd: usageStats.cost_usd }, 'generate:done');
+    log.info({ path: context.articlePath, words: generatedContent.split(/\s+/).length, tokens: finalTokens, cost_usd: finalCostUsd }, 'generate:done');
 
     return {
       success: true,
       message: `Generated article: ${generatedTitle} (${generatedContent.split(/\s+/).length} words)`,
-      tokensUsed: tokens,
-      costUsd: usageStats.cost_usd,
+      tokensUsed: finalTokens,
+      costUsd: finalCostUsd,
       prompt,  // Include for history tracking
-      rawResponse: flags.debug ? rawContent : undefined,  // Include raw AI response when debug flag set
+      rawResponse: flags.debug ? finalRawContent : undefined,  // Include raw AI response when debug flag set
       operations: [buildArticleOperation(context.articlePath!, updatedArticle)],
     };
   } catch (err: any) {
