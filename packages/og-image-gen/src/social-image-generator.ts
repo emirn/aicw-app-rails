@@ -1,17 +1,15 @@
 /**
- * Social Image Generator (Server Version)
+ * Social Image Generator (Shared Package)
  *
  * Generates OG/social preview images using Satori + Resvg.
  * This is a local, template-based approach (no AI, no API costs).
  *
- * Key differences from CLI version:
- * - Returns Buffer directly (no file system writes)
- * - Config/template/font paths resolved relative to server templates directory
- * - No projectRoot parameter - uses server config paths
+ * Used by:
+ * - sgen: as a workspace dependency (@blogpostgen/og-image-gen)
+ * - template: source files copied to src/lib/og-image-gen/
  */
 
 import satori from 'satori';
-import { html } from 'satori-html';
 import { Resvg } from '@resvg/resvg-js';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -37,6 +35,8 @@ export interface SocialImageConfig {
   brand_name?: string;
   gradient?: [string, string, string];
   font?: string;
+  /** Directory containing font files. Defaults to ../fonts relative to dist/ or src/ */
+  fontDir?: string;
 }
 
 export class SocialImageGenerator {
@@ -115,27 +115,29 @@ export class SocialImageGenerator {
   }
 
   /**
-   * Load font from bundled templates directory
+   * Load font from fonts directory
+   * Default path resolves to ../fonts relative to this file (works from dist/ or src/)
    */
-  async loadFont(): Promise<Buffer> {
+  async loadFont(fontDir?: string): Promise<Buffer> {
     if (this.fontBuffer) return this.fontBuffer;
 
     const fontName = this.config.font || 'Inter-Bold.ttf';
-    const bundledFontPath = path.join(__dirname, '../../templates/fonts', fontName);
-    this.fontBuffer = await fs.readFile(bundledFontPath);
+    const dir = fontDir || this.config.fontDir || path.join(__dirname, '../fonts');
+    this.fontBuffer = await fs.readFile(path.join(dir, fontName));
     return this.fontBuffer;
   }
 
   /**
    * Generate social preview image
    */
-  async generate(options: SocialImageOptions): Promise<SocialImageResult> {
-    const font = await this.loadFont();
+  async generate(options: SocialImageOptions, fontDir?: string): Promise<SocialImageResult> {
+    const font = await this.loadFont(fontDir);
 
     let svg: string;
 
     if (this.templateHtml) {
-      // Path A: Custom HTML template via satori-html
+      // Path A: Custom HTML template via satori-html (dynamic import)
+      const { html } = await import('satori-html');
       const mergedOptions = {
         ...options,
         badge: options.badge || this.config.badge,

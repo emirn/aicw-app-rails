@@ -18,6 +18,9 @@
     "astro": "^5.16.6",
     "astro-pagefind": "^1.6.0",
     "js-yaml": "^4.1.1",
+    "satori": "^0.18.3",
+    "@resvg/resvg-js": "^2.6.2",
+    "sharp": "^0.33.5",
     "tailwindcss": "^4"
   },
   "devDependencies": {

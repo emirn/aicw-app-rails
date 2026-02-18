@@ -91,6 +91,13 @@ jobs:
           cache-from: type=gha,scope=aicw-sgen
           cache-to: type=gha,mode=max,scope=aicw-sgen
 
+      - name: Copy shared libs for wbuilder template
+        run: |
+          mkdir -p apps/wbuilder/templates/default/src/lib/og-image-gen
+          cp -r packages/og-image-gen/src/* apps/wbuilder/templates/default/src/lib/og-image-gen/
+          mkdir -p apps/wbuilder/templates/default/src/fonts
+          cp packages/og-image-gen/fonts/Inter-Bold.ttf apps/wbuilder/templates/default/src/fonts/
+
       - name: Build and push website-builder image
         uses: docker/build-push-action@v5
         with:

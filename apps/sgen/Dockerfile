@@ -33,6 +33,7 @@ COPY package*.json ./
 
 # Copy workspace package.json files (for dependency resolution)
 COPY packages/types/package*.json ./packages/types/
+COPY packages/og-image-gen/package*.json ./packages/og-image-gen/
 COPY apps/sgen/package*.json ./apps/sgen/
 
 # Install all dependencies from root (npm workspaces handles linking)
@@ -40,10 +41,12 @@ RUN npm ci
 
 # Copy source code
 COPY packages/types ./packages/types
+COPY packages/og-image-gen ./packages/og-image-gen
 COPY apps/sgen ./apps/sgen
 
 # Build in dependency order
 RUN npm run build --workspace=@blogpostgen/types
+RUN npm run build --workspace=@blogpostgen/og-image-gen
 RUN npm run build --workspace=sgen
 
 # Prune dev dependencies for smaller image

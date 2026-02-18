@@ -19,7 +19,7 @@ import { generateImage } from '../services/image.service';
 import { generateRecraftImage } from '../services/recraft-image.service';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { convertBase64ToWebp } from '../utils/webp-converter';
+import { convertBase64ToWebp } from '@blogpostgen/og-image-gen';
 import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
 
 const DEFAULT_HERO_PROVIDER: 'flux' | 'recraft' = 'recraft';

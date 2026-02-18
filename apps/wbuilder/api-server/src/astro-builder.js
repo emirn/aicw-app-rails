@@ -220,6 +220,26 @@ export async function buildAstroSite(options) {
   await fs.rm(workDir, { recursive: true, force: true });
   await fs.cp(templateDir, workDir, { recursive: true });
 
+  // 1.5. Copy shared og-image-gen library source to template (if not already present)
+  const ogImageGenDir = path.join(workDir, 'src/lib/og-image-gen');
+  try {
+    await fs.access(ogImageGenDir);
+    logFn('Shared og-image-gen library already present');
+  } catch {
+    // Development mode: copy from monorepo packages/
+    const monoRepoShared = path.resolve(workDir, '../../packages/og-image-gen/src');
+    const monoRepoFonts = path.resolve(workDir, '../../packages/og-image-gen/fonts');
+    try {
+      await fs.mkdir(path.join(workDir, 'src/lib/og-image-gen'), { recursive: true });
+      await fs.cp(monoRepoShared, path.join(workDir, 'src/lib/og-image-gen'), { recursive: true });
+      await fs.mkdir(path.join(workDir, 'src/fonts'), { recursive: true });
+      await fs.cp(monoRepoFonts, path.join(workDir, 'src/fonts'), { recursive: true });
+      logFn('Copied shared og-image-gen library');
+    } catch {
+      logFn('Shared og-image-gen not found, OG images will be skipped');
+    }
+  }
+
   // 2. Process data URLs and write site config
   logFn('Writing site configuration...');
   const dataDir = path.join(workDir, 'data');
