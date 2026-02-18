@@ -15,7 +15,10 @@ const articles = defineCollection({
     ]).optional(),
     author: z.string().optional(),
     categories: z.array(z.string()).optional(),
-    tags: z.array(z.string()).optional(),
+    tags: z.preprocess(
+      (val) => typeof val === 'string' ? val.split(',').map(t => t.trim()).filter(Boolean) : val,
+      z.array(z.string()).optional()
+    ),
     og_title: z.string().optional(),
     og_description: z.string().optional(),
     twitter_title: z.string().optional(),
