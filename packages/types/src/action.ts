@@ -73,6 +73,8 @@ export interface IActionConfig {
   colors?: Record<string, string>;
   // When true, action must produce content changes or it's treated as a failure (stops pipeline)
   require_changes?: boolean;
+  // Action-specific config for add_external_links (words_per_link ratio)
+  add_external_links?: { words_per_link: number };
   // When false, action does not require an article (project-level action)
   requires_article?: boolean;
 

@@ -31,11 +31,12 @@ You are NOT limited to this list. Any established brand, organization, or author
 5. Do NOT pick anchor text that is already inside a markdown link `[...]()`
 6. Do NOT pick anchor text from markdown headings (lines starting with #, ##, ###, etc.)
 7. Do NOT pick anchor text that is a standalone short line like a caption, label, or single-sentence paragraph — only link phrases within substantial body paragraphs
-8. **Prefer diverse sources** - use different URLs when possible, but linking the same authoritative source from multiple relevant places is acceptable
-9. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
-10. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
-11. **URLs MUST point to specific pages, articles, or resources — NEVER link to a domain homepage** (e.g. `https://nature.com/` or `https://ieee.org/` are WRONG; `https://nature.com/articles/s41586-024-07588-8` is CORRECT). Every URL must have a meaningful path beyond just `/`.
-12. If you cannot find a specific page URL for a source, **skip that link entirely** rather than using a homepage URL
+8. Each anchor_text MUST be unique and non-overlapping — do NOT return two anchor texts where one contains the other (e.g., if you pick "vendor contract review checklist", do NOT also pick "vendor contract review" or "contract review checklist")
+9. **Repeating authoritative sources is fine** - if only one or a few highly authoritative sources exist for this topic, it is perfectly acceptable to link the same domain or even the same URL multiple times at different relevant places in the article. Diversity is preferred when good alternatives exist, but do not sacrifice link quality just to use different domains
+10. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website
+11. Do NOT use personal blogs, social media, affiliate/marketing sites, or unknown sources
+12. **URLs MUST point to specific pages, articles, or resources — NEVER link to a domain homepage** (e.g. `https://nature.com/` or `https://ieee.org/` are WRONG; `https://nature.com/articles/s41586-024-07588-8` is CORRECT). Every URL must have a meaningful path beyond just `/`.
+13. If you cannot find a specific page URL for a source, **skip that link entirely** rather than using a homepage URL
 
 ## URL Examples
 

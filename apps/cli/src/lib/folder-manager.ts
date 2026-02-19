@@ -17,6 +17,7 @@ import { existsSync } from 'fs';
 import {
   IArticle,
   IArticleFolder,
+  ICostEntry,
   IPlanSummary,
   IVersionEntry,
   INDEX_FILE,
@@ -658,30 +659,30 @@ export async function addAppliedAction(
  * @param folderPath - Absolute path to article folder
  * @param action - Name of the action (e.g., "write_draft", "fact_check")
  * @param cost - Cost in USD (0 for no-AI actions)
- * @param stats - Optional content stats snapshot (before/after counts)
+ * @param wordStats - Flat word stats (words_before, words_after, words_delta, words_delta_pct, changes)
  */
 export async function addCostEntry(
   folderPath: string,
   action: string,
   cost: number,
-  stats?: {
+  wordStats?: {
     words_before: number;
     words_after: number;
-    word_delta: number;
-    word_delta_pct: number;
-    links_before: number;
-    links_after: number;
-    changes?: number;
+    words_delta: number;
+    words_delta_pct: number;
+    changes: number;
   }
 ): Promise<void> {
-  const entry: any = {
+  const entry: ICostEntry = {
     created_at: new Date().toISOString(),
     action,
-    cost,
+    cost: Math.max(cost, 0.01),
+    words_before: wordStats?.words_before ?? 0,
+    words_after: wordStats?.words_after ?? 0,
+    words_delta: wordStats?.words_delta ?? 0,
+    words_delta_pct: wordStats?.words_delta_pct ?? 0,
+    changes: wordStats?.changes ?? 0,
   };
-  if (stats) {
-    entry.stats = stats;
-  }
 
   // Read current costs from disk before appending
   const freshMeta = await readArticleMeta(folderPath);

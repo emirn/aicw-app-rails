@@ -248,16 +248,16 @@ export interface ICostEntry {
   action: string;
   /** Cost in USD (0 for no-AI actions) */
   cost: number;
-  /** Content stats snapshot (before/after word counts, links, etc.) */
-  stats?: {
-    words_before: number;
-    words_after: number;
-    word_delta: number;
-    word_delta_pct: number;
-    links_before: number;
-    links_after: number;
-    changes?: number;
-  };
+  /** Word count before the action (0 if not applicable) */
+  words_before: number;
+  /** Word count after the action */
+  words_after: number;
+  /** words_after - words_before */
+  words_delta: number;
+  /** Percentage change (0 if words_before=0) */
+  words_delta_pct: number;
+  /** Replacements/patches applied (0 if n/a) */
+  changes: number;
 }
 
 /**

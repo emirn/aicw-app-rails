@@ -592,10 +592,8 @@ export class APIExecutor {
           const costStats = response.contentStats ? {
             words_before: response.contentStats.words_before,
             words_after: response.contentStats.words_after,
-            word_delta: response.contentStats.word_delta,
-            word_delta_pct: response.contentStats.word_delta_pct,
-            links_before: response.contentStats.links_before,
-            links_after: response.contentStats.links_after,
+            words_delta: response.contentStats.words_delta,
+            words_delta_pct: response.contentStats.words_delta_pct,
             changes: response.contentStats.changes,
           } : undefined;
           await addCostEntry(folderPath, flags.mode, response.costUsd || 0, costStats);
@@ -947,13 +945,19 @@ export class APIExecutor {
         }
       }
 
-      // For enhance action with add_external_links mode, load project-level allowed-domains.txt
+      // For enhance action with add_external_links mode, load project-level allowed-domains.txt and config
       if (action === 'enhance' && flags.mode === 'add_external_links') {
         const projectPaths = getProjectPaths(resolved.projectName);
         const domainsTxt = await loadActionPrompt(projectPaths.root, 'add_external_links', 'domains.txt');
         if (domainsTxt) {
           flags.domains_txt = domainsTxt;
           this.logger.log('Loaded project domains.txt for add_external_links');
+        }
+        const { loadActionConfig } = await import('./action-config-loader');
+        const actionConfig = await loadActionConfig(projectPaths.root, 'add_external_links');
+        if ((actionConfig as any)?.add_external_links?.words_per_link) {
+          flags.words_per_link = (actionConfig as any).add_external_links.words_per_link;
+          this.logger.log(`Loaded project words_per_link: ${flags.words_per_link}`);
         }
       }
 
