@@ -29,7 +29,10 @@ function getSiteConfig() {
 // https://astro.build/config
 // Note: Using object form (not function form) for defineConfig to ensure integration hooks run properly
 const siteConfig = getSiteConfig();
-const siteUrl = siteConfig?.site?.url || 'https://example.com';
+const siteUrl = siteConfig?.branding?.site?.url;
+if (!siteUrl) {
+  throw new Error('Missing site URL: data/site-config.json must have branding.site.url');
+}
 
 // Always include pagefind integration for dev server middleware
 // ogImages BEFORE validateImages so OG images exist during validation
