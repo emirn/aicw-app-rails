@@ -14,6 +14,7 @@ import mdx from '@astrojs/mdx';
 import pagefind from 'astro-pagefind';
 import { validateImages } from './src/integrations/validate-images.js';
 import { ogImages } from './src/integrations/og-images.js';
+import { sitemapCopy } from './src/integrations/sitemap-copy.js';
 
 // Load site config if available
 function getSiteConfig() {
@@ -36,7 +37,7 @@ if (!siteUrl) {
 
 // Always include pagefind integration for dev server middleware
 // ogImages BEFORE validateImages so OG images exist during validation
-const integrations = [sitemap(), mdx(), pagefind(), ogImages(), validateImages()];
+const integrations = [sitemap(), mdx(), pagefind(), ogImages(), validateImages(), sitemapCopy()];
 
 export default defineConfig({
   site: siteUrl,
