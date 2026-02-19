@@ -55,6 +55,7 @@ import { createArticleFolder, articleFolderExists, buildPublished, updateArticle
 import { IArticle } from '@blogpostgen/types';
 import { initializePromptTemplates, getRequirementsFile, mergeProjectTemplateDefaults } from './lib/prompt-loader';
 import { existsSync, readFileSync, writeFileSync, statSync, mkdirSync, appendFileSync } from 'fs';
+import crypto from 'crypto';
 import { loadExcludedActions, loadSectionExcludedActions, filterPipelineActions } from './lib/pipeline-exclude';
 import { setPublishablePattern, setPipelinesMap } from './lib/workflow';
 import {
@@ -289,8 +290,12 @@ async function main(): Promise<void> {
   // Parse arguments
   const { action, path: pathArg, flags, interactive, baseUrl, debug, help } = parseArgs(process.argv);
 
+  // Generate unique session ID for this CLI invocation (used for temp files, logs, tracing)
+  const sessionId = crypto.randomUUID().slice(0, 8);
+
   // Logger for progress messages (stderr)
   const logger = new Logger();
+  logger.log(`Session: ${sessionId}`);
 
   // Save logs to file on exit (best-effort, sync calls safe in 'exit' handler)
   process.on('exit', () => {
@@ -301,7 +306,7 @@ async function main(): Promise<void> {
       mkdirSync(logDir, { recursive: true });
       const env = process.env.NODE_ENV || 'development';
       const logPath = path.join(logDir, `${env}.log`);
-      const header = `\n${'='.repeat(60)}\nSession: ${new Date().toISOString()}\n${'='.repeat(60)}\n`;
+      const header = `\n${'='.repeat(60)}\nSession: ${sessionId} ${new Date().toISOString()}\n${'='.repeat(60)}\n`;
       appendFileSync(logPath, header + logger.getLines().join('\n') + '\n', 'utf-8');
     } catch { /* best-effort */ }
   });
@@ -882,6 +887,7 @@ async function main(): Promise<void> {
         projectName: selectedProject,
         projectConfig: projectConfig || undefined,
         logger,
+        sessionId,
       });
 
       // Output result
@@ -2577,6 +2583,7 @@ async function main(): Promise<void> {
       projectName: selectedProject,
       projectConfig: projectConfig || undefined,
       logger,
+      sessionId,
     });
 
     if (buildResult.success) {

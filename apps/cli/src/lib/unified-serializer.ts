@@ -7,6 +7,7 @@
  */
 
 import { promises as fs } from 'fs';
+import { writeFileSync, unlinkSync } from 'fs';
 import path from 'path';
 import { ISerializerOptions, ISerializerMeta, SERIALIZED_FIELDS, SERIALIZED_FIELD_FILES } from '@blogpostgen/types';
 
@@ -135,65 +136,93 @@ export class UnifiedSerializer<T extends Record<string, any>> {
    * Write data to index.json and sync override files
    *
    * Algorithm:
-   * 1. Write full data to index.json (always)
-   * 2. Auto-create/sync override files for SERIALIZED_FIELDS (content, faq, content_jsonld, faq_jsonld)
-   * 3. Sync any OTHER existing override files (for extensibility)
+   * 1. Auto-increment version and updated_at (if present in data)
+   * 2. Acquire .lock file (fail if another process is writing)
+   * 3. Write full data to index.json (always)
+   * 4. Auto-create/sync override files for SERIALIZED_FIELDS (content, faq, content_jsonld, faq_jsonld)
+   * 5. Sync any OTHER existing override files (for extensibility)
+   * 6. Release .lock file
    */
   async write(data: T): Promise<void> {
     // Ensure folder exists
     await fs.mkdir(this.folderPath, { recursive: true });
 
-    // Write full data to index.json
-    const indexPath = this.getIndexPath();
-    await fs.writeFile(indexPath, JSON.stringify(data, null, JSON_INDENT) + '\n', 'utf-8');
-
-    // Auto-create/sync override files for SERIALIZED_FIELDS
-    for (const field of SERIALIZED_FIELDS) {
-      const value = (data as any)[field];
-      if (value && typeof value === 'string' && value.trim()) {
-        const filePath = path.join(this.folderPath, SERIALIZED_FIELD_FILES[field]);
-        try {
-          await fs.writeFile(filePath, value, 'utf-8');
-        } catch (err) {
-          console.error(`Warning: Failed to write ${SERIALIZED_FIELD_FILES[field]}: ${err}`);
-        }
-      }
+    // Auto-increment version and updated_at if present on data object
+    const d = data as Record<string, any>;
+    if ('version' in d) {
+      d.version = (typeof d.version === 'number' ? d.version : 0) + 1;
+    }
+    if ('updated_at' in d) {
+      d.updated_at = new Date().toISOString();
     }
 
-    // Sync any OTHER existing override files (non-SERIALIZED_FIELDS) if enabled
-    if (this.syncOverrides) {
-      const overrides = await this.detectOverrides();
-      const serializedFieldSet = new Set<string>(SERIALIZED_FIELDS);
+    // Acquire .lock file to prevent concurrent writes (wx = atomic create-or-fail)
+    const lockPath = path.join(this.folderPath, '.lock');
+    try {
+      writeFileSync(lockPath, '', { flag: 'wx' });
+    } catch {
+      throw new Error(
+        `Write conflict: another process is writing to ${this.folderPath}. ` +
+        `If stale, remove the .lock file manually.`
+      );
+    }
 
-      for (const [fieldName, filePath] of overrides) {
-        // Skip SERIALIZED_FIELDS - already handled above
-        if (serializedFieldSet.has(fieldName)) {
-          continue;
-        }
+    try {
+      // Write full data to index.json
+      const indexPath = this.getIndexPath();
+      await fs.writeFile(indexPath, JSON.stringify(data, null, JSON_INDENT) + '\n', 'utf-8');
 
-        const value = (data as any)[fieldName];
-
-        if (value === undefined) {
-          // Field doesn't exist in data anymore - leave override file as-is
-          // (user may have intentionally removed it from index.json)
-          continue;
-        }
-
-        try {
-          if (filePath.endsWith('.md')) {
-            // String override - write content if value is string
-            if (typeof value === 'string') {
-              await fs.writeFile(filePath, value, 'utf-8');
-            }
-          } else if (filePath.endsWith('.json')) {
-            // JSON override - write formatted JSON
-            await fs.writeFile(filePath, JSON.stringify(value, null, JSON_INDENT) + '\n', 'utf-8');
+      // Auto-create/sync override files for SERIALIZED_FIELDS
+      for (const field of SERIALIZED_FIELDS) {
+        const value = (data as any)[field];
+        if (value && typeof value === 'string' && value.trim()) {
+          const filePath = path.join(this.folderPath, SERIALIZED_FIELD_FILES[field]);
+          try {
+            await fs.writeFile(filePath, value, 'utf-8');
+          } catch (err) {
+            console.error(`Warning: Failed to write ${SERIALIZED_FIELD_FILES[field]}: ${err}`);
           }
-        } catch (err) {
-          // Best effort sync - don't fail the write if override sync fails
-          console.error(`Warning: Failed to sync override file ${filePath}: ${err}`);
         }
       }
+
+      // Sync any OTHER existing override files (non-SERIALIZED_FIELDS) if enabled
+      if (this.syncOverrides) {
+        const overrides = await this.detectOverrides();
+        const serializedFieldSet = new Set<string>(SERIALIZED_FIELDS);
+
+        for (const [fieldName, filePath] of overrides) {
+          // Skip SERIALIZED_FIELDS - already handled above
+          if (serializedFieldSet.has(fieldName)) {
+            continue;
+          }
+
+          const value = (data as any)[fieldName];
+
+          if (value === undefined) {
+            // Field doesn't exist in data anymore - leave override file as-is
+            // (user may have intentionally removed it from index.json)
+            continue;
+          }
+
+          try {
+            if (filePath.endsWith('.md')) {
+              // String override - write content if value is string
+              if (typeof value === 'string') {
+                await fs.writeFile(filePath, value, 'utf-8');
+              }
+            } else if (filePath.endsWith('.json')) {
+              // JSON override - write formatted JSON
+              await fs.writeFile(filePath, JSON.stringify(value, null, JSON_INDENT) + '\n', 'utf-8');
+            }
+          } catch (err) {
+            // Best effort sync - don't fail the write if override sync fails
+            console.error(`Warning: Failed to sync override file ${filePath}: ${err}`);
+          }
+        }
+      }
+    } finally {
+      // Release .lock file
+      try { unlinkSync(lockPath); } catch {}
     }
   }
 

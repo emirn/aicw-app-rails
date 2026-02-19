@@ -8,6 +8,7 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
+import crypto from 'crypto';
 import { parsePublishedFolder } from './published-parser.js';
 import { normalizeUrl } from '../url-utils.js';
 import { getProjectTmpDir } from '../config/user-paths.js';
@@ -94,6 +95,8 @@ export interface BuildWebsiteLocalOptions {
     description?: string;
   };
   logger: { log: (msg: string) => void };
+  /** Session ID for temp directory isolation (auto-generated if not provided) */
+  sessionId?: string;
 }
 
 export interface BuildWebsiteLocalResult {
@@ -111,6 +114,7 @@ export async function buildWebsiteLocal(
   options: BuildWebsiteLocalOptions
 ): Promise<BuildWebsiteLocalResult> {
   const { projectRoot, projectName, projectConfig, logger } = options;
+  const sid = options.sessionId || crypto.randomUUID().slice(0, 8);
 
   // 1. Read published articles
   const publishedDir = path.join(projectRoot, 'published');
@@ -140,51 +144,51 @@ export async function buildWebsiteLocal(
     return { success: false, error: err instanceof Error ? err.message : 'Astro builder not found' };
   }
 
-  // 3. Create job directory for assets
-  const jobDir = path.join(getProjectTmpDir(projectName), 'wb-build-job');
+  // 3. Create session-scoped job directory for assets (prevents conflicts with parallel builds)
+  const jobDir = path.join(getProjectTmpDir(projectName), `wb-build-${sid}`);
   await fs.mkdir(jobDir, { recursive: true });
 
-  // 4. Copy assets from published-assets/ to job directory
-  const publishedAssetsDir = path.join(projectRoot, 'published-assets');
-  const jobAssetsDir = path.join(jobDir, 'assets');
-
-  if (existsSync(publishedAssetsDir)) {
-    logger.log('Copying assets...');
-    await fs.rm(jobAssetsDir, { recursive: true, force: true });
-    await fs.cp(publishedAssetsDir, jobAssetsDir, { recursive: true });
-    const assetCount = await countFiles(jobAssetsDir);
-    logger.log(`  Copied ${assetCount} assets`);
-  }
-
-  // 5. Build site config
-  const siteName = projectConfig?.name || projectConfig?.title || projectName;
-  const config: SiteConfig = {
-    site: {
-      name: siteName,
-      url: normalizeUrl(projectConfig?.url || 'http://localhost:8080'),
-      description: projectConfig?.website_info?.description || projectConfig?.description || '',
-    },
-    logo: {
-      type: 'text',
-      text: siteName,
-    },
-    header: {
-      nav_links: [{ label: 'Home', url: '/' }],
-      cta_button: {
-        enabled: false,
-      },
-    },
-    footer: {
-      columns: [],
-      show_powered_by: true,
-    },
-  };
-
-  // 6. Set output directory
-  const outputDir = path.join(projectRoot, 'website-preview');
-
-  // 7. Import and call buildAstroSite
   try {
+    // 4. Copy assets from published-assets/ to job directory
+    const publishedAssetsDir = path.join(projectRoot, 'published-assets');
+    const jobAssetsDir = path.join(jobDir, 'assets');
+
+    if (existsSync(publishedAssetsDir)) {
+      logger.log('Copying assets...');
+      await fs.rm(jobAssetsDir, { recursive: true, force: true });
+      await fs.cp(publishedAssetsDir, jobAssetsDir, { recursive: true });
+      const assetCount = await countFiles(jobAssetsDir);
+      logger.log(`  Copied ${assetCount} assets`);
+    }
+
+    // 5. Build site config
+    const siteName = projectConfig?.name || projectConfig?.title || projectName;
+    const config: SiteConfig = {
+      site: {
+        name: siteName,
+        url: normalizeUrl(projectConfig?.url || 'http://localhost:8080'),
+        description: projectConfig?.website_info?.description || projectConfig?.description || '',
+      },
+      logo: {
+        type: 'text',
+        text: siteName,
+      },
+      header: {
+        nav_links: [{ label: 'Home', url: '/' }],
+        cta_button: {
+          enabled: false,
+        },
+      },
+      footer: {
+        columns: [],
+        show_powered_by: true,
+      },
+    };
+
+    // 6. Set output directory
+    const outputDir = path.join(projectRoot, 'website-preview');
+
+    // 7. Import and call buildAstroSite
     logger.log('Building website...');
 
     // Dynamic import of the JS module
@@ -213,6 +217,9 @@ export async function buildWebsiteLocal(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Build failed';
     return { success: false, error: errorMsg };
+  } finally {
+    // Clean up session-scoped temp directory
+    await fs.rm(jobDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 

@@ -258,17 +258,15 @@ export async function saveArticleWithPipeline(
     await archiveVersion(folderPath, currentContent, metaContent, archivePhase, prompt, rawResponse);
   }
 
-  // Build updated metadata
+  // Build updated metadata (version and updated_at are auto-set by UnifiedSerializer)
   const updatedMeta: IArticle = {
     ...meta,
     ...metaUpdates,
     // When newPipeline is null, preserve existing last_pipeline value
     last_pipeline: newPipeline !== null ? newPipeline : meta.last_pipeline,
-    version: (meta.version ?? 0) + 1,
-    updated_at: new Date().toISOString(),
   };
 
-  // Write unified data (UnifiedSerializer handles content.md creation)
+  // Write unified data (UnifiedSerializer handles content.md creation, version++, updated_at, .lock)
   const serializer = new UnifiedSerializer<IArticle & { content: string }>(folderPath);
   await serializer.write({
     ...updatedMeta,
@@ -300,11 +298,10 @@ export async function saveArticle(
     throw new Error(`Article not found in ${folderPath}`);
   }
 
-  // Update content and timestamp (UnifiedSerializer handles content.md)
+  // Update content (UnifiedSerializer handles content.md, version++, updated_at, .lock)
   await serializer.write({
     ...existing,
     content,
-    updated_at: new Date().toISOString(),
   });
 }
 
@@ -338,14 +335,11 @@ export async function saveArticleWithAction(
     await archiveVersion(folderPath, currentContent, metaContent, action, prompt);
   }
 
-  // Write updated content
-  // UnifiedSerializer handles content.md creation
+  // Write updated content (UnifiedSerializer handles content.md, version++, updated_at, .lock)
   const serializer = new UnifiedSerializer<IArticle & { content: string }>(folderPath);
   await serializer.write({
     ...meta,
     content,
-    version: (meta.version ?? 0) + 1,
-    updated_at: new Date().toISOString(),
   });
 }
 
@@ -426,15 +420,13 @@ export async function transitionPipeline(
     await archiveVersion(folderPath, content, metaContent, meta.last_pipeline || 'seed');
   }
 
-  // Build updated metadata
+  // Build updated metadata (version and updated_at are auto-set by UnifiedSerializer)
   const updatedMeta: IArticle = {
     ...meta,
     last_pipeline: newPipeline,
-    version: (meta.version ?? 0) + 1,
-    updated_at: new Date().toISOString(),
   };
 
-  // Write unified data (UnifiedSerializer handles content.md if content exists)
+  // Write unified data (UnifiedSerializer handles content.md, version++, updated_at, .lock)
   const serializer = new UnifiedSerializer<IArticle & { content?: string }>(folderPath);
   await serializer.write({
     ...updatedMeta,
@@ -625,10 +617,9 @@ export async function updateArticleMeta(
   const updatedMeta: IArticle = {
     ...meta,
     ...updates,
-    updated_at: new Date().toISOString(),
   };
 
-  // Write unified data (UnifiedSerializer handles content.md if content exists)
+  // Write unified data (UnifiedSerializer handles content.md, version++, updated_at, .lock)
   const content = await readArticle(folderPath);
   const serializer = new UnifiedSerializer<IArticle & { content?: string }>(folderPath);
   await serializer.write({
@@ -654,12 +645,11 @@ export async function addAppliedAction(
   if (!meta) return;
 
   const currentActions = meta.applied_actions || [];
-  const newActions = [...new Set([...currentActions, actionName])];
+  if (currentActions.includes(actionName)) return;
 
-  // Only update if actually changed
-  if (newActions.length > currentActions.length) {
-    await updateArticleMeta(folderPath, { applied_actions: newActions });
-  }
+  await updateArticleMeta(folderPath, {
+    applied_actions: [...currentActions, actionName],
+  });
 }
 
 /**
@@ -684,10 +674,6 @@ export async function addCostEntry(
     changes?: number;
   }
 ): Promise<void> {
-  const meta = await readArticleMeta(folderPath);
-  if (!meta) return;
-
-  const costs = meta.costs || [];
   const entry: any = {
     created_at: new Date().toISOString(),
     action,
@@ -696,9 +682,14 @@ export async function addCostEntry(
   if (stats) {
     entry.stats = stats;
   }
-  costs.push(entry);
 
-  await updateArticleMeta(folderPath, { costs });
+  // Read current costs from disk before appending
+  const freshMeta = await readArticleMeta(folderPath);
+  if (!freshMeta) return;
+  const freshCosts = freshMeta.costs || [];
+  freshCosts.push(entry);
+
+  await updateArticleMeta(folderPath, { costs: freshCosts });
 }
 
 /**
