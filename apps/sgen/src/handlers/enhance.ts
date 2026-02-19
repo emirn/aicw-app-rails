@@ -234,7 +234,11 @@ export async function handleEnhance(
     if (hasActionHandler(mode)) {
       log.info({ path: context.articlePath, mode }, 'enhance:action_handler');
       const handler = await getActionHandler(mode);
-      return handler!({ article, articleObj: articleObj!, normalizedMeta, context, flags, cfg, log });
+      const result = await handler!({ article, articleObj: articleObj!, normalizedMeta, context, flags, cfg, log });
+      if (result.success && !result.skipped) {
+        result.costUsd = Math.max(result.costUsd || 0, 0.01);
+      }
+      return result;
     }
 
     // Guard: config says local but no handler file found
@@ -539,8 +543,8 @@ export async function handleEnhance(
       cost_usd: usageStats.cost_usd,
       words_before: contentStats.words_before,
       words_after: contentStats.words_after,
-      word_delta: contentStats.word_delta,
-      word_delta_pct: contentStats.word_delta_pct,
+      words_delta: contentStats.words_delta,
+      words_delta_pct: contentStats.words_delta_pct,
     }, 'enhance:done');
 
     return {

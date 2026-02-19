@@ -92,12 +92,9 @@ function formatBytes(bytes: number): string {
 function formatContentStats(stats: any): string {
   if (!stats) return '';
   const parts: string[] = [];
-  parts.push(`words: ${stats.words_before}→${stats.words_after} (${stats.word_delta >= 0 ? '+' : ''}${stats.word_delta_pct}%)`);
-  if (stats.links_before !== stats.links_after) {
-    parts.push(`links: ${stats.links_before}→${stats.links_after}`);
-  }
-  if (stats.headings_before !== stats.headings_after) {
-    parts.push(`headings: ${stats.headings_before}→${stats.headings_after}`);
+  parts.push(`words: ${stats.words_before}→${stats.words_after} (${stats.words_delta >= 0 ? '+' : ''}${stats.words_delta_pct}%)`);
+  if (stats.changes > 0) {
+    parts.push(`changes: ${stats.changes}`);
   }
   return parts.join(' | ');
 }

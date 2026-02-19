@@ -23,9 +23,6 @@
       },
       "actions": [
         {
-          "action": "fact_check"
-        },
-        {
           "action": "humanize_text"
         },
         {

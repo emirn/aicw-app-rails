@@ -482,7 +482,7 @@ export function applyLinkInsertions(
     // Already linked: look for [ before and ]( after without intervening ] or [
     const lastOpenBracket = before.lastIndexOf('[');
     const lastCloseBracket = before.lastIndexOf(']');
-    if (lastOpenBracket > lastCloseBracket && after.match(/^\]\(/)) {
+    if (lastOpenBracket > lastCloseBracket && /^[^\[\]]*\]\(/.test(after)) {
       skipped.push(`${anchor_text.substring(0, 40)} (already linked)`);
       continue;
     }

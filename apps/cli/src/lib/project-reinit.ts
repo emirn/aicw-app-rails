@@ -128,7 +128,7 @@ export async function reinitProject(
       }
     }
 
-    // Handle add_external_links -> domains.txt (bundled default)
+    // Handle add_external_links -> domains.txt + config.json (bundled defaults)
     if (actionName === 'add_external_links') {
       const defaultTxt = getBundledFile(actionName, 'domains.txt');
       if (defaultTxt) {
@@ -144,6 +144,25 @@ export async function reinitProject(
             path: relativePath,
             actionName,
             description: cfg.description || 'Allowed domains for external link insertion',
+            fileType: 'config',
+          });
+        }
+      }
+
+      const defaultCfg = getBundledFile(actionName, 'config.json');
+      if (defaultCfg) {
+        const cfgPath = path.join(actionDir, 'config.json');
+        const relativePath = path.relative(paths.root, cfgPath);
+
+        if (await fileExists(cfgPath)) {
+          result.skipped.push(relativePath);
+        } else {
+          await fs.mkdir(actionDir, { recursive: true });
+          await fs.writeFile(cfgPath, defaultCfg);
+          result.created.push({
+            path: relativePath,
+            actionName,
+            description: 'External links ratio config (words_per_link)',
             fileType: 'config',
           });
         }

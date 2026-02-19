@@ -190,7 +190,16 @@ export class DiagramRenderer extends BaseRenderer<DiagramAsset> {
         assets.push(asset);
 
         const imageMd = `![${altText}](/assets/${articlePath}/${asset.filename})`;
-        updatedContent = updatedContent.substring(0, matchIndex) + imageMd + updatedContent.substring(matchIndex + match[0].length);
+        const before = updatedContent.substring(0, matchIndex);
+        const after = updatedContent.substring(matchIndex + match[0].length);
+
+        const beforeTrimmed = before.replace(/\n+$/, '');
+        const afterTrimmed = after.replace(/^\n+/, '');
+
+        const leadingBreak = beforeTrimmed.length > 0 ? '\n\n' : '';
+        const trailingBreak = afterTrimmed.length > 0 ? '\n\n' : '';
+
+        updatedContent = beforeTrimmed + leadingBreak + imageMd + trailingBreak + afterTrimmed;
       } catch (error) {
         // Track the failure instead of silently swallowing it
         failures.push({

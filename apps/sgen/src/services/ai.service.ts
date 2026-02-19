@@ -2,6 +2,8 @@ import fetch from 'node-fetch';
 import { config } from '../config/server-config';
 import { withRetry } from '../utils/retry';
 
+const MIN_COST_USD = 0.01;
+
 /**
  * Calculate cost in USD from per-action pricing and token usage.
  */
@@ -371,7 +373,7 @@ export const callAI = async (
   const generationTime = Date.now() - startTime;
   // Calculate cost using per-action pricing (fallback to zero if no pricing provided)
   const actionPricing = opts?.pricing || { input_per_million: 0, output_per_million: 0 };
-  const costUsd = calculateCost(actionPricing, tokens, inputTokens, outputTokens);
+  const costUsd = Math.max(calculateCost(actionPricing, tokens, inputTokens, outputTokens), MIN_COST_USD);
 
   const debugInfo = process.env.DEBUG_MODE === 'true'
     ? { model_used: normalizedModelId, generation_time_ms: generationTime }

@@ -56,11 +56,17 @@ function isHomepageUrl(url: string): boolean {
   }
 }
 
-function computeTargetLinks(wordCount: number): string {
-  if (wordCount < 1000) return '2-4';
-  if (wordCount < 2000) return '4-7';
-  if (wordCount < 3000) return '6-10';
-  return '8-12';
+function computeTargetLinks(wordCount: number, wordsPerLink: number = 500): string {
+  const minLinks = 2;
+  const maxLinks = 8;
+
+  const base = Math.round(wordCount / wordsPerLink);
+  const clamped = Math.min(maxLinks, Math.max(minLinks, base));
+
+  // Give the LLM a ±1 range for flexibility (quality over exact count)
+  const lo = Math.max(minLinks, clamped - 1);
+  const hi = Math.min(maxLinks, clamped + 1);
+  return `${lo}-${hi}`;
 }
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, flags, cfg, log }) => {
@@ -68,7 +74,9 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   const statsBefore = countContentStats(article.content);
 
   // 1. Compute dynamic target link count based on article length
-  const targetLinks = computeTargetLinks(statsBefore.words);
+  // Per-project override (via flags) takes priority over sgen config default
+  const wordsPerLink = flags.words_per_link || cfg?.add_external_links?.words_per_link;
+  const targetLinks = computeTargetLinks(statsBefore.words, wordsPerLink);
 
   // 2. Resolve domains content once (project override or bundled default)
   const domainsPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'domains.txt');

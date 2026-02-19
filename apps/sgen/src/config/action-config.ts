@@ -43,6 +43,8 @@ const loadPerActionConfigs = (): ActionConfigMap => {
           variables: cfg.variables,
           // Colors field for project branding macros (e.g., {{project.branding.colors.primary}})
           colors: (cfg as any).colors,
+          // Action-specific config for add_external_links
+          add_external_links: cfg.add_external_links,
           // Internal: absolute path to prompt.md
           prompt_path: promptPath,
           // Sync fields for CLI auto-sync
