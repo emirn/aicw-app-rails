@@ -7,7 +7,7 @@
  */
 
 import { promises as fs } from 'fs';
-import { existsSync, writeFileSync, unlinkSync } from 'fs';
+import { writeFileSync, unlinkSync } from 'fs';
 import path from 'path';
 import { ISerializerOptions, ISerializerMeta, SERIALIZED_FIELDS, SERIALIZED_FIELD_FILES } from '@blogpostgen/types';
 
@@ -156,18 +156,10 @@ export class UnifiedSerializer<T extends Record<string, any>> {
       d.updated_at = new Date().toISOString();
     }
 
-    // Acquire .lock file to prevent concurrent writes
+    // Acquire .lock file to prevent concurrent writes (wx = atomic create-or-fail)
     const lockPath = path.join(this.folderPath, '.lock');
-
-    if (existsSync(lockPath)) {
-      throw new Error(
-        `Write conflict: another process is writing to ${this.folderPath}. ` +
-        `If stale, remove the .lock file manually.`
-      );
-    }
-
     try {
-      writeFileSync(lockPath, '', { flag: 'wx' }); // atomic create-or-fail
+      writeFileSync(lockPath, '', { flag: 'wx' });
     } catch {
       throw new Error(
         `Write conflict: another process is writing to ${this.folderPath}. ` +

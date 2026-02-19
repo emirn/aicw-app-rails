@@ -645,18 +645,11 @@ export async function addAppliedAction(
   if (!meta) return;
 
   const currentActions = meta.applied_actions || [];
-  if (currentActions.includes(actionName)) return; // Already applied, skip
+  if (currentActions.includes(actionName)) return;
 
-  // Re-read fresh from disk to get latest applied_actions (another session may have written)
-  const freshMeta = await readArticleMeta(folderPath);
-  if (!freshMeta) return;
-  const freshActions = freshMeta.applied_actions || [];
-  const mergedActions = [...new Set([...freshActions, actionName])];
-
-  // Only update if actually changed
-  if (mergedActions.length > freshActions.length) {
-    await updateArticleMeta(folderPath, { applied_actions: mergedActions });
-  }
+  await updateArticleMeta(folderPath, {
+    applied_actions: [...currentActions, actionName],
+  });
 }
 
 /**
@@ -690,7 +683,7 @@ export async function addCostEntry(
     entry.stats = stats;
   }
 
-  // Re-read fresh from disk to get latest costs (another session may have appended)
+  // Read current costs from disk before appending
   const freshMeta = await readArticleMeta(folderPath);
   if (!freshMeta) return;
   const freshCosts = freshMeta.costs || [];
