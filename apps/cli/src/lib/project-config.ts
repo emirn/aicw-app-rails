@@ -128,10 +128,10 @@ export async function updateProjectConfig(
   await assertUnifiedFormat(projectDir);
 
   const existing = await loadProjectConfig(projectDir) || {} as IProjectConfig;
+  // updated_at is auto-set by UnifiedSerializer
   const merged = {
     ...existing,
     ...updates,
-    updated_at: new Date().toISOString(),
   } as IProjectConfig;
 
   const serializer = new UnifiedSerializer<IProjectConfig>(projectDir);

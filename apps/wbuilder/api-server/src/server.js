@@ -128,8 +128,12 @@ app.post('/jobs', async (req, reply) => {
     cloudflareProjectName,
     publishTarget = 'cloudflare',
     config,
-    articles
+    articles,
+    sessionId: callerSessionId
   } = req.body;
+
+  // Session ID: accept from caller (e.g., Rails job ID) or auto-generate
+  const sessionId = callerSessionId || nanoid(8);
 
   if (!siteId) {
     return reply.code(400).send({ error: 'siteId is required' });
@@ -173,7 +177,7 @@ app.post('/jobs', async (req, reply) => {
   await fs.mkdir(imagesDir, { recursive: true });
 
   // Save input (without articles - they're stored separately)
-  const inputData = { template: safeTemplate, siteId: safeSiteId, cloudflareProjectName, publishTarget, config };
+  const inputData = { template: safeTemplate, siteId: safeSiteId, cloudflareProjectName, publishTarget, config, sessionId };
   await fs.writeFile(path.join(jobDir, 'input.json'), JSON.stringify(inputData, null, 2));
 
   // If articles provided, save them and start build immediately
@@ -191,10 +195,11 @@ app.post('/jobs', async (req, reply) => {
     }
 
     await writeStatus(jobDir, 'queued', 'Job created with articles');
-    runBuild(jobId, jobDir, templateDir);
+    runBuild(jobId, jobDir, templateDir, sessionId);
 
     return reply.code(202).send({
       jobId,
+      sessionId,
       status: 'queued',
       mode: 'immediate',
       articlesCount: articles.length
@@ -782,7 +787,7 @@ app.post('/jobs/:jobId/start', async (req, reply) => {
   const templateDir = path.join(TEMPLATES_DIR, input.template || 'default');
 
   await writeStatus(jobDir, 'queued', `Starting build with ${articleCount} articles`);
-  runBuild(jobId, jobDir, templateDir);
+  runBuild(jobId, jobDir, templateDir, input.sessionId || nanoid(8));
 
   return reply.code(202).send({
     jobId,
@@ -871,7 +876,7 @@ app.post('/jobs/:jobId/restart', async (req, reply) => {
   await fs.rm(path.join(jobDir, 'build'), { recursive: true, force: true }).catch(() => {});
 
   await writeStatus(jobDir, 'queued', 'Job restarted');
-  runBuild(jobId, jobDir, templateDir);
+  runBuild(jobId, jobDir, templateDir, input.sessionId || nanoid(8));
 
   return { jobId, status: 'queued', message: 'Job restarted' };
 });
@@ -1174,18 +1179,22 @@ async function readStatus(jobDir) {
   return JSON.parse(await fs.readFile(statusFile, 'utf8'));
 }
 
-async function appendLog(jobDir, line) {
+async function appendLog(jobDir, line, sessionId) {
   const logFile = path.join(jobDir, 'build.log');
-  await fs.appendFile(logFile, `[${new Date().toISOString()}] ${line}\n`);
+  const prefix = sessionId ? `[${new Date().toISOString()}] [session:${sessionId}]` : `[${new Date().toISOString()}]`;
+  await fs.appendFile(logFile, `${prefix} ${line}\n`);
 }
 
 // ============ Build Process ============
 
-async function runBuild(jobId, jobDir, templateDir) {
+async function runBuild(jobId, jobDir, templateDir, sessionId) {
   const buildDir = path.join(jobDir, 'build');
   const distDir = path.join(buildDir, 'dist');
   const articlesDir = path.join(jobDir, 'articles');
   const startTime = Date.now();
+
+  // Scoped log helper that includes session ID
+  const log = (msg) => appendLog(jobDir, msg, sessionId);
 
   // Read job config
   const input = JSON.parse(await fs.readFile(path.join(jobDir, 'input.json'), 'utf8'));
@@ -1193,11 +1202,11 @@ async function runBuild(jobId, jobDir, templateDir) {
 
   try {
     await writeStatus(jobDir, 'running', 'Starting build');
-    await appendLog(jobDir, 'Build started');
+    await log('Build started');
 
     // 1. Create build directory
     await fs.mkdir(distDir, { recursive: true });
-    await appendLog(jobDir, 'Created build directory');
+    await log('Created build directory');
 
     // 2. Read articles from articles directory (supports nested dirs, .md and .json formats)
     const articles = [];
@@ -1218,11 +1227,11 @@ async function runBuild(jobId, jobDir, templateDir) {
 
     await readArticlesRecursive(articlesDir);
 
-    await appendLog(jobDir, `Found ${articles.length} articles (md + json)`);
+    await log(`Found ${articles.length} articles (md + json)`);
 
     // 3. Build the site with Astro
     await writeStatus(jobDir, 'running', 'Building site');
-    await appendLog(jobDir, `Building site with ${articles.length} articles`);
+    await log(`Building site with ${articles.length} articles`);
 
     const buildResult = await buildAstroSite({
       templateDir,
@@ -1230,16 +1239,16 @@ async function runBuild(jobId, jobDir, templateDir) {
       config: config?.siteConfig || config || {},
       articles,
       jobDir,
-      logFn: (msg) => appendLog(jobDir, msg)
+      logFn: (msg) => log(msg)
     });
 
-    await appendLog(jobDir, `Built ${buildResult.totalArticles} articles, ${buildResult.totalPages} pages`);
+    await log(`Built ${buildResult.totalArticles} articles, ${buildResult.totalPages} pages`);
 
     // 5. Publish based on target
     if (publishTarget === 'folder') {
       // Folder mode: keep build directory, return local path
       await writeStatus(jobDir, 'running', 'Publishing to folder');
-      await appendLog(jobDir, 'Folder publish mode - keeping build output');
+      await log('Folder publish mode - keeping build output');
 
       const duration = Date.now() - startTime;
       await writeStatus(jobDir, 'completed', 'Build successful (folder)', {
@@ -1248,11 +1257,11 @@ async function runBuild(jobId, jobDir, templateDir) {
         articlesCount: buildResult.totalArticles,
         pagesCount: buildResult.totalPages
       });
-      await appendLog(jobDir, `Build completed in ${duration}ms - output at: ${distDir}`);
+      await log(`Build completed in ${duration}ms - output at: ${distDir}`);
     } else {
       // Cloudflare mode: deploy using direct API
       await writeStatus(jobDir, 'running', 'Deploying to Cloudflare');
-      await appendLog(jobDir, 'Deploying to Cloudflare Pages via API');
+      await log('Deploying to Cloudflare Pages via API');
 
       const deployResult = await deployToCloudflarePages({
         outputDir: distDir,
@@ -1260,14 +1269,14 @@ async function runBuild(jobId, jobDir, templateDir) {
         accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
         apiToken: process.env.CLOUDFLARE_API_TOKEN,
         branch: 'main',
-        logFn: (msg) => appendLog(jobDir, msg)
+        logFn: (msg) => log(msg)
       });
 
       if (!deployResult.success) {
         throw new Error(`Cloudflare deployment failed: ${deployResult.error}`);
       }
 
-      await appendLog(jobDir, `Deployed to ${deployResult.url}`);
+      await log(`Deployed to ${deployResult.url}`);
 
       // 6. Cleanup build directory (keep logs and status)
       await fs.rm(buildDir, { recursive: true, force: true });
@@ -1281,14 +1290,14 @@ async function runBuild(jobId, jobDir, templateDir) {
         pagesCount: buildResult.totalPages,
         filesUploaded: deployResult.filesUploaded
       });
-      await appendLog(jobDir, `Build completed in ${duration}ms`);
+      await log(`Build completed in ${duration}ms`);
     }
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    await appendLog(jobDir, `ERROR: ${error.message}`);
+    await log(`ERROR: ${error.message}`);
     if (error.stderr) {
-      await appendLog(jobDir, `STDERR: ${error.stderr}`);
+      await log(`STDERR: ${error.stderr}`);
     }
 
     // Build a useful error message: prefer stderr tail for execa failures
@@ -1303,7 +1312,7 @@ async function runBuild(jobId, jobDir, templateDir) {
     await writeStatus(jobDir, 'failed', statusMessage, { duration, buildDir });
 
     // Keep build directory on failure for debugging
-    await appendLog(jobDir, `Build files preserved at: ${buildDir}`);
+    await log(`Build files preserved at: ${buildDir}`);
   }
 }
 
