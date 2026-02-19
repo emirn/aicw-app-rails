@@ -17,6 +17,7 @@ import type {
   SiteConfig,
   BuildResult,
 } from '../types/astro-builder.js';
+import type { IProjectConfig } from '@blogpostgen/types';
 
 // ============ Path Resolution ============
 
@@ -87,13 +88,7 @@ function getAstroBuilderPath(): string {
 export interface BuildWebsiteLocalOptions {
   projectRoot: string;
   projectName: string;
-  projectConfig?: {
-    name?: string;
-    url?: string;
-    website_info?: { description?: string };
-    title?: string;
-    description?: string;
-  };
+  projectConfig?: IProjectConfig;
   logger: { log: (msg: string) => void };
   /** Session ID for temp directory isolation (auto-generated if not provided) */
   sessionId?: string;
@@ -162,27 +157,47 @@ export async function buildWebsiteLocal(
     }
 
     // 5. Build site config
-    const siteName = projectConfig?.name || projectConfig?.title || projectName;
+    // Use project's branding + template_settings when available (from publish/Rails flow),
+    // otherwise construct a minimal config. The template expects branding.site.url.
+    const siteName = projectConfig?.branding?.site?.name || projectConfig?.title || projectName;
+    const siteUrl = normalizeUrl(projectConfig?.url || '');
+    if (!siteUrl || siteUrl === 'http://localhost:8080') {
+      throw new Error(`Project "${projectName}" has no URL configured. Set "url" in project config.`);
+    }
+
+    const templateSettings = projectConfig?.publish_to_local_folder?.template_settings || {};
     const config: SiteConfig = {
-      site: {
-        name: siteName,
-        url: normalizeUrl(projectConfig?.url || 'http://localhost:8080'),
-        description: projectConfig?.website_info?.description || projectConfig?.description || '',
-      },
-      logo: {
-        type: 'text',
-        text: siteName,
-      },
-      header: {
-        nav_links: [{ label: 'Home', url: '/' }],
-        cta_button: {
+      branding: projectConfig?.branding || {
+        site: {
+          name: siteName,
+          url: siteUrl,
+          description: '',
+        },
+        logo: {
+          type: 'text' as const,
+          text: siteName,
+        },
+        colors: {
+          primary: '#1e3a8a',
+          secondary: '#0ea5e9',
+          background: '#f8fafc',
+          background_secondary: '#F8FAFC',
+          text_primary: '#0F172A',
+          text_secondary: '#475569',
+          border: '#E2E8F0',
+        },
+        dark_mode: {
           enabled: false,
+          colors: {
+            text_primary: '#FFFFFF',
+            text_secondary: '#D1D5DB',
+            background: '#111827',
+            background_secondary: '#1F2937',
+            border: '#374151',
+          },
         },
       },
-      footer: {
-        columns: [],
-        show_powered_by: true,
-      },
+      ...templateSettings,
     };
 
     // 6. Set output directory
