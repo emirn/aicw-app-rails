@@ -201,6 +201,8 @@ When given text to humanize:
 **After:**
 > It blends OKRs, KPIs, and visual strategy tools like the Business Model Canvas and Balanced Scorecard.
 
+**Note:** This targets mechanical bolding of every term. Occasional bold on key statistics (e.g., **34%**) or first-mention product names is acceptable — preserve it.
+
 ---
 
 ### 15. Inline-Header Vertical Lists
@@ -214,6 +216,8 @@ When given text to humanize:
 
 **After:**
 > The update improves the interface, speeds up load times through optimized algorithms, and adds end-to-end encryption.
+
+**Note:** This targets converting prose ideas into unnecessary bold-header lists. Lists of genuine specifications (technical requirements, feature comparisons) with 3+ items should be preserved.
 
 ---
 

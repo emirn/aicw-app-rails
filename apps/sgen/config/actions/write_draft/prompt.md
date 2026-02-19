@@ -35,6 +35,32 @@ When an article compares options, tools, or approaches side by side, present the
 
 IMPORTANT: Never use `- [ ] item` checkbox syntax in articles — it renders poorly in HTML. Use tables for checklists instead.
 
+**Inline emphasis — use sparingly:**
+
+Bold for key statistics and first-mention terms:
+- "hallucination rates above **34%** for Westlaw" — bold the specific number
+- "The **sRGB color space** is recommended" — bold the key term on first meaningful use
+- Limit to 2-4 bold terms per section. If everything is emphasized, nothing is.
+- Do NOT bold entire phrases or sentences — only the specific word or number.
+
+Italic for direct quotes and sayings:
+- Some users report: *"The interface feels cluttered"* — italic wraps the quoted speech
+- Do NOT use italic for general emphasis (use bold) or for entire paragraphs.
+
+**When to use lists instead of prose:**
+
+When a paragraph contains 3+ parallel items with distinct attributes, convert to a bulleted list:
+
+BAD (buried in prose): "Accepted formats include JPG, PNG, and GIF, with a minimum resolution of 2000px, maximum file size of 20MB, and sRGB color space recommended."
+
+GOOD (structured list):
+- **Resolution**: minimum 2000px on shortest side
+- **File formats**: JPG, PNG, or GIF
+- **Color space**: sRGB recommended
+- **Maximum file size**: 20MB
+
+Keep as prose when items are simple (under 3), or when argumentative flow matters more than scannability. Do NOT convert every paragraph into a list — most content should remain as natural prose.
+
 {{file:shared/voice_guidelines.md}}
 
 ## Pre-defined Article Metadata
