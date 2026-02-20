@@ -13,6 +13,7 @@ import { config } from '../../config/server-config';
 import { parseLinkInsertions, applyLinkInsertions } from '../../utils/articleUpdate';
 import { cleanMarkdownUrls } from '../../utils/url-cleaner';
 import { countContentStats, buildContentStats } from '../../utils/content-stats';
+import { stripExcludedContent, findExcludedRegions, ExcludeContentRule } from '../../utils/content-excluder';
 import { join } from 'path';
 import { readFileSync } from 'fs';
 
@@ -91,10 +92,14 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     .slice(0, 100)
     .join(' ');
 
-  // 4. Load and render prompt template with dynamic target and domains
+  // 4. Strip excluded content before sending to AI (AI can't link what it can't see)
+  const excludeRules: ExcludeContentRule[] = flags.exclude_content || [];
+  const contentForPrompt = stripExcludedContent(article.content, excludeRules);
+
+  // 5. Load and render prompt template with dynamic target and domains
   const { renderTemplateAbsolutePath } = await import('../../utils/template');
   const promptPath = join(__dirname, '..', '..', '..', 'config', 'actions', 'add_external_links', 'prompt.md');
-  const prompt = renderTemplateAbsolutePath(promptPath, { content: article.content, target_links: targetLinks, domains: domainsContent, title: article.title || '', keywords: article.keywords || '', excerpt: excerptWords });
+  const prompt = renderTemplateAbsolutePath(promptPath, { content: contentForPrompt, target_links: targetLinks, domains: domainsContent, title: article.title || '', keywords: article.keywords || '', excerpt: excerptWords });
 
   // 5. Call AI
   const provider = cfg?.ai_provider || 'openrouter';
@@ -199,8 +204,9 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
     };
   }
 
-  // 7. Apply link insertions
-  const { result, applied, skipped } = applyLinkInsertions(article.content, links);
+  // 7. Apply link insertions (with excluded-region guard on ORIGINAL content)
+  const excludedRegions = findExcludedRegions(article.content, excludeRules);
+  const { result, applied, skipped } = applyLinkInsertions(article.content, links, { excludedRegions });
 
   if (skipped.length > 0) {
     log.warn({ mode, skipped }, 'link_insert:some_links_not_applied');

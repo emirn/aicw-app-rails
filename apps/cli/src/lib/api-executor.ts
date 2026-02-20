@@ -959,6 +959,10 @@ export class APIExecutor {
           flags.words_per_link = (actionConfig as any).add_external_links.words_per_link;
           this.logger.log(`Loaded project words_per_link: ${flags.words_per_link}`);
         }
+        if ((actionConfig as any)?.exclude_content) {
+          flags.exclude_content = (actionConfig as any).exclude_content;
+          this.logger.log(`Loaded project exclude_content: ${flags.exclude_content.length} rule(s)`);
+        }
       }
 
       // For enhance action with add_diagrams mode, load custom variables

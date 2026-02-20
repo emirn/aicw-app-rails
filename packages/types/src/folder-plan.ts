@@ -226,6 +226,8 @@ export interface IProjectConfig {
   publish_to_local_folder?: ILocalPublishConfig;
   /** Registered reviewers for human review workflow */
   reviewers?: IReviewer[];
+  /** Remembered date limit for article filtering (YYYY-MM-DD). Empty string = cleared. */
+  date_limit?: string;
 }
 
 /**
