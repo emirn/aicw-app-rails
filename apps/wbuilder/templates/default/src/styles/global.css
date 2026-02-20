@@ -39,10 +39,12 @@ h6 {
   letter-spacing: -0.02em;
 }
 
-/* Links */
-a {
-  color: inherit;
-  text-decoration: none;
+/* Links — in @layer base so Tailwind utilities (prose-a:*) can override */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 /* Prose styles for article content */
