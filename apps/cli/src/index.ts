@@ -49,7 +49,7 @@ import {
 import { getProjectPaths } from './config/user-paths';
 import { resolvePath, projectExists, getArticles, readArticleContent, getSeedArticles, getArticlesAfterPipeline } from './lib/path-resolver';
 import path from 'path';
-import { initializeProject, loadProjectConfig, saveProjectConfig } from './lib/project-config';
+import { initializeProject, loadProjectConfig, saveProjectConfig, updateProjectConfig } from './lib/project-config';
 import { createBuiltinLegalPages, getLegalFooterColumns, LegalPagesChoice } from './lib/legal-pages';
 import { createArticleFolder, articleFolderExists, buildPublished, updateArticleMeta, addAppliedAction, getArticleMeta } from './lib/folder-manager';
 import { IArticle } from '@blogpostgen/types';
@@ -1147,10 +1147,11 @@ async function main(): Promise<void> {
           created_at: a.meta.created_at,
         }));
 
-        const selectedPaths = await selectArticles(selectionList, {
+        const reviewResult = await selectArticles(selectionList, {
           header: 'Articles Ready to Review',
         });
 
+        const selectedPaths = reviewResult?.paths;
         if (!selectedPaths || selectedPaths.length === 0) {
           continue;
         }
@@ -1643,15 +1644,37 @@ async function main(): Promise<void> {
             path: a.path,
             title: a.meta.title || a.path,
             created_at: a.meta.created_at || new Date().toISOString(),
+            published_at: a.meta.published_at,
             priority: a.meta.priority,
           }));
 
+          // Load saved date limit
+          const projectConfig = await loadProjectConfig(resolved.projectDir);
+          const savedDateLimit = projectConfig?.date_limit || undefined;
+
           // Use appropriate selection function based on pipeline
+          let selectionResult: { paths: string[]; dateFilter?: string } | null;
           if (filter.last_pipeline === null) {
-            selectedPaths = await selectArticlesForGeneration(selectionList);
+            selectionResult = await selectArticlesForGeneration(selectionList, savedDateLimit);
           } else {
-            const selected = await selectArticlesForEnhancement(selectionList);
-            selectedPaths = selected || [];
+            selectionResult = await selectArticlesForEnhancement(selectionList, savedDateLimit);
+          }
+
+          selectedPaths = selectionResult?.paths || [];
+
+          // Persist date limit if changed
+          if (selectionResult) {
+            const newDateLimit = selectionResult.dateFilter;
+            if (newDateLimit !== savedDateLimit) {
+              await updateProjectConfig(resolved.projectDir, {
+                date_limit: newDateLimit ?? '',
+              });
+              if (newDateLimit) {
+                logger.log(`  Date limit saved: ${newDateLimit}`);
+              } else if (savedDateLimit) {
+                logger.log(`  Date limit cleared`);
+              }
+            }
           }
 
           if (selectedPaths.length === 0) {
@@ -2152,6 +2175,7 @@ async function main(): Promise<void> {
               path: a.path,
               title: a.meta.title || a.path,
               created_at: a.meta.created_at || new Date().toISOString(),
+              published_at: a.meta.published_at,
               priority: a.meta.priority,
             }))
             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -2176,8 +2200,23 @@ async function main(): Promise<void> {
               process.exit(1);
             }
           } else {
-            // Show interactive picker
-            selectedPaths = await selectArticlesForGeneration(selectionList);
+            // Show interactive picker with date limit
+            const genProjectConfig = await loadProjectConfig(resolved.projectDir);
+            const genSavedDateLimit = genProjectConfig?.date_limit || undefined;
+            const genResult = await selectArticlesForGeneration(selectionList, genSavedDateLimit);
+            selectedPaths = genResult.paths;
+
+            // Persist date limit if changed
+            if (genResult.dateFilter !== genSavedDateLimit) {
+              await updateProjectConfig(resolved.projectDir, {
+                date_limit: genResult.dateFilter ?? '',
+              });
+              if (genResult.dateFilter) {
+                logger.log(`  Date limit saved: ${genResult.dateFilter}`);
+              } else if (genSavedDateLimit) {
+                logger.log(`  Date limit cleared`);
+              }
+            }
           }
 
           if (selectedPaths.length === 0) {
@@ -2304,6 +2343,7 @@ async function main(): Promise<void> {
                 path: a.path,
                 title: a.meta.title || a.path,
                 created_at: a.meta.created_at || new Date().toISOString(),
+                published_at: a.meta.published_at,
                 priority: a.meta.priority,
               }))
               .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -2328,10 +2368,32 @@ async function main(): Promise<void> {
                 process.exit(1);
               }
             } else {
-              // Show interactive picker
-              selectedPaths = filter.last_pipeline === null
-                ? await selectArticlesForGeneration(selectionList)
-                : await selectArticlesForEnhancement(selectionList) || [];
+              // Show interactive picker with date limit
+              const pipeProjectConfig = await loadProjectConfig(resolved.projectDir);
+              const pipeSavedDateLimit = pipeProjectConfig?.date_limit || undefined;
+
+              let pipeSelectionResult: { paths: string[]; dateFilter?: string } | null;
+              if (filter.last_pipeline === null) {
+                pipeSelectionResult = await selectArticlesForGeneration(selectionList, pipeSavedDateLimit);
+              } else {
+                pipeSelectionResult = await selectArticlesForEnhancement(selectionList, pipeSavedDateLimit);
+              }
+              selectedPaths = pipeSelectionResult?.paths || [];
+
+              // Persist date limit if changed
+              if (pipeSelectionResult) {
+                const newDateLimit = pipeSelectionResult.dateFilter;
+                if (newDateLimit !== pipeSavedDateLimit) {
+                  await updateProjectConfig(resolved.projectDir, {
+                    date_limit: newDateLimit ?? '',
+                  });
+                  if (newDateLimit) {
+                    logger.log(`  Date limit saved: ${newDateLimit}`);
+                  } else if (pipeSavedDateLimit) {
+                    logger.log(`  Date limit cleared`);
+                  }
+                }
+              }
             }
 
             if (selectedPaths.length === 0) {

@@ -31,7 +31,7 @@ You are NOT limited to this list. Any established brand, organization, or author
 5. Do NOT pick anchor text that is already inside a markdown link `[...]()`
 6. Do NOT pick anchor text from markdown headings (lines starting with #, ##, ###, etc.)
 7. Do NOT pick anchor text that is a standalone short line like a caption, label, or single-sentence paragraph — only link phrases within substantial body paragraphs
-8. Do NOT pick anchor text from checklist items (lines starting with `- [ ]` or `- [x]`), table rows inside checklist sections, or any content inside `<div class="checklist-wrapper">` blocks — checklists must remain link-free
+8. Do NOT pick anchor text from checklist items (lines starting with `- [ ]` or `- [x]`) or table rows inside checklist sections
 9. Each anchor_text MUST be unique and non-overlapping — do NOT return two anchor texts where one contains the other (e.g., if you pick "vendor contract review checklist", do NOT also pick "vendor contract review" or "contract review checklist")
 10. **Repeating authoritative sources is fine** - if only one or a few highly authoritative sources exist for this topic, it is perfectly acceptable to link the same domain or even the same URL multiple times at different relevant places in the article. Diversity is preferred when good alternatives exist, but do not sacrifice link quality just to use different domains
 11. **Limit main subject links to 1** - if the article is about a specific product/company, at most ONE link to that entity's official website

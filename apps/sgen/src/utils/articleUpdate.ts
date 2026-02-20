@@ -4,6 +4,7 @@ import {
   findSafeInsertionPoint,
   MarkdownRegion,
 } from './markdown-structures';
+import { ExcludedRegion, isPositionExcluded } from './content-excluder';
 
 /**
  * Result of mergeUpdate operation
@@ -453,25 +454,39 @@ export function parseLinkInsertions(content: any): LinkInsertion[] {
  */
 export function applyLinkInsertions(
   content: string,
-  links: LinkInsertion[]
+  links: LinkInsertion[],
+  options?: { excludedRegions?: ExcludedRegion[] }
 ): { result: string; applied: number; skipped: string[] } {
   // Sort longest first to prevent partial match issues
   const sorted = [...links].sort(
     (a, b) => b.anchor_text.length - a.anchor_text.length
   );
 
+  const excludedRegions = options?.excludedRegions || [];
   let result = content;
   let applied = 0;
   const skipped: string[] = [];
 
   for (const { anchor_text, url } of sorted) {
-    // Build regex that matches normalized whitespace (first occurrence only)
+    // Build regex that matches normalized whitespace
     const pattern = escapeRegExp(anchor_text).replace(/\s+/g, '\\s+');
-    const regex = new RegExp(pattern);
+    const regex = new RegExp(pattern, 'g');
 
-    const match = regex.exec(result);
-    if (!match) {
-      skipped.push(anchor_text.substring(0, 60));
+    // Find first match that is NOT inside an excluded region
+    let match: RegExpExecArray | null = null;
+    let foundValid = false;
+
+    while ((match = regex.exec(result)) !== null) {
+      if (isPositionExcluded(match.index, excludedRegions)) {
+        continue; // Skip matches inside excluded regions
+      }
+      foundValid = true;
+      break;
+    }
+
+    if (!match || !foundValid) {
+      const reason = excludedRegions.length > 0 ? ' (only in excluded region)' : '';
+      skipped.push(anchor_text.substring(0, 60) + reason);
       continue;
     }
 

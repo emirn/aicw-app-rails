@@ -438,26 +438,37 @@ export async function showInteractiveHelp(
   console.error('  d. Toggle debug mode');
   console.error('');
 
-  const choice = await prompt('Enter command number or name (d for debug, q to quit)');
+  while (true) {
+    const choice = await prompt('Enter command number or name (d for debug, q to quit)');
 
-  if (!choice || choice.toLowerCase() === 'q') {
-    return null;
+    if (!choice) {
+      console.error('  Press q to quit\n');
+      continue;
+    }
+
+    if (choice.toLowerCase() === 'q') {
+      return null;
+    }
+
+    // Handle debug toggle
+    if (choice.toLowerCase() === 'd' || choice.toLowerCase() === 'debug') {
+      return 'd';
+    }
+
+    // Check if it's a number from our map
+    const num = parseInt(choice, 10);
+    if (!isNaN(num) && numberMap.has(num)) {
+      return numberMap.get(num)!;
+    }
+
+    // Check if it matches a command name
+    const matched = commands.find((c) => c.name === choice);
+    if (matched) {
+      return matched.name;
+    }
+
+    console.error(`  Unknown command: ${choice}\n`);
   }
-
-  // Handle debug toggle
-  if (choice.toLowerCase() === 'd' || choice.toLowerCase() === 'debug') {
-    return 'd';
-  }
-
-  // Check if it's a number from our map
-  const num = parseInt(choice, 10);
-  if (!isNaN(num) && numberMap.has(num)) {
-    return numberMap.get(num)!;
-  }
-
-  // Check if it matches a command name
-  const matched = commands.find((c) => c.name === choice);
-  return matched ? matched.name : null;
 }
 
 /**
@@ -563,6 +574,7 @@ export interface ArticleForSelection {
   path: string;
   title: string;
   created_at: string;
+  published_at?: string;
   priority?: number;
 }
 
@@ -649,7 +661,10 @@ function applyFilters(
 
   if (dateFilter && articles) {
     const maxDate = new Date(dateFilter + 'T23:59:59Z');
-    workingList = workingList.filter(item => new Date(item.article.created_at) <= maxDate);
+    workingList = workingList.filter(item => {
+      const articleDate = new Date(item.article.published_at || item.article.created_at);
+      return articleDate <= maxDate;
+    });
   }
 
   if (urlFilter && articles) {
@@ -817,6 +832,7 @@ interface SelectArticlesOptions {
   header: string;
   showPriority?: boolean;
   sortByCreatedAt?: boolean;
+  savedDateLimit?: string;
 }
 
 /**
@@ -830,7 +846,7 @@ interface SelectArticlesOptions {
 export async function selectArticles(
   articles: ArticleForSelection[],
   options: SelectArticlesOptions
-): Promise<string[] | null> {
+): Promise<{ paths: string[]; dateFilter?: string } | null> {
   if (articles.length === 0) {
     console.error('\nNo articles available.\n');
     return null;
@@ -861,10 +877,38 @@ export async function selectArticles(
   }
   console.error('');
 
+  // Date limit prompt: if savedDateLimit is set, ask user to confirm/change/clear
+  let activeDateLimit: string | undefined;
+  if (options.savedDateLimit) {
+    const dateLimitAnswer = await prompt(
+      `  Date limit: ${options.savedDateLimit} [Enter to confirm, new YYYY-MM-DD, 'none' to clear]`
+    );
+    if (dateLimitAnswer === '') {
+      activeDateLimit = options.savedDateLimit;
+      console.error(`  Using date limit: ${activeDateLimit}`);
+    } else if (dateLimitAnswer.toLowerCase() === 'none') {
+      activeDateLimit = undefined;
+      console.error(`  Date limit cleared.`);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateLimitAnswer) && !isNaN(new Date(dateLimitAnswer).getTime())) {
+      activeDateLimit = dateLimitAnswer;
+      console.error(`  Using date limit: ${activeDateLimit}`);
+    } else {
+      console.error(`  Invalid date format. Ignoring, no date limit applied.`);
+      activeDateLimit = undefined;
+    }
+    console.error('');
+  }
+
   while (true) {
     const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
 
-    const result = parseArticleSelection(answer, sorted.length, sorted);
+    // Auto-inject active date limit if user didn't specify one inline
+    let effectiveAnswer = answer;
+    if (activeDateLimit && !answer.includes('date:')) {
+      effectiveAnswer = `${answer} date:${activeDateLimit}`;
+    }
+
+    const result = parseArticleSelection(effectiveAnswer, sorted.length, sorted);
 
     if (result.type === 'quit') {
       return null;
@@ -897,7 +941,12 @@ export async function selectArticles(
 
     const ok = await prompt('Proceed? (Y/n)');
     if (!ok || ok.trim().toLowerCase() === 'y' || ok.trim() === '') {
-      return selectedPaths.length > 0 ? selectedPaths : null;
+      if (selectedPaths.length === 0) return null;
+      // Determine which date limit was actually used
+      const usedDateLimit = answer.includes('date:')
+        ? answer.match(/date:(\S+)/)?.[1]
+        : activeDateLimit;
+      return { paths: selectedPaths, dateFilter: usedDateLimit };
     }
   }
 }
@@ -910,14 +959,16 @@ export async function selectArticles(
  * @returns Array of selected article paths
  */
 export async function selectArticlesForGeneration(
-  articles: ArticleForSelection[]
-): Promise<string[]> {
+  articles: ArticleForSelection[],
+  savedDateLimit?: string
+): Promise<{ paths: string[]; dateFilter?: string }> {
   const result = await selectArticles(articles, {
     header: 'Articles Ready to Generate',
     showPriority: true,
     sortByCreatedAt: true,
+    savedDateLimit,
   });
-  return result || [];
+  return result || { paths: [] };
 }
 
 /**
@@ -927,10 +978,12 @@ export async function selectArticlesForGeneration(
  * @returns Array of selected article paths, or null if cancelled
  */
 export async function selectArticlesForEnhancement(
-  articles: ArticleForSelection[]
-): Promise<string[] | null> {
+  articles: ArticleForSelection[],
+  savedDateLimit?: string
+): Promise<{ paths: string[]; dateFilter?: string } | null> {
   return selectArticles(articles, {
     header: 'Articles Ready to Enhance',
+    savedDateLimit,
   });
 }
 
