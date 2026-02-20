@@ -47,6 +47,9 @@
           "action": "add_faq"
         },
         {
+          "action": "humanize_text_faq"
+        },
+        {
           "action": "add_toc"
         },
         {
