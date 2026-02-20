@@ -171,7 +171,7 @@ const hasInlineToc = article.body?.includes('<div id="toc">') || false;
     )}
 
     <!-- Article Content -->
-    <div class="prose prose-lg max-w-none dark:prose-invert prose-headings:font-bold prose-headings:text-[var(--color-text-primary)] dark:prose-headings:text-[var(--color-dark-text-primary)] prose-p:text-[var(--color-text-secondary)] dark:prose-p:text-[var(--color-dark-text-secondary)] prose-a:text-[var(--color-primary)] prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl">
+    <div class="prose prose-lg max-w-none dark:prose-invert prose-headings:font-bold prose-headings:text-[var(--color-text-primary)] dark:prose-headings:text-[var(--color-dark-text-primary)] prose-p:text-[var(--color-text-secondary)] dark:prose-p:text-[var(--color-dark-text-secondary)] prose-a:text-[var(--color-primary)] prose-a:underline prose-img:rounded-xl">
       {config.blog.show_table_of_contents && !hasInlineToc && headings.length > 0 && (
         <div id="toc" class="not-prose">
           <ul>
