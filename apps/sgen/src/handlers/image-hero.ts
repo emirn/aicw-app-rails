@@ -22,7 +22,6 @@ import { join } from 'path';
 import { convertBase64ToWebp } from '@blogpostgen/og-image-gen';
 import { ensureNoUnreplacedMacros, requireBrandingColors } from '../utils/guards';
 
-const DEFAULT_HERO_PROVIDER: 'flux' | 'recraft' = 'recraft';
 const DEFAULT_RECRAFT_STYLE = 'digital_illustration/pastel_gradient';
 
 /**
@@ -48,7 +47,8 @@ export interface HeroImageRequest {
   options?: {
     width?: number;                   // default 1200
     height?: number;                  // default 630
-    provider?: 'flux' | 'recraft';    // default 'recraft'
+    provider?: 'flux' | 'recraft';    // required — no default
+    model?: string;                   // required — e.g. 'recraft-v4'
   };
 }
 
@@ -194,11 +194,18 @@ export async function handleHeroImage(
   // 4. Generate image
   const width = options?.width || 1200;
   const height = options?.height || 630;
-  const provider = options?.provider || DEFAULT_HERO_PROVIDER;
-
-  log.info({ path: article.path, provider }, 'image-hero:provider_selected');
+  const provider = options?.provider;
+  const model = options?.model;
 
   try {
+    if (!provider) {
+      return { success: false, error: 'generate_image_hero: options.provider is required (expected "recraft" or "flux")' };
+    }
+    if (!model) {
+      return { success: false, error: 'generate_image_hero: options.model is required (e.g. "recraft-v4")' };
+    }
+
+    log.info({ path: article.path, provider, model }, 'image-hero:provider_selected');
     let generatedImage;
 
     if (provider === 'recraft') {
@@ -206,6 +213,7 @@ export async function handleHeroImage(
       const recraftStyle = branding?.illustration_style || DEFAULT_RECRAFT_STYLE;
       generatedImage = await generateRecraftImage({
         prompt: imagePrompt,
+        model,
         width,
         height,
         style: recraftStyle,

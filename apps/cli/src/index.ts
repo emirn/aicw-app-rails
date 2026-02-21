@@ -681,6 +681,7 @@ async function main(): Promise<void> {
         version: 0,
         created_at: now,
         updated_at: now,
+        reviewed_by: [],
       };
 
       // Create brief content template
@@ -937,13 +938,15 @@ async function main(): Promise<void> {
         title: string;
         success: boolean;
         error?: string;
+        savedFiles?: string[];
+        articleFolder?: string;
       }> = [];
 
       // Process each article with force flag
       for (let i = 0; i < articlePaths.length; i++) {
         const articlePath = articlePaths[i];
         // Enhanced articles are in drafts/ folder
-        const absoluteFilePath = path.join(projectPaths.drafts, articlePath, 'content.md');
+        const absoluteFilePath = path.join(projectPaths.drafts, articlePath, 'index.json');
 
         logger.log(`[${i + 1}/${articlePaths.length}] ${articlePath}...`);
 
@@ -958,7 +961,7 @@ async function main(): Promise<void> {
           totalCost += result.costUsd || 0;
           const statsStr = formatContentStats(result.contentStats);
           logger.log(`  DONE ($${(result.costUsd || 0).toFixed(4)})${statsStr ? ' | ' + statsStr : ''}`);
-          batchResults.push({ path: articlePath, title: articlePath, success: true });
+          batchResults.push({ path: articlePath, title: articlePath, success: true, savedFiles: result.savedFiles, articleFolder: result.articleFolder });
         } else {
           logger.log(`  FAILED: ${result.error}`);
           batchResults.push({ path: articlePath, title: articlePath, success: false, error: result.error });
@@ -1750,6 +1753,8 @@ async function main(): Promise<void> {
           success: boolean;
           error?: string;
           wordCount?: number;
+          savedFiles?: string[];
+          articleFolder?: string;
         }> = [];
 
         // For pipelines with articleFilter, process each article
@@ -1761,7 +1766,7 @@ async function main(): Promise<void> {
 
             const articlePath = selectedPaths[i];
             const fullPath = `${selectedProject}/${articlePath}`;
-            const absoluteFilePath = path.join(getProjectPaths(selectedProject).content, articlePath, 'content.md');
+            const absoluteFilePath = path.join(getProjectPaths(selectedProject).content, articlePath, 'index.json');
 
             // Apply section-specific exclusions for this article
             const sectionExcluded = loadSectionExcludedActions(
@@ -1775,6 +1780,8 @@ async function main(): Promise<void> {
             logger.log(`  File: ${absoluteFilePath}`);
 
             let articleSuccess = true;
+            const articleSavedFiles: string[] = [];
+            let articleFolder: string | undefined;
             for (let m = 0; m < articleActions.length; m++) {
               const currentAction = articleActions[m];
 
@@ -1806,6 +1813,9 @@ async function main(): Promise<void> {
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
+
+                  if (result.savedFiles) articleSavedFiles.push(...result.savedFiles);
+                  if (result.articleFolder) articleFolder = result.articleFolder;
                 }
               } else {
                 logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} FAILED: ${result.error}`);
@@ -1841,6 +1851,8 @@ async function main(): Promise<void> {
               title: articlePath,
               success: articleSuccess,
               error: articleSuccess ? undefined : 'Pipeline failed',
+              savedFiles: articleSavedFiles,
+              articleFolder,
             });
 
             // Stop batch on first failure only if --stop-on-error flag is set
@@ -2235,6 +2247,8 @@ async function main(): Promise<void> {
             success: boolean;
             error?: string;
             wordCount?: number;
+            savedFiles?: string[];
+            articleFolder?: string;
           }> = [];
 
           for (let i = 0; i < selectedPaths.length; i++) {
@@ -2257,6 +2271,8 @@ async function main(): Promise<void> {
                 title: articleInfo?.title || articlePath,
                 success: true,
                 wordCount,
+                savedFiles: result.savedFiles,
+                articleFolder: result.articleFolder,
               });
               logger.log(`  Done: ${result.message || 'Success'}`);
             } else {
@@ -2422,12 +2438,14 @@ async function main(): Promise<void> {
               success: boolean;
               error?: string;
               wordCount?: number;
+              savedFiles?: string[];
+              articleFolder?: string;
             }> = [];
 
             for (let i = 0; i < selectedPaths.length; i++) {
               const articlePath = selectedPaths[i];
               const fullPath = `${resolved.projectName}/${articlePath}`;
-              const absoluteFilePath = path.join(getProjectPaths(resolved.projectName).content, articlePath, 'content.md');
+              const absoluteFilePath = path.join(getProjectPaths(resolved.projectName).content, articlePath, 'index.json');
 
               // Apply section-specific exclusions for this article
               const sectionExcluded = loadSectionExcludedActions(
@@ -2441,6 +2459,8 @@ async function main(): Promise<void> {
               logger.log(`  File: ${absoluteFilePath}`);
 
               let articleSuccess = true;
+              const articleSavedFiles: string[] = [];
+              let articleFolder: string | undefined;
               for (let m = 0; m < articleActions.length; m++) {
                 const currentAction = articleActions[m];
 
@@ -2464,6 +2484,9 @@ async function main(): Promise<void> {
 
                   // Record the action in applied_actions
                   await addAppliedAction(localFolderPath, currentAction);
+
+                  if (result.savedFiles) articleSavedFiles.push(...result.savedFiles);
+                  if (result.articleFolder) articleFolder = result.articleFolder;
                 } else {
                   logger.log(`  [${m + 1}/${articleActions.length}] ${currentAction} FAILED: ${result.error}`);
                   logger.log(`  File: ${absoluteFilePath}`);
@@ -2494,6 +2517,8 @@ async function main(): Promise<void> {
                 title: articlePath,
                 success: articleSuccess,
                 error: articleSuccess ? undefined : 'Pipeline failed',
+                savedFiles: articleSavedFiles,
+                articleFolder,
               });
             }
 

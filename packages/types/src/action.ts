@@ -75,6 +75,10 @@ export interface IActionConfig {
   require_changes?: boolean;
   // Action-specific config for add_external_links (words_per_link ratio)
   add_external_links?: { words_per_link: number };
+  // Image generation engine ('recraft' or 'flux') — used by generate_image_hero
+  image_engine?: 'recraft' | 'flux';
+  // Image generation model ID (e.g., 'recraft-v4', 'black-forest-labs/flux.2-pro')
+  image_model_id?: string;
   // When false, action does not require an article (project-level action)
   requires_article?: boolean;
 

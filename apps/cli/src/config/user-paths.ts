@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, realpathSync, lstatSync } from 'fs';
  *
  * Environment variable:
  *   - BLOGPOSTGEN_DATA_FOLDER: Full path to data folder (required)
- *     Example: /path/to/blogpostgen-data/aicw.io
+ *     Example: /path/to/blogpostgen-data/data
  *
  * Structure:
  *   BLOGPOSTGEN_DATA_FOLDER/
@@ -30,7 +30,7 @@ export function getUserDataDir(): string {
     throw new Error(
       'BLOGPOSTGEN_DATA_FOLDER environment variable is required. ' +
       'Set it to the full path where blogpostgen data should be stored. ' +
-      'Example: export BLOGPOSTGEN_DATA_FOLDER="/path/to/data/aicw.io"'
+      'Example: export BLOGPOSTGEN_DATA_FOLDER="/path/to/blogpostgen-data/data"'
     );
   }
 
@@ -43,6 +43,15 @@ export function getUserDataDir(): string {
   const resolvedFolder = path.resolve(dataFolder);
   if (!existsSync(resolvedFolder)) {
     throw new Error(`BLOGPOSTGEN_DATA_FOLDER path does not exist: ${resolvedFolder}`);
+  }
+
+  // Catch common misconfiguration: pointing to the projects subdirectory instead of data root
+  if (resolvedFolder.endsWith('/projects') || resolvedFolder.endsWith('\\projects')) {
+    throw new Error(
+      `BLOGPOSTGEN_DATA_FOLDER should point to the data root, not the projects subdirectory.\n` +
+      `  Current: ${resolvedFolder}\n` +
+      `  Expected: ${path.dirname(resolvedFolder)}`
+    );
   }
 
   return resolvedFolder;

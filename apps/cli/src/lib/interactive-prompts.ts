@@ -629,7 +629,7 @@ function extractFilters(input: string): { baseInput: string; dateFilter?: string
   let urlFilter: string | undefined;
 
   // Extract date:YYYY-MM-DD
-  const dateMatch = baseInput.match(/\bdate:(\d{4}-\d{2}-\d{2})\b/);
+  const dateMatch = baseInput.match(/\bdate:(\d{4}-\d{1,2}-\d{1,2})\b/);
   if (dateMatch) {
     dateFilter = dateMatch[1];
     baseInput = baseInput.replace(dateMatch[0], '');
@@ -762,6 +762,16 @@ export function parseArticleSelection(
 
   const base = baseInput.toLowerCase();
 
+  // Filter-only input (no numbers/range/all): select all filtered articles
+  if (base === '' && hasFilters) {
+    const indices = filtered.map(item => item.originalIndex);
+    return {
+      type: 'indices',
+      indices,
+      warning: `Filter (${filterDesc}): ${filtered.length} articles selected`,
+    };
+  }
+
   // "all" with optional filters
   if (base === 'all') {
     if (hasFilters) {
@@ -856,11 +866,60 @@ export async function selectArticles(
     ? [...articles].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     : articles;
 
-  // Display subset (max N)
-  const displayArticles = sorted.slice(0, MAX_OLDEST_ARTICLES_TO_SHOW);
-  const displayCount = Math.min(sorted.length, MAX_OLDEST_ARTICLES_TO_SHOW);
+  // Date limit prompt — always ask BEFORE displaying articles
+  let activeDateLimit: string | undefined;
+  let filteredArticles = sorted;
 
-  console.error(`\n=== ${options.header} (${displayCount} of ${sorted.length}) ===\n`);
+  while (true) {
+    const defaultHint = options.savedDateLimit
+      ? `${options.savedDateLimit} [Enter to confirm, new YYYY-MM-DD, 'none' to clear, 'q' to go back]`
+      : `Enter date limit (YYYY-MM-DD), Enter to skip, or 'q' to go back`;
+    const dateLimitAnswer = await prompt(`  Date limit: ${defaultHint}`);
+
+    if (dateLimitAnswer === '') {
+      activeDateLimit = options.savedDateLimit || undefined;
+    } else if (dateLimitAnswer.toLowerCase() === 'none') {
+      activeDateLimit = undefined;
+    } else if (dateLimitAnswer.toLowerCase() === 'q') {
+      return null;
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateLimitAnswer) && !isNaN(new Date(dateLimitAnswer).getTime())) {
+      activeDateLimit = dateLimitAnswer;
+    } else {
+      console.error(`  Invalid date format. Try again.`);
+      continue;
+    }
+
+    if (activeDateLimit) {
+      const maxDate = new Date(activeDateLimit + 'T23:59:59Z');
+      filteredArticles = sorted.filter(a => {
+        const articleDate = new Date(a.published_at || a.created_at);
+        return articleDate <= maxDate;
+      });
+
+      if (filteredArticles.length === 0) {
+        const earliest = sorted.reduce((min, a) => {
+          const d = a.published_at || a.created_at;
+          return d < min ? d : min;
+        }, sorted[0].published_at || sorted[0].created_at);
+        console.error(`  No articles match date limit ${activeDateLimit}. Earliest article: ${earliest.slice(0, 10)}`);
+        continue;
+      }
+
+      console.error(`  Using date limit: ${activeDateLimit} (${filteredArticles.length} of ${sorted.length} articles)`);
+      break;
+    } else {
+      filteredArticles = sorted;
+      if (options.savedDateLimit) console.error(`  Date limit cleared.`);
+      break;
+    }
+  }
+  console.error('');
+
+  // Display subset (max N) of filtered articles
+  const displayArticles = filteredArticles.slice(0, MAX_OLDEST_ARTICLES_TO_SHOW);
+  const displayCount = Math.min(filteredArticles.length, MAX_OLDEST_ARTICLES_TO_SHOW);
+
+  console.error(`\n=== ${options.header} (${displayCount} of ${filteredArticles.length}) ===\n`);
 
   for (let i = 0; i < displayArticles.length; i++) {
     const article = displayArticles[i];
@@ -870,45 +929,17 @@ export async function selectArticles(
     console.error(`  ${String(i + 1).padStart(2)}. ${priority}${date.padEnd(14)} ${title.padEnd(62)} ${article.path}/`);
   }
 
-  if (sorted.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
-    const remaining = sorted.length - MAX_OLDEST_ARTICLES_TO_SHOW;
+  if (filteredArticles.length > MAX_OLDEST_ARTICLES_TO_SHOW) {
+    const remaining = filteredArticles.length - MAX_OLDEST_ARTICLES_TO_SHOW;
     const nextStart = MAX_OLDEST_ARTICLES_TO_SHOW + 1;
     console.error(`\n  ... and ${remaining} more (use range syntax, e.g., '${nextStart}:10' for articles ${nextStart}-${nextStart + 9})`);
   }
   console.error('');
 
-  // Date limit prompt: if savedDateLimit is set, ask user to confirm/change/clear
-  let activeDateLimit: string | undefined;
-  if (options.savedDateLimit) {
-    const dateLimitAnswer = await prompt(
-      `  Date limit: ${options.savedDateLimit} [Enter to confirm, new YYYY-MM-DD, 'none' to clear]`
-    );
-    if (dateLimitAnswer === '') {
-      activeDateLimit = options.savedDateLimit;
-      console.error(`  Using date limit: ${activeDateLimit}`);
-    } else if (dateLimitAnswer.toLowerCase() === 'none') {
-      activeDateLimit = undefined;
-      console.error(`  Date limit cleared.`);
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateLimitAnswer) && !isNaN(new Date(dateLimitAnswer).getTime())) {
-      activeDateLimit = dateLimitAnswer;
-      console.error(`  Using date limit: ${activeDateLimit}`);
-    } else {
-      console.error(`  Invalid date format. Ignoring, no date limit applied.`);
-      activeDateLimit = undefined;
-    }
-    console.error('');
-  }
-
   while (true) {
     const answer = await prompt("Enter numbers (e.g., '1,3,5'), range 'N:M', filters 'date:YYYY-MM-DD url:path/', 'all', or 'q'");
 
-    // Auto-inject active date limit if user didn't specify one inline
-    let effectiveAnswer = answer;
-    if (activeDateLimit && !answer.includes('date:')) {
-      effectiveAnswer = `${answer} date:${activeDateLimit}`;
-    }
-
-    const result = parseArticleSelection(effectiveAnswer, sorted.length, sorted);
+    const result = parseArticleSelection(answer, filteredArticles.length, filteredArticles);
 
     if (result.type === 'quit') {
       return null;
@@ -916,9 +947,9 @@ export async function selectArticles(
 
     let selectedPaths: string[];
     if (result.type === 'all') {
-      selectedPaths = sorted.map((a) => a.path);
+      selectedPaths = filteredArticles.map((a) => a.path);
     } else {
-      selectedPaths = (result.indices || []).map((idx) => sorted[idx].path);
+      selectedPaths = (result.indices || []).map((idx) => filteredArticles[idx].path);
     }
 
     if (selectedPaths.length === 0) {
@@ -932,7 +963,7 @@ export async function selectArticles(
 
     console.error(`\nSelected ${selectedPaths.length} article(s):`);
     for (const p of selectedPaths.slice(0, 10)) {
-      const info = sorted.find(a => a.path === p);
+      const info = filteredArticles.find(a => a.path === p);
       console.error(`  - ${info ? truncateTitle(info.title || info.path, 60) : p}  ${p}/`);
     }
     if (selectedPaths.length > 10) {
@@ -942,11 +973,7 @@ export async function selectArticles(
     const ok = await prompt('Proceed? (Y/n)');
     if (!ok || ok.trim().toLowerCase() === 'y' || ok.trim() === '') {
       if (selectedPaths.length === 0) return null;
-      // Determine which date limit was actually used
-      const usedDateLimit = answer.includes('date:')
-        ? answer.match(/date:(\S+)/)?.[1]
-        : activeDateLimit;
-      return { paths: selectedPaths, dateFilter: usedDateLimit };
+      return { paths: selectedPaths, dateFilter: activeDateLimit };
     }
   }
 }
@@ -1258,6 +1285,8 @@ export function displayBatchSummary(
     success: boolean;
     error?: string;
     wordCount?: number;
+    savedFiles?: string[];
+    articleFolder?: string;
   }>,
   totalTokens: number,
   totalCost: number,
@@ -1281,11 +1310,15 @@ export function displayBatchSummary(
   if (successful.length > 0) {
     console.error('\nGenerated articles:');
     for (const result of successful) {
-      const fullPath = join(projectDir, 'drafts', result.path, 'content.md');
-      const metaPath = join(projectDir, 'drafts', result.path, META_FILE);
-      console.error(`  - ${result.title}`);
-      console.error(`    ${fullPath}`);
-      console.error(`    ${metaPath}`);
+      console.error(`  - ${result.path}`);
+      if (result.articleFolder) {
+        console.error(`    ${result.articleFolder}/`);
+      }
+      if (result.savedFiles && result.savedFiles.length > 0) {
+        for (const f of result.savedFiles) {
+          console.error(`      ${f}`);
+        }
+      }
       if (result.wordCount) {
         console.error(`    ${result.wordCount} words`);
       }
@@ -1296,8 +1329,12 @@ export function displayBatchSummary(
     console.error('\nFailed articles:');
     for (const result of failed) {
       console.error(`  - ${result.path}: ${result.error || 'Unknown error'}`);
-      const failedFullPath = join(projectDir, 'drafts', result.path, 'index.json');
-      console.error(`    ${failedFullPath}`);
+      if (result.articleFolder) {
+        console.error(`    ${result.articleFolder}/`);
+      } else {
+        const failedFullPath = join(projectDir, 'drafts', result.path, 'index.json');
+        console.error(`    ${failedFullPath}`);
+      }
     }
   }
 }
