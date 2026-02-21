@@ -19,6 +19,10 @@ Rails.application.routes.draw do
     post   "users/otp/send",  to: "users/otp_sessions#send_code", as: :send_otp_code
     get    "users/otp/verify", to: "users/otp_sessions#verify",   as: :verify_otp_code
     post   "users/otp/verify", to: "users/otp_sessions#confirm",  as: :confirm_otp_code
+
+    # TOTP 2FA routes
+    get    "users/totp/verify", to: "users/totp_sessions#new",    as: :verify_totp
+    post   "users/totp/verify", to: "users/totp_sessions#create", as: :confirm_totp
   end
 
   # API routes
@@ -73,6 +77,13 @@ Rails.application.routes.draw do
       # Subscription and plans
       resource :subscription, only: [:show]
       resources :plans, only: [:index]
+
+      # Two-Factor Authentication (TOTP)
+      get  "two_factor/status", to: "two_factor#status"
+      post "two_factor/enable", to: "two_factor#enable"
+      post "two_factor/confirm", to: "two_factor#confirm"
+      delete "two_factor/disable", to: "two_factor#disable"
+      post "two_factor/regenerate_backup_codes", to: "two_factor#regenerate_backup_codes"
 
       # Visibility checks
       resources :visibility_checks, only: [:index, :show]

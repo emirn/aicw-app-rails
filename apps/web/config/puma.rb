@@ -39,3 +39,14 @@ plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]
+
+# Graceful shutdown configuration for zero-downtime deployments
+# Matches Kamal's drain_timeout of 30 seconds
+worker_timeout 60
+worker_shutdown_timeout 30
+
+on_worker_shutdown do
+  # Give in-flight requests 30 seconds to complete before forceful termination
+  # This ensures requests aren't dropped during deployments
+  puts "Worker shutting down gracefully..."
+end

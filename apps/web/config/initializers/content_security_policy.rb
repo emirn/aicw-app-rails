@@ -25,6 +25,7 @@ Rails.application.configure do
     policy.connect_src *policy.connect_src, "ws://#{ViteRuby.config.host_with_port}" if Rails.env.development?
   end
 
-  # Report violations without enforcing the policy.
-  config.content_security_policy_report_only = true
+  # Enforce CSP in production (set to true to disable enforcement)
+  # NOTE: Test thoroughly in development before enforcing in production
+  config.content_security_policy_report_only = false
 end

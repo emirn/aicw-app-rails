@@ -166,3 +166,22 @@ accessories:
       health-interval: "10s"
       health-timeout: "5s"
       health-retries: 3
+
+  # litestream: Continuous SQLite database backups to S3/R2
+  litestream:
+    image: litestream/litestream:0.3
+    host: <%= ENV["AICW_RAILS_SERVER_IP"] %>
+    cmd: replicate
+    volumes:
+      - "aicw_app_rails_storage:/data"
+    files:
+      - config/litestream.yml:/etc/litestream.yml
+    env:
+      secret:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+      clear:
+        AWS_REGION: us-east-1
+        LITESTREAM_BUCKET: aicw-db-backups
+    options:
+      restart: unless-stopped

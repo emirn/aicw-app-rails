@@ -1,0 +1,48 @@
+# Litestream configuration for SQLite database backups
+# Replicates to S3-compatible storage (AWS S3 or Cloudflare R2)
+
+dbs:
+  # Main production database
+  - path: /data/production.sqlite3
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET:-aicw-db-backups}
+        path: production/main
+        region: ${AWS_REGION:-us-east-1}
+        endpoint: ${S3_ENDPOINT:-}  # For Cloudflare R2, use https://ACCOUNT_ID.r2.cloudflarestorage.com
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        # Replicate every 10 seconds
+        sync-interval: 10s
+        # Retain snapshots for 30 days
+        retention: 720h  # 30 days
+        # Snapshot interval (full copy every 24 hours)
+        snapshot-interval: 24h
+
+  # Cache database (less critical, shorter retention)
+  - path: /data/cache.sqlite3
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET:-aicw-db-backups}
+        path: production/cache
+        region: ${AWS_REGION:-us-east-1}
+        endpoint: ${S3_ENDPOINT:-}
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        sync-interval: 1m
+        retention: 168h  # 7 days
+        snapshot-interval: 24h
+
+  # Queue database
+  - path: /data/queue.sqlite3
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET:-aicw-db-backups}
+        path: production/queue
+        region: ${AWS_REGION:-us-east-1}
+        endpoint: ${S3_ENDPOINT:-}
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        sync-interval: 1m
+        retention: 168h  # 7 days
+        snapshot-interval: 24h

@@ -17,6 +17,15 @@ class WebsiteArticle < ApplicationRecord
   validates :website_id, presence: true
   validates :slug, uniqueness: { scope: :website_id, message: "must be unique per website" }
 
+  # File upload validations for security and resource management
+  validates :assets,
+    content_type: { in: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+                    message: 'must be an image (JPEG, PNG, WEBP) or PDF' },
+    size: { less_than: 10.megabytes,
+            message: 'must be less than 10MB' },
+    limit: { max: 20,
+             message: 'cannot exceed 20 files per article' }
+
   # JSON array attributes (stored as JSON in SQLite)
   def keywords
     (super || []).map(&:to_s)

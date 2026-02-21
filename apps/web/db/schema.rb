@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_10_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_21_112806) do
   create_table "account_invitations", force: :cascade do |t|
     t.integer "account_id", null: false
     t.datetime "created_at", null: false
@@ -208,12 +208,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000001) do
     t.string "email", null: false
     t.string "encrypted_password"
     t.string "full_name"
+    t.integer "last_otp_timestep"
     t.integer "otp_attempts", default: 0
+    t.text "otp_backup_codes"
     t.string "otp_digest"
+    t.boolean "otp_required_for_login", default: false, null: false
+    t.string "otp_secret"
     t.datetime "otp_sent_at"
     t.datetime "remember_created_at"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["otp_required_for_login"], name: "index_users_on_otp_required_for_login"
   end
 
   create_table "visibility_checks", force: :cascade do |t|

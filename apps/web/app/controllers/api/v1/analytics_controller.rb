@@ -6,6 +6,10 @@ class Api::V1::AnalyticsController < Api::BaseController
 
   before_action :find_project, only: [:query]
 
+  # Rate limit public endpoint to prevent abuse
+  rate_limit to: 100, within: 5.minutes, only: :public_query,
+             with: -> { render_api_error("Rate limit exceeded. Please try again later.", status: :too_many_requests) }
+
   # Supported Tinybird pipes for analytics
   ALLOWED_PIPES = %w[
     analytics_overview

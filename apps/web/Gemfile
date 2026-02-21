@@ -39,6 +39,9 @@ gem "image_processing", "~> 1.2"
 # MIME type detection for ActiveStorage uploads
 gem "marcel", "~> 1.0"
 
+# ActiveStorage validations for file uploads
+gem "active_storage_validations", "~> 1.1"
+
 # ============================================
 # Authentication & Authorization
 # ============================================
@@ -48,6 +51,10 @@ gem "omniauth-rails_csrf_protection"
 gem "pundit", "~> 2.3"
 gem "bcrypt", "~> 3.1.7"
 gem "valid_email2"
+
+# Two-Factor Authentication (TOTP)
+gem "rotp", "~> 6.3"      # RFC 6238 TOTP
+gem "rqrcode", "~> 2.2"   # QR codes for authenticator apps
 
 # ============================================
 # Multi-tenancy & Soft References
@@ -67,9 +74,11 @@ gem "rack-cors"
 gem "faraday", "~> 2.0"
 
 # ============================================
-# Exception Notification
+# Exception Notification & Error Tracking
 # ============================================
 gem "exception_notification"
+gem "sentry-ruby"
+gem "sentry-rails"
 
 # ============================================
 # Environment Variables

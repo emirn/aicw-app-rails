@@ -4,6 +4,7 @@ class User < ApplicationRecord
   include Authenticatable
   include Accounts
   include SubscriptionMethods
+  include TwoFactorAuthentication
 
   # Set to true to reject emails with plus-addressing aliases (e.g. user+tag@gmail.com).
   # Disabled by default — the controller already normalizes aliases before storage.

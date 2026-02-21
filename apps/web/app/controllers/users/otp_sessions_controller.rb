@@ -23,6 +23,12 @@ class Users::OtpSessionsController < ApplicationController
       return
     end
 
+    # Verify Turnstile captcha if configured
+    if ENV['TURNSTILE_SECRET_KEY'].present? && !verify_turnstile(params[:'cf-turnstile-response'])
+      redirect_to new_user_session_path, alert: "Captcha verification failed. Please try again."
+      return
+    end
+
     if User::REJECT_PLUS_ALIASES && raw_email.match?(/\+[^@]+@/)
       redirect_to new_user_session_path, alert: "Email addresses with aliases (e.g. user+tag@example.com) are not allowed."
       return
@@ -98,10 +104,17 @@ class Users::OtpSessionsController < ApplicationController
         u.full_name = email.split("@").first
       end
       clear_otp_session!
-      reset_session
-      user.remember_me!
-      sign_in(:user, user)
-      redirect_to after_sign_in_path_for(user)
+
+      # Check if user has TOTP 2FA enabled
+      if user.otp_required_for_login?
+        session[:pending_totp_user_id] = user.id
+        redirect_to verify_totp_path
+      else
+        reset_session
+        user.remember_me!
+        sign_in(:user, user)
+        redirect_to after_sign_in_path_for(user)
+      end
     when :expired
       Rails.logger.warn("[OTP] Expired code used for #{email} from #{request.remote_ip}")
       flash[:prefill_email] = email
@@ -158,5 +171,26 @@ class Users::OtpSessionsController < ApplicationController
   def clear_otp_session!
     session.delete(:otp_email)
     session.delete(:pending_otp)
+  end
+
+  def verify_turnstile(token)
+    return true unless ENV['TURNSTILE_SECRET_KEY'].present?
+    return false if token.blank?
+
+    require 'net/http'
+    require 'json'
+
+    uri = URI('https://challenges.cloudflare.com/turnstile/v0/siteverify')
+    response = Net::HTTP.post_form(uri, {
+      'secret' => ENV['TURNSTILE_SECRET_KEY'],
+      'response' => token,
+      'remoteip' => request.remote_ip
+    })
+
+    data = JSON.parse(response.body)
+    data['success'] == true
+  rescue => e
+    Rails.logger.error("[Turnstile] Verification error: #{e.message}")
+    false
   end
 end
