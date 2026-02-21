@@ -61,8 +61,7 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
       heroImageBase64,
     });
 
-    const articlePath = context.articlePath || '';
-    const ogPath = `assets/${articlePath}/og.webp`;
+    const ogPath = `assets/${context.articlePath}/og.webp`;
 
     const updatedArticleObj = updateArticle(normalizedMeta, {
       image_og: `/${ogPath}`,

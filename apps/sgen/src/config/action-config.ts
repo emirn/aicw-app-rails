@@ -45,6 +45,9 @@ const loadPerActionConfigs = (): ActionConfigMap => {
           colors: (cfg as any).colors,
           // Action-specific config for add_external_links
           add_external_links: cfg.add_external_links,
+          // Image generation config
+          image_engine: cfg.image_engine,
+          image_model_id: cfg.image_model_id,
           // Internal: absolute path to prompt.md
           prompt_path: promptPath,
           // Sync fields for CLI auto-sync

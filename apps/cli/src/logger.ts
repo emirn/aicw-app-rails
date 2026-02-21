@@ -26,8 +26,8 @@ export class Logger {
   private colorize(timestamp: string, message: string): string {
     const ts = chalk.dim(`[${timestamp}]`);
 
-    // Error patterns - red
-    if (/FAILED|Error|error|FAIL|failed/i.test(message)) {
+    // Error patterns - red (only match explicit error indicators, not words in paths/slugs)
+    if (/\[ERROR\]|FAILED|\bFAIL\b/.test(message)) {
       return `${ts} ${chalk.red(message)}`;
     }
 

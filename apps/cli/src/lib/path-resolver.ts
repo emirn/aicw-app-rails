@@ -129,8 +129,10 @@ function resolveRelativePath(relPath: string): ResolvedPath {
  * Check if a project exists
  */
 export async function projectExists(resolved: ResolvedPath): Promise<boolean> {
-  // A project exists if its directory exists (subfolders in /projects/ are projects)
-  return existsSync(resolved.projectDir);
+  if (!existsSync(resolved.projectDir)) return false;
+  // Require a project marker file to distinguish real projects from utility dirs
+  return existsSync(path.join(resolved.projectDir, 'index.json'))
+    || existsSync(path.join(resolved.projectDir, 'project.json'));
 }
 
 /**

@@ -420,6 +420,8 @@ export class APIExecutor {
     costUsd?: number;
     skipped?: boolean;  // True if action was skipped (e.g., already applied)
     contentStats?: any;
+    savedFiles?: string[];
+    articleFolder?: string;
   }> {
     // Build context from path
     const context = await this.buildContext(action, pathArg, flags);
@@ -533,9 +535,11 @@ export class APIExecutor {
 
       // Execute file operations
       const operationErrors: string[] = [];
+      const allSavedFiles: string[] = [];
       for (const op of response.operations || []) {
         try {
-          await this.executeOperation(op, context.projectName, response.prompt, response.rawResponse);
+          const opFiles = await this.executeOperation(op, context.projectName, response.prompt, response.rawResponse);
+          allSavedFiles.push(...opFiles);
         } catch (err) {
           operationErrors.push(`${op.type}: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -559,6 +563,7 @@ export class APIExecutor {
             operationErrors.push(`write_file ${file.path}: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
+        allSavedFiles.push(...savedFiles);
         if (savedFiles.length > 0) {
           this.logger.log('Saved files:');
           for (const f of savedFiles) {
@@ -600,6 +605,10 @@ export class APIExecutor {
         } catch { /* non-fatal */ }
       }
 
+      const articleFolder = context.articlePath && context.projectName
+        ? path.join(getProjectPaths(context.projectName).content, context.articlePath)
+        : undefined;
+
       return {
         success: true,
         message: response.message,
@@ -608,6 +617,8 @@ export class APIExecutor {
         costUsd: response.costUsd,
         skipped: response.skipped,
         contentStats: response.contentStats,
+        savedFiles: allSavedFiles,
+        articleFolder,
       };
     } catch (error) {
       return {
@@ -1099,7 +1110,7 @@ export class APIExecutor {
   /**
    * Execute a single file operation
    */
-  private async executeOperation(op: FileOperation, contextProjectName?: string, prompt?: string, rawResponse?: string): Promise<void> {
+  private async executeOperation(op: FileOperation, contextProjectName?: string, prompt?: string, rawResponse?: string): Promise<string[]> {
     const projectName = op.projectName || contextProjectName;
 
     if (!projectName && op.type !== 'create_project') {
@@ -1115,7 +1126,7 @@ export class APIExecutor {
         await initializeProjectDirectories(op.projectName);
         await saveProjectConfig(paths.root, op.projectConfig);
         this.logger.log(`Created project: ${op.projectName}`);
-        break;
+        return [];
       }
 
       case 'create_article': {
@@ -1127,7 +1138,8 @@ export class APIExecutor {
         const { content, ...meta } = op.article;
         await createArticleFolder(paths.content, op.articlePath, meta as IArticle, content || '');
         this.logger.log(`Created article: ${op.articlePath}`);
-        break;
+        const createFolderPath = path.join(paths.content, op.articlePath);
+        return [path.join(createFolderPath, 'index.json'), path.join(createFolderPath, 'content.md')];
       }
 
       case 'update_article': {
@@ -1197,7 +1209,7 @@ export class APIExecutor {
         }
 
         this.logger.log(`Updated article: ${op.articlePath}`);
-        break;
+        return [path.join(folderPath, 'index.json'), path.join(folderPath, 'content.md')];
       }
 
       case 'update_meta': {
@@ -1208,7 +1220,7 @@ export class APIExecutor {
         const folderPath = path.join(paths.content, op.articlePath);
         await updateArticleMeta(folderPath, op.metaUpdates);
         this.logger.log(`Updated meta: ${op.articlePath}`);
-        break;
+        return [path.join(folderPath, 'index.json')];
       }
 
       default:

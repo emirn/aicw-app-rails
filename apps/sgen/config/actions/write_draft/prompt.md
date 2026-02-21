@@ -28,6 +28,24 @@ When an article compares options, tools, or approaches side by side, present the
 2. Run through the review checklist
 3. Flag missing sections
 
+**Numbered paragraphs with lettered sub-items** (for detailed sequential points with specifics):
+
+Use this sparingly when a numbered point contains multiple specific details that benefit from sub-structure:
+
+1. First main point as a full paragraph explaining the concept.
+
+2. Second main point as a full paragraph.
+
+3. Third main point that introduces specific details:
+
+    a. First specific detail with context
+    b. Second specific detail with context
+    c. Third specific detail with context
+
+WHEN TO USE: Complex instructional content where one numbered point needs to list multiple specific requirements, options, or details. Example: Payment instructions that list bank transfer details, online payment steps, and check mailing address.
+
+WHEN NOT TO USE: Most articles. Reserve this for 1-2 sections maximum per article where the sub-items genuinely add clarity. If you're using this pattern more than twice in an article, you're overusing it.
+
 **Bullet list** (for non-sequential items):
 - Tax identification number (EIN or SSN)
 - Complete business address

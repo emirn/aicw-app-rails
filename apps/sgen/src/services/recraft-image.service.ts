@@ -12,6 +12,9 @@ import { config } from '../config/server-config';
 import { IBrandingColors } from '@blogpostgen/types';
 import { GeneratedImage } from './image.service';
 
+/** Recraft API endpoint */
+export const RECRAFT_API_URL = 'https://external.api.recraft.ai/v1/images/generations';
+
 /** Recraft supported sizes (width x height) */
 const RECRAFT_SIZES: [number, number][] = [
   [1024, 1024],
@@ -103,6 +106,7 @@ function buildColorControls(colors?: IBrandingColors): {
 
 export interface RecraftImageOptions {
   prompt: string;
+  model: string;
   width?: number;
   height?: number;
   style?: string;
@@ -156,13 +160,15 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
     ...(recraftSubstyle && { substyle: recraftSubstyle }),
     size: `${genWidth}x${genHeight}`,
     response_format: 'b64_json',
+    negative_prompt: 'text, words, letters, numbers, typography, signs, labels, captions, watermarks, titles',
   };
 
-  // Add color controls if brand colors provided
+  // Always add controls object (for no_text); merge with color controls if present
   const colorControls = buildColorControls(colors);
-  if (colorControls.colors || colorControls.background_color) {
-    requestBody.controls = colorControls;
-  }
+  requestBody.controls = {
+    ...colorControls,
+    no_text: true,
+  };
 
   if (log) {
     const logBody = {
@@ -172,7 +178,7 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
     log.info({ requestBody: logBody }, 'recraft:request');
   }
 
-  const response = await fetch('https://external.api.recraft.ai/v1/images/generations', {
+  const response = await fetch(RECRAFT_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -228,7 +234,7 @@ export async function generateRecraftImage(options: RecraftImageOptions): Promis
     data: base64Data,
     filename: `${slug}.webp`,
     prompt,
-    model: 'recraft-v3',
+    model: options.model,
     width,
     height,
     costUsd: 0.04,

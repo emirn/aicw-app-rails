@@ -14,11 +14,19 @@ import { ensureNoUnreplacedMacros, requireBrandingColors } from '../../utils/gua
 import { convertBase64ToWebp } from '@blogpostgen/og-image-gen';
 
 export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context, flags, cfg, log }) => {
+  const imageEngine = cfg?.image_engine;
+  const imageModelId = cfg?.image_model_id;
+  if (!imageEngine) {
+    throw new Error('generate_image_hero: image_engine not set in config.json (expected "recraft" or "flux")');
+  }
+  if (!imageModelId) {
+    throw new Error('generate_image_hero: image_model_id not set in config.json');
+  }
+
   const brandingColors = requireBrandingColors(
     (context.projectConfig as any)?.branding?.colors,
     'generate_image_hero'
   );
-  const { generateRecraftImage } = await import('../../services/recraft-image.service');
   const { replaceVariables } = await import('../../utils/variables');
 
   const description = normalizedMeta.description;
@@ -74,22 +82,33 @@ export const handle: ActionHandlerFn = async ({ article, normalizedMeta, context
   log.info({ path: context.articlePath, mode: 'generate_image_hero' }, 'generate_image_hero:generating');
 
   try {
-    const branding = (context.projectConfig as any)?.branding;
-    const recraftStyle = branding?.illustration_style || 'digital_illustration/pastel_gradient';
-    const generatedImage = await generateRecraftImage({
-      prompt: imagePrompt,
-      width: 1200,
-      height: 630,
-      style: recraftStyle,
-      colors: brandingColors,
-      log,
-    });
+    let generatedImage;
+    if (imageEngine === 'recraft') {
+      const { generateRecraftImage } = await import('../../services/recraft-image.service');
+      const branding = (context.projectConfig as any)?.branding;
+      const recraftStyle = branding?.illustration_style || 'digital_illustration/pastel_gradient';
+      generatedImage = await generateRecraftImage({
+        prompt: imagePrompt,
+        model: imageModelId,
+        width: 1200,
+        height: 630,
+        style: recraftStyle,
+        colors: brandingColors,
+        log,
+      });
+    } else {
+      const { generateImage } = await import('../../services/image.service');
+      generatedImage = await generateImage({
+        prompt: imagePrompt,
+        width: 1200,
+        height: 630,
+      });
+    }
 
     const webpData = await convertBase64ToWebp(generatedImage.data);
 
     const heroFilename = 'hero.webp';
-    const articlePath = context.articlePath || '';
-    const heroPath = `assets/${articlePath}/${heroFilename}`;
+    const heroPath = `assets/${context.articlePath}/${heroFilename}`;
 
     const updatedArticleObj = updateArticle(normalizedMeta, {
       image_hero: `/${heroPath}`,

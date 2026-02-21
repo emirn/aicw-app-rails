@@ -214,6 +214,7 @@ export async function handlePlanImport(
         version: 0,
         created_at: now,
         updated_at: now,
+        reviewed_by: [],
       };
 
       // Brief content for index.md (no H1 title - title is in meta.md)
