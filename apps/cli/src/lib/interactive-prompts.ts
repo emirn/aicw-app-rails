@@ -499,8 +499,8 @@ export async function listAvailableProjects(): Promise<ProjectInfo[]> {
               articleCount: articles.length,
             });
           }
-        } catch {
-          // Skip directories that aren't valid projects
+        } catch (err) {
+          console.error(`  Warning: Failed to load project "${entry.name}": ${(err as Error).message}`);
         }
       }
     }
